@@ -2,6 +2,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const editorCanvas = document.getElementById('editorCanvas');
 const eCtx = editorCanvas.getContext('2d');
+const gameContainer = document.getElementById('game-container');
 
 // Elementos de UI
 const hud = document.getElementById('hud');
@@ -303,12 +304,14 @@ function applyPlatformSettingsUI() {
         pcBtn.classList.remove('selected');
         mobileBtn.classList.add('selected');
         pauseMenuBtn.classList.add('hidden');
-        hint.textContent = 'Modo Celular: toque para pular/voar e segure por 5s para ir ao pause.';
+        gameContainer.classList.add('mobile-ui-drag');
+        hint.textContent = 'Modo Celular: toque para pular/voar, arraste na UI para ver tudo e segure por 5s para ir ao pause.';
     } else {
         controlPlatform = 'pc';
         mobileBtn.classList.remove('selected');
         pcBtn.classList.add('selected');
         pauseMenuBtn.classList.remove('hidden');
+        gameContainer.classList.remove('mobile-ui-drag');
         hint.textContent = 'Modo PC: clique/espaço para pular/voar e botão II para pausar.';
     }
 }
@@ -318,6 +321,50 @@ function setPlatformMode(mode) {
     clearHoldPauseTimer();
     applyPlatformSettingsUI();
     writeSaveData();
+}
+
+// === ARRASTAR UI APENAS NO MODO CELULAR ===
+function setupMobileUiDrag() {
+    const scrollableSelectors = '.overlay, .creations-list, .editor-topbar, .editor-tab-content';
+
+    document.querySelectorAll(scrollableSelectors).forEach(el => {
+        let dragging = false;
+        let moved = false;
+        let startX = 0;
+        let startY = 0;
+        let startScrollLeft = 0;
+        let startScrollTop = 0;
+
+        el.addEventListener('pointerdown', (e) => {
+            if (controlPlatform !== 'mobile') return;
+            if (e.target.closest('button, input, select, canvas')) return;
+            dragging = true;
+            moved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            startScrollLeft = el.scrollLeft;
+            startScrollTop = el.scrollTop;
+        });
+
+        el.addEventListener('pointermove', (e) => {
+            if (!dragging || controlPlatform !== 'mobile') return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+            el.scrollLeft = startScrollLeft - dx;
+            el.scrollTop = startScrollTop - dy;
+        });
+
+        const stopDrag = () => {
+            dragging = false;
+            if (moved) {
+                setTimeout(() => { moved = false; }, 0);
+            }
+        };
+
+        el.addEventListener('pointerup', stopDrag);
+        el.addEventListener('pointercancel', stopDrag);
+    });
 }
 
 function updatePracticeUI() {
@@ -1985,7 +2032,6 @@ function drawEditorCanvas() {
     const toSX = (wx) => wx - editorScrollX + 80;
     const toSY = (wy) => wy * EDITOR_SCALE_Y;
 
-    // Pilares
     editorDraft.pillars.forEach(pi => {
         const sx = toSX(pi.x);
         const h = (pi.h || 90) * EDITOR_SCALE_Y;
@@ -1993,7 +2039,6 @@ function drawEditorCanvas() {
         eCtx.fillRect(sx, EDITOR_GROUND_Y - h, 24, h);
     });
 
-    // Plataformas
     editorDraft.platforms.forEach(pl => {
         const sx = toSX(pl.x);
         const sy = toSY(pl.y);
@@ -2004,7 +2049,6 @@ function drawEditorCanvas() {
         eCtx.strokeRect(sx, sy, pl.w * 0.8, 18);
     });
 
-    // Espinhos
     editorDraft.spikes.forEach(sp => {
         const sx = toSX(sp.x);
         const sy = sp.inverted ? toSY(CEILING_Y) : EDITOR_GROUND_Y;
@@ -2026,14 +2070,12 @@ function drawEditorCanvas() {
         eCtx.stroke();
     });
 
-    // Pads
     editorDraft.pads.forEach(pd => {
         const sx = toSX(pd.x);
         eCtx.fillStyle = pd.color === 'pink' ? '#ff4fd8' : '#ffe600';
         eCtx.fillRect(sx, EDITOR_GROUND_Y - 8, 26, 8);
     });
 
-    // Orbs
     editorDraft.orbs.forEach(ob => {
         const sx = toSX(ob.x);
         const sy = toSY(ob.y);
@@ -2043,13 +2085,13 @@ function drawEditorCanvas() {
         eCtx.fill();
     });
 
-    // Serras e moedas
     editorDraft.saws.forEach(sw => {
         eCtx.fillStyle = '#94a3b8';
         eCtx.beginPath();
         eCtx.arc(toSX(sw.x), toSY(sw.y), 14, 0, Math.PI * 2);
         eCtx.fill();
     });
+
     editorDraft.coins.forEach(co => {
         eCtx.fillStyle = '#ffd60a';
         eCtx.beginPath();
@@ -2057,7 +2099,6 @@ function drawEditorCanvas() {
         eCtx.fill();
     });
 
-    // Portais
     editorDraft.portals.forEach(pt => {
         const sx = toSX(pt.x);
         eCtx.strokeStyle = pt.type === 'ship' ? '#38bdf8' : '#80ed99';
@@ -2065,14 +2106,12 @@ function drawEditorCanvas() {
         eCtx.strokeRect(sx, EDITOR_GROUND_Y - 78, 32, 78);
     });
 
-    // Triggers
     editorDraft.triggers.forEach(tr => {
         const sx = toSX(tr.x);
         eCtx.strokeStyle = '#ffe600';
         eCtx.strokeRect(sx, 30, 16, EDITOR_GROUND_Y - 30);
     });
 
-    // Linha de chegada
     const finX = toSX(finishX);
     eCtx.strokeStyle = '#00ffaa';
     eCtx.lineWidth = 4;
@@ -2081,7 +2120,6 @@ function drawEditorCanvas() {
     eCtx.lineTo(finX, EDITOR_GROUND_Y);
     eCtx.stroke();
 
-    // Indicador de posição do scroll no rodapé do canvas
     eCtx.fillStyle = 'rgba(0, 0, 0, 0.55)';
     eCtx.fillRect(10, 10, 210, 22);
     eCtx.fillStyle = '#ffe600';
@@ -2474,6 +2512,7 @@ window.addEventListener('touchcancel', cancelMobileTouch);
 
 // Inicializa
 applyPlatformSettingsUI();
+setupMobileUiDrag();
 updatePracticeUI();
 setupGarage();
 loop();
