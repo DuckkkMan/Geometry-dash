@@ -1739,7 +1739,9 @@ function syncStyleInputsFromDraft() {
     document.getElementById('style-bg-bottom').value = editorDraft.bgBottom;
     document.getElementById('style-ground-fill').value = editorDraft.groundFill;
     document.getElementById('style-ground-grid').value = editorDraft.groundGrid;
-    document.getElementById('style-finish-x').value = editorDraft.finishX;
+    const finishInput = document.getElementById('style-finish-x');
+    finishInput.max = String(Math.max(Number(finishInput.max) || 7500, editorDraft.finishX + 100000));
+    finishInput.value = editorDraft.finishX;
     document.getElementById('style-finish-label').textContent = editorDraft.finishX;
 }
 
@@ -2152,12 +2154,12 @@ function getEditorWorldCoords(pointerEvent) {
 function expandEditorLevelIfNeeded(worldX) {
     if (worldX < editorDraft.finishX - 240) return;
 
-    const nextFinish = Math.min(1000000, Math.ceil((worldX + 700) / 100) * 100);
+    const nextFinish = Math.ceil((worldX + 700) / 100) * 100;
     if (nextFinish <= editorDraft.finishX) return;
 
     editorDraft.finishX = nextFinish;
     const finishInput = document.getElementById('style-finish-x');
-    finishInput.max = '1000000';
+    finishInput.max = String(Math.max(Number(finishInput.max) || 7500, nextFinish + 100000));
     finishInput.value = String(nextFinish);
     document.getElementById('style-finish-label').textContent = String(nextFinish);
 }
