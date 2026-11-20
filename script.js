@@ -3,21 +3,23 @@ const ctx = canvas.getContext('2d');
 
 // Elementos de UI
 const hud = document.getElementById('hud');
+const pauseMenuBtn = document.getElementById('pause-menu-btn');
 const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
 const mainMenu = document.getElementById('main-menu');
+const settingsScreen = document.getElementById('settings-screen');
 const levelSelect = document.getElementById('level-select');
 const skinGarage = document.getElementById('skin-garage');
 const pauseScreen = document.getElementById('pause-screen');
 const winScreen = document.getElementById('win-screen');
 
-// Estados: 'MENU', 'LEVEL_SELECT', 'SKINS', 'PLAYING', 'DEAD', 'PAUSED', 'ENDING_ANIM', 'WIN'
+// Estados: 'MENU', 'SETTINGS', 'LEVEL_SELECT', 'SKINS', 'PLAYING', 'DEAD', 'PAUSED', 'ENDING_ANIM', 'WIN'
 let gameState = 'MENU';
 let stateBeforePause = 'PLAYING';
 let deadRemainingMs = 0;
 let deadStartedAt = 0;
 
-// Timer para segurar 5 segundos no toque (celular) e ir ao pause
+// Timer para segurar 5 segundos no toque no modo CELULAR e ir ao pause
 const HOLD_PAUSE_MS = 5000;
 let holdPauseTimer = null;
 
@@ -54,6 +56,7 @@ function loadSaveData() {
         console.warn('Erro ao carregar save local:', e);
     }
     return {
+        platform: 'pc', // Padrão original de PC
         skin: { model: 0, primary: '#ffde00', secondary: '#00e5ff' },
         progress: {},
         attempts: {}
@@ -63,6 +66,7 @@ function loadSaveData() {
 function writeSaveData() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            platform: controlPlatform,
             skin: playerSkin,
             progress: levelProgress,
             attempts: levelAttempts
@@ -73,6 +77,7 @@ function writeSaveData() {
 }
 
 const savedData = loadSaveData();
+let controlPlatform = savedData.platform === 'mobile' ? 'mobile' : 'pc';
 let playerSkin = savedData.skin || { model: 0, primary: '#ffde00', secondary: '#00e5ff' };
 let levelProgress = savedData.progress || {};
 let levelAttempts = savedData.attempts || {};
@@ -122,6 +127,32 @@ const LEVELS = [
 ];
 let currentLevelIndex = 0;
 
+function applyPlatformSettingsUI() {
+    const pcBtn = document.getElementById('mode-pc-btn');
+    const mobileBtn = document.getElementById('mode-mobile-btn');
+    const hint = document.getElementById('platform-hint');
+
+    if (controlPlatform === 'mobile') {
+        pcBtn.classList.remove('selected');
+        mobileBtn.classList.add('selected');
+        pauseMenuBtn.classList.add('hidden');
+        hint.textContent = 'Modo Celular: toque para pular e segure por 5s para ir ao pause.';
+    } else {
+        controlPlatform = 'pc';
+        mobileBtn.classList.remove('selected');
+        pcBtn.classList.add('selected');
+        pauseMenuBtn.classList.remove('hidden');
+        hint.textContent = 'Modo PC: clique/espaço para pular e botão II para pausar.';
+    }
+}
+
+function setPlatformMode(mode) {
+    controlPlatform = mode === 'mobile' ? 'mobile' : 'pc';
+    clearHoldPauseTimer();
+    applyPlatformSettingsUI();
+    writeSaveData();
+}
+
 function clearRespawnTimer() {
     if (respawnTimer) {
         clearTimeout(respawnTimer);
@@ -138,6 +169,7 @@ function clearHoldPauseTimer() {
 }
 
 function startHoldPauseTimer() {
+    if (controlPlatform !== 'mobile') return;
     clearHoldPauseTimer();
     holdPauseTimer = setTimeout(() => {
         isHoldingJump = false;
@@ -334,6 +366,7 @@ let activeAttemptNumber = 1;
 function startAttempt(countNewAttempt = true) {
     clearRespawnTimer();
     clearHoldPauseTimer();
+    applyPlatformSettingsUI();
     const lvl = LEVELS[currentLevelIndex];
 
     if (countNewAttempt) {
@@ -588,7 +621,7 @@ function checkSpikeCollision(p, spikeScreenX, spikeW, spikeH) {
 function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (gameState === 'MENU' || gameState === 'LEVEL_SELECT' || gameState === 'SKINS') {
+    if (gameState === 'MENU' || gameState === 'SETTINGS' || gameState === 'LEVEL_SELECT' || gameState === 'SKINS') {
         bgScroll += GAME_SPEED * 0.25;
         groundScroll += GAME_SPEED;
         drawBackground();
@@ -814,7 +847,7 @@ function updateLevelCard() {
     face.innerHTML = `<img src="${src}" alt="${lvl.difficulty}" onerror="this.style.display='none';">`;
 }
 
-// Navegação dos Menus e Pause
+// Navegação dos Menus, Configurações e Pause
 document.getElementById('play-btn').addEventListener('click', () => {
     clearRespawnTimer();
     clearHoldPauseTimer();
@@ -830,6 +863,29 @@ document.getElementById('skin-btn').addEventListener('click', () => {
     mainMenu.classList.add('hidden');
     skinGarage.classList.remove('hidden');
     gameState = 'SKINS';
+});
+
+document.getElementById('settings-btn').addEventListener('click', () => {
+    clearRespawnTimer();
+    clearHoldPauseTimer();
+    applyPlatformSettingsUI();
+    mainMenu.classList.add('hidden');
+    settingsScreen.classList.remove('hidden');
+    gameState = 'SETTINGS';
+});
+
+document.getElementById('back-from-settings').addEventListener('click', () => {
+    settingsScreen.classList.add('hidden');
+    mainMenu.classList.remove('hidden');
+    gameState = 'MENU';
+});
+
+document.getElementById('mode-pc-btn').addEventListener('click', () => {
+    setPlatformMode('pc');
+});
+
+document.getElementById('mode-mobile-btn').addEventListener('click', () => {
+    setPlatformMode('mobile');
 });
 
 document.getElementById('back-from-levels').addEventListener('click', () => {
@@ -860,7 +916,7 @@ document.getElementById('level-card').addEventListener('click', () => {
     startAttempt(true);
 });
 
-document.getElementById('pause-menu-btn').addEventListener('click', () => {
+pauseMenuBtn.addEventListener('click', () => {
     pauseCurrentGame();
 });
 
@@ -896,7 +952,7 @@ document.getElementById('win-menu-btn').addEventListener('click', () => {
     gameState = 'MENU';
 });
 
-// Controles de Pulo e Pause (PC + Segurar 5s no Toque)
+// Controles de Pulo e Pause
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape' || e.code === 'KeyP') {
         if (gameState === 'PAUSED') resumeCurrentGame();
@@ -923,7 +979,9 @@ canvas.addEventListener('touchstart', (e) => {
     if (gameState === 'PLAYING') {
         e.preventDefault();
         isHoldingJump = true;
-        startHoldPauseTimer();
+        if (controlPlatform === 'mobile') {
+            startHoldPauseTimer();
+        }
     }
 }, { passive: false });
 
@@ -936,5 +994,6 @@ window.addEventListener('touchend', cancelMobileTouch);
 window.addEventListener('touchcancel', cancelMobileTouch);
 
 // Inicializa
+applyPlatformSettingsUI();
 setupGarage();
 loop();
