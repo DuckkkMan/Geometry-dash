@@ -2129,26 +2129,97 @@ function drawEditorCanvas() {
     requestAnimationFrame(drawEditorCanvas);
 }
 
-editorCanvas.addEventListener('click', (e) => {
-    if (gameState !== 'EDITOR') return;
+// Coordenadas corretas mesmo quando o canvas está reduzido no celular.
+function getEditorWorldCoords(pointerEvent) {
     const rect = editorCanvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+    const scaleX = editorCanvas.width / Math.max(1, rect.width);
+    const scaleY = editorCanvas.height / Math.max(1, rect.height);
+    const canvasX = (pointerEvent.clientX - rect.left) * scaleX;
+    const canvasY = (pointerEvent.clientY - rect.top) * scaleY;
 
-    const worldX = editorShowGrid
-        ? Math.round((clickX + editorScrollX - 80) / EDITOR_GRID) * EDITOR_GRID
-        : (clickX + editorScrollX - 80);
+    let worldX = canvasX + editorScrollX - 80;
+    let worldY = canvasY / EDITOR_SCALE_Y;
 
-    const worldY = editorShowGrid
-        ? Math.round((clickY / EDITOR_SCALE_Y) / EDITOR_GRID) * EDITOR_GRID
-        : (clickY / EDITOR_SCALE_Y);
-
-    if (editorToolMode === 'erase') {
-        eraseAtWorldCoord(worldX, worldY);
-    } else {
-        placeSelectedAtWorldCoord(worldX, worldY);
+    if (editorShowGrid) {
+        worldX = Math.round(worldX / EDITOR_GRID) * EDITOR_GRID;
+        worldY = Math.round(worldY / EDITOR_GRID) * EDITOR_GRID;
     }
+
+    return { x: worldX, y: worldY };
+}
+
+// A fase cresce automaticamente quando o usuário continua arrastando.
+function expandEditorLevelIfNeeded(worldX) {
+    if (worldX < editorDraft.finishX - 240) return;
+
+    const nextFinish = Math.min(1000000, Math.ceil((worldX + 700) / 100) * 100);
+    if (nextFinish <= editorDraft.finishX) return;
+
+    editorDraft.finishX = nextFinish;
+    const finishInput = document.getElementById('style-finish-x');
+    finishInput.max = '1000000';
+    finishInput.value = String(nextFinish);
+    document.getElementById('style-finish-label').textContent = String(nextFinish);
+}
+
+let lastEditorDragPoint = null;
+
+function editAtEditorPointer(pointerEvent) {
+    const point = getEditorWorldCoords(pointerEvent);
+    expandEditorLevelIfNeeded(point.x);
+
+    if (!lastEditorDragPoint) {
+        if (editorToolMode === 'erase') eraseAtWorldCoord(point.x, point.y);
+        else placeSelectedAtWorldCoord(point.x, point.y);
+        lastEditorDragPoint = point;
+        return;
+    }
+
+    const dx = point.x - lastEditorDragPoint.x;
+    const dy = point.y - lastEditorDragPoint.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 8) return;
+
+    // Interpola os pontos para não deixar buracos quando o dedo/mouse se move rápido.
+    const steps = Math.max(1, Math.ceil(distance / EDITOR_GRID));
+    for (let i = 1; i <= steps; i++) {
+        const x = lastEditorDragPoint.x + dx * (i / steps);
+        const y = lastEditorDragPoint.y + dy * (i / steps);
+        const px = editorShowGrid ? Math.round(x / EDITOR_GRID) * EDITOR_GRID : x;
+        const py = editorShowGrid ? Math.round(y / EDITOR_GRID) * EDITOR_GRID : y;
+        if (editorToolMode === 'erase') eraseAtWorldCoord(px, py);
+        else placeSelectedAtWorldCoord(px, py);
+    }
+
+    lastEditorDragPoint = point;
+}
+
+editorCanvas.addEventListener('pointerdown', (e) => {
+    if (gameState !== 'EDITOR' || e.button > 0) return;
+    e.preventDefault();
+    lastEditorDragPoint = null;
+    editorCanvas.setPointerCapture?.(e.pointerId);
+    editAtEditorPointer(e);
 });
+
+editorCanvas.addEventListener('pointermove', (e) => {
+    if (gameState !== 'EDITOR' || !lastEditorDragPoint) return;
+    if (e.pointerType === 'touch') {
+        const rect = editorCanvas.getBoundingClientRect();
+        const localX = e.clientX - rect.left;
+        if (localX > rect.width - 28) editorScrollX += 18;
+        else if (localX < 28) editorScrollX = Math.max(0, editorScrollX - 18);
+    }
+    editAtEditorPointer(e);
+});
+
+function stopEditorPointerDrag() {
+    lastEditorDragPoint = null;
+}
+editorCanvas.addEventListener('pointerup', stopEditorPointerDrag);
+editorCanvas.addEventListener('pointercancel', stopEditorPointerDrag);
+editorCanvas.addEventListener('lostpointercapture', stopEditorPointerDrag);
+editorCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // === GARAGEM DE SKINS ===
 function renderSkinUI() {
