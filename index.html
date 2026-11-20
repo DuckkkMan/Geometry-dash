@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Geometry Dash v0.3</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -12,7 +12,7 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="900" height="500"></canvas>
 
-        <!-- BARRA DE PROGRESSO + BOTÃO PAUSE -->
+        <!-- BARRA DE PROGRESSO (DURANTE A FASE) -->
         <div id="hud" class="hidden">
             <div class="progress-wrapper">
                 <div class="progress-bar-bg">
@@ -20,7 +20,7 @@
                 </div>
                 <span id="progress-text">0%</span>
             </div>
-            <button id="pause-menu-btn" type="button" aria-label="Pausar" title="Pausar">II</button>
+            <button id="pause-menu-btn" title="Pausar">II</button>
         </div>
 
         <!-- MENU DE PAUSE -->
@@ -29,9 +29,9 @@
                 <h2>PAUSED</h2>
                 <p id="pause-level-name">Spike Rush</p>
                 <div class="win-buttons">
-                    <button id="resume-btn" type="button" class="gd-btn green">▶</button>
-                    <button id="pause-restart-btn" type="button" class="gd-btn yellow">↻</button>
-                    <button id="pause-exit-menu-btn" type="button" class="gd-btn blue">MENU</button>
+                    <button id="resume-btn" class="gd-btn green">▶</button>
+                    <button id="pause-restart-btn" class="gd-btn yellow">↻</button>
+                    <button id="pause-exit-menu-btn" class="gd-btn blue">MENU</button>
                 </div>
             </div>
         </div>
@@ -44,11 +44,11 @@
             </div>
 
             <div class="menu-buttons-row">
-                <button id="skin-btn" type="button" class="side-btn" aria-label="Skins" title="Skins">
+                <button id="skin-btn" class="side-btn" aria-label="Skins" title="Skins">
                     <canvas id="skin-btn-icon" width="44" height="44"></canvas>
                 </button>
 
-                <button id="play-btn" type="button" aria-label="Jogar" title="Jogar">
+                <button id="play-btn" aria-label="Jogar" title="Jogar">
                     <div class="play-triangle"></div>
                 </button>
             </div>
@@ -56,10 +56,10 @@
 
         <!-- SELEÇÃO DE FASES -->
         <div id="level-select" class="overlay hidden">
-            <button id="back-from-levels" type="button" class="corner-back-btn">←</button>
+            <button id="back-from-levels" class="corner-back-btn">←</button>
             
             <div class="level-carousel">
-                <button id="prev-level" type="button" class="arrow-btn">‹</button>
+                <button id="prev-level" class="arrow-btn">‹</button>
                 
                 <div id="level-card" class="level-card">
                     <div class="level-header">
@@ -74,14 +74,14 @@
                     </div>
                 </div>
 
-                <button id="next-level" type="button" class="arrow-btn">›</button>
+                <button id="next-level" class="arrow-btn">›</button>
             </div>
-            <p class="hint-text">Toque ou clique no cartão da fase para iniciar</p>
+            <p class="hint-text">Clique no cartão da fase para iniciar</p>
         </div>
 
         <!-- GARAGEM DE SKINS -->
         <div id="skin-garage" class="overlay hidden">
-            <button id="back-from-skins" type="button" class="corner-back-btn">←</button>
+            <button id="back-from-skins" class="corner-back-btn">←</button>
             
             <div class="garage-box">
                 <h2>ICON KIT</h2>
@@ -110,8 +110,8 @@
                 <h2>LEVEL COMPLETE!</h2>
                 <p id="win-level-name">Spike Rush • 100%</p>
                 <div class="win-buttons">
-                    <button id="replay-btn" type="button" class="gd-btn green">↻</button>
-                    <button id="win-menu-btn" type="button" class="gd-btn blue">MENU</button>
+                    <button id="replay-btn" class="gd-btn green">↻</button>
+                    <button id="win-menu-btn" class="gd-btn blue">MENU</button>
                 </div>
             </div>
         </div>
