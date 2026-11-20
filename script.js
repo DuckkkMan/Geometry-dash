@@ -8,10 +8,14 @@ const progressText = document.getElementById('progress-text');
 const mainMenu = document.getElementById('main-menu');
 const levelSelect = document.getElementById('level-select');
 const skinGarage = document.getElementById('skin-garage');
+const pauseScreen = document.getElementById('pause-screen');
 const winScreen = document.getElementById('win-screen');
 
-// Estados: 'MENU', 'LEVEL_SELECT', 'SKINS', 'PLAYING', 'DEAD', 'ENDING_ANIM', 'WIN'
+// Estados: 'MENU', 'LEVEL_SELECT', 'SKINS', 'PLAYING', 'DEAD', 'PAUSED', 'ENDING_ANIM', 'WIN'
 let gameState = 'MENU';
+let stateBeforePause = 'PLAYING';
+let deadRemainingMs = 0;
+let deadStartedAt = 0;
 
 // Física
 const GRAVITY = 0.95;
@@ -71,7 +75,7 @@ let levelAttempts = savedData.attempts || {};
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
 
-// Fases oficiais da v0.3: apenas Spike Rush (azul) e Emerald Pulse (verde)
+// Fases oficiais da v0.3
 const LEVELS = [
     {
         name: 'Spike Rush',
@@ -83,7 +87,6 @@ const LEVELS = [
         groundFill: '#001d5c',
         groundGrid: '#0044cc',
         finishX: 3100,
-        // Ritmo progressivo: simples -> cadenciado -> sequência curta
         spikes: [
             780,
             1220,
@@ -102,7 +105,6 @@ const LEVELS = [
         groundFill: '#042b18',
         groundGrid: '#0c6b3b',
         finishX: 4100,
-        // Fase mais longa e dinâmica com ritmo alternado
         spikes: [
             760,
             1160, 1204,
@@ -121,6 +123,18 @@ function clearRespawnTimer() {
         clearTimeout(respawnTimer);
         respawnTimer = null;
     }
+    deadRemainingMs = 0;
+}
+
+function scheduleRespawn(delayMs) {
+    clearRespawnTimer();
+    deadRemainingMs = delayMs;
+    deadStartedAt = Date.now();
+    respawnTimer = setTimeout(() => {
+        if (gameState === 'DEAD') {
+            startAttempt(true);
+        }
+    }, delayMs);
 }
 
 function recordBestProgress(levelName, percent) {
@@ -346,11 +360,36 @@ function triggerDeath() {
         });
     }
 
-    respawnTimer = setTimeout(() => {
-        if (gameState === 'DEAD') {
-            startAttempt(true);
-        }
-    }, RESPAWN_DELAY_MS);
+    scheduleRespawn(RESPAWN_DELAY_MS);
+}
+
+function pauseCurrentGame() {
+    const pausableStates = ['PLAYING', 'DEAD', 'ENDING_ANIM'];
+    if (!pausableStates.includes(gameState)) return;
+
+    isHoldingJump = false;
+    stateBeforePause = gameState;
+
+    if (gameState === 'DEAD' && respawnTimer) {
+        clearTimeout(respawnTimer);
+        respawnTimer = null;
+        deadRemainingMs = Math.max(100, deadRemainingMs - (Date.now() - deadStartedAt));
+    }
+
+    gameState = 'PAUSED';
+    document.getElementById('pause-level-name').textContent = `${LEVELS[currentLevelIndex].name} • ${currentRunPercent}%`;
+    pauseScreen.classList.remove('hidden');
+}
+
+function resumeCurrentGame() {
+    if (gameState !== 'PAUSED') return;
+
+    pauseScreen.classList.add('hidden');
+    gameState = stateBeforePause;
+
+    if (gameState === 'DEAD') {
+        scheduleRespawn(deadRemainingMs || RESPAWN_DELAY_MS);
+    }
 }
 
 function updateProgressUI(percent) {
@@ -376,9 +415,8 @@ function drawAttemptLabel() {
     ctx.restore();
 }
 
-// Cenário (adapta cor quando está jogando uma fase; mantém azul padrão no menu)
 function drawBackground() {
-    const isInLevel = gameState === 'PLAYING' || gameState === 'DEAD' || gameState === 'ENDING_ANIM' || gameState === 'WIN';
+    const isInLevel = ['PLAYING', 'DEAD', 'PAUSED', 'ENDING_ANIM', 'WIN'].includes(gameState);
     const lvl = LEVELS[currentLevelIndex];
 
     const topColor = isInLevel ? lvl.bgTop : '#0038a8';
@@ -403,7 +441,7 @@ function drawBackground() {
 }
 
 function drawGround() {
-    const isInLevel = gameState === 'PLAYING' || gameState === 'DEAD' || gameState === 'ENDING_ANIM' || gameState === 'WIN';
+    const isInLevel = ['PLAYING', 'DEAD', 'PAUSED', 'ENDING_ANIM', 'WIN'].includes(gameState);
     const lvl = LEVELS[currentLevelIndex];
 
     ctx.fillStyle = isInLevel ? lvl.groundFill : '#001d5c';
@@ -486,7 +524,7 @@ function spawnEndParticles(x, y, count = 4, burst = false) {
     }
 }
 
-function updateAndDrawParticles() {
+function updateParticlesOnly() {
     for (let i = particles.length - 1; i >= 0; i--) {
         const pt = particles[i];
         pt.x += pt.vx;
@@ -494,12 +532,12 @@ function updateAndDrawParticles() {
         if (pt.gravity) pt.vy += pt.gravity;
         if (pt.vRot) pt.rot += pt.vRot;
         pt.alpha -= pt.decay || 0.025;
+        if (pt.alpha <= 0) particles.splice(i, 1);
+    }
+}
 
-        if (pt.alpha <= 0) {
-            particles.splice(i, 1);
-            continue;
-        }
-
+function drawParticlesOnly() {
+    for (let pt of particles) {
         ctx.save();
         ctx.globalAlpha = Math.max(0, pt.alpha);
         ctx.translate(pt.x, pt.y);
@@ -592,7 +630,29 @@ function loop() {
         const finishScreenX = activeFinishX - levelDistance + 160;
         drawFinishWall(finishScreenX);
 
-        updateAndDrawParticles();
+        updateParticlesOnly();
+        drawParticlesOnly();
+    }
+    else if (gameState === 'PAUSED') {
+        drawBackground();
+        drawGround();
+        drawAttemptLabel();
+
+        for (let s of activeSpikes) {
+            const screenX = s.x - levelDistance + 160;
+            if (screenX + s.width > -50 && screenX < canvas.width + 50) {
+                drawSpike(screenX, GROUND_Y, s.width, s.height);
+            }
+        }
+
+        const finishScreenX = activeFinishX - levelDistance + 160;
+        drawFinishWall(finishScreenX);
+
+        if (stateBeforePause === 'DEAD') {
+            drawParticlesOnly();
+        } else {
+            player.draw();
+        }
     }
     else if (gameState === 'ENDING_ANIM') {
         drawBackground();
@@ -612,7 +672,8 @@ function loop() {
         player.rotation += 0.22;
 
         spawnEndParticles(player.x, player.y, 4, false);
-        updateAndDrawParticles();
+        updateParticlesOnly();
+        drawParticlesOnly();
         player.draw();
 
         const travelDone = Math.max(0, player.x - 160);
@@ -624,7 +685,6 @@ function loop() {
             const completedLevelName = LEVELS[currentLevelIndex].name;
             updateProgressUI(100);
             recordBestProgress(completedLevelName, 100);
-            // Zera os attempts ao completar a fase
             resetAttemptsForLevel(completedLevelName);
 
             spawnEndParticles(lockedFinishScreenX - 10, player.y, 28, true);
@@ -640,7 +700,8 @@ function loop() {
         drawBackground();
         drawGround();
         drawFinishWall(lockedFinishScreenX);
-        updateAndDrawParticles();
+        updateParticlesOnly();
+        drawParticlesOnly();
 
         if (winFlashAlpha > 0) {
             ctx.fillStyle = `rgba(255, 255, 255, ${winFlashAlpha})`;
@@ -731,7 +792,7 @@ function updateLevelCard() {
     face.innerHTML = `<img src="${src}" alt="${lvl.difficulty}" onerror="this.style.display='none';">`;
 }
 
-// Navegação dos Menus
+// Navegação dos Menus e Pause
 document.getElementById('play-btn').addEventListener('click', () => {
     clearRespawnTimer();
     mainMenu.classList.add('hidden');
@@ -775,9 +836,28 @@ document.getElementById('level-card').addEventListener('click', () => {
     startAttempt(true);
 });
 
-document.getElementById('pause-menu-btn').addEventListener('click', () => {
+const pauseBtn = document.getElementById('pause-menu-btn');
+pauseBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    pauseCurrentGame();
+});
+pauseBtn.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+}, { passive: true });
+
+document.getElementById('resume-btn').addEventListener('click', () => {
+    resumeCurrentGame();
+});
+
+document.getElementById('pause-restart-btn').addEventListener('click', () => {
+    pauseScreen.classList.add('hidden');
+    startAttempt(true);
+});
+
+document.getElementById('pause-exit-menu-btn').addEventListener('click', () => {
     clearRespawnTimer();
     recordBestProgress(LEVELS[currentLevelIndex].name, currentRunPercent);
+    pauseScreen.classList.add('hidden');
     hud.classList.add('hidden');
     mainMenu.classList.remove('hidden');
     gameState = 'MENU';
@@ -796,9 +876,14 @@ document.getElementById('win-menu-btn').addEventListener('click', () => {
     gameState = 'MENU';
 });
 
-// Controles de Pulo
+// Controles de Pulo (apenas durante PLAYING)
 window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+    if (e.code === 'Escape' || e.code === 'KeyP') {
+        if (gameState === 'PAUSED') resumeCurrentGame();
+        else pauseCurrentGame();
+        return;
+    }
+    if (gameState === 'PLAYING' && (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW')) {
         isHoldingJump = true;
     }
 });
@@ -809,14 +894,20 @@ window.addEventListener('keyup', (e) => {
     }
 });
 
-canvas.addEventListener('mousedown', () => { isHoldingJump = true; });
+canvas.addEventListener('mousedown', () => {
+    if (gameState === 'PLAYING') isHoldingJump = true;
+});
 window.addEventListener('mouseup', () => { isHoldingJump = false; });
 
 canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    isHoldingJump = true;
-});
+    if (gameState === 'PLAYING') {
+        e.preventDefault();
+        isHoldingJump = true;
+    }
+}, { passive: false });
+
 window.addEventListener('touchend', () => { isHoldingJump = false; });
+window.addEventListener('touchcancel', () => { isHoldingJump = false; });
 
 // Inicializa
 setupGarage();
