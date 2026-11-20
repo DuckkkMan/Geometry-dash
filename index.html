@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geometry Dash v0.4</title>
+    <title>Geometry Dash v0.5</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -12,13 +12,15 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="900" height="500"></canvas>
 
-        <!-- BARRA DE PROGRESSO + % -->
+        <!-- BARRA DE PROGRESSO + % + PRÁTICA -->
         <div id="hud" class="hidden">
             <div class="progress-wrapper">
                 <div class="progress-bar-bg">
                     <div id="progress-fill"></div>
                 </div>
                 <span id="progress-text">0%</span>
+                <button id="practice-toggle-btn" class="hud-chip" type="button" title="Modo Prática">PRÁTICA: OFF</button>
+                <button id="checkpoint-btn" class="hud-chip hidden" type="button" title="Marcar Checkpoint">CKPT</button>
             </div>
             <button id="pause-menu-btn" title="Pausar">II</button>
         </div>
@@ -42,7 +44,7 @@
 
             <div class="logo-container">
                 <h1 class="gd-title">GEOMETRY<br><span>DASH</span></h1>
-                <div class="version-badge">v0.4</div>
+                <div class="version-badge">v0.5</div>
             </div>
 
             <div class="menu-buttons-row">
@@ -69,7 +71,7 @@
                     <button id="mode-mobile-btn" class="platform-btn" type="button">CELULAR</button>
                 </div>
 
-                <p id="platform-hint" class="platform-hint">Modo PC: clique/espaço para pular e botão II para pausar.</p>
+                <p id="platform-hint" class="platform-hint">Modo PC: clique/espaço para pular/voar e botão II para pausar.</p>
             </div>
         </div>
 
