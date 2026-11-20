@@ -3,35 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geometry Dash v0.1</title>
-    <!-- Fonte geométrica estilo Geometry Dash -->
+    <title>Geometry Dash v0.2</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="game-container">
-        <!-- Canvas do Jogo (Fundo e Fase) -->
         <canvas id="gameCanvas" width="900" height="500"></canvas>
 
-        <!-- TELA INICIAL (MENU) -->
+        <!-- BARRA DE PROGRESSO (DURANTE A FASE) -->
+        <div id="hud" class="hidden">
+            <div class="progress-wrapper">
+                <div class="progress-bar-bg">
+                    <div id="progress-fill"></div>
+                </div>
+                <span id="progress-text">0%</span>
+            </div>
+            <button id="pause-menu-btn" title="Voltar ao Menu">II</button>
+        </div>
+
+        <!-- TELA INICIAL (MENU PRINCIPAL) -->
         <div id="main-menu" class="overlay">
             <div class="logo-container">
                 <h1 class="gd-title">GEOMETRY<br><span>DASH</span></h1>
-                <div class="version-badge">v0.1</div>
+                <div class="version-badge">v0.2</div>
             </div>
 
-            <button id="play-btn" aria-label="Jogar">
-                <div class="play-triangle"></div>
-            </button>
+            <div class="menu-buttons-row">
+                <!-- Botão de Skin (menor, à esquerda do Play) -->
+                <button id="skin-btn" class="side-btn" aria-label="Skins" title="Skins">
+                    <canvas id="skin-btn-icon" width="44" height="44"></canvas>
+                </button>
+
+                <!-- Botão Play Central -->
+                <button id="play-btn" aria-label="Jogar" title="Jogar">
+                    <div class="play-triangle"></div>
+                </button>
+            </div>
+        </div>
+
+        <!-- SELEÇÃO DE FASES -->
+        <div id="level-select" class="overlay hidden">
+            <button id="back-from-levels" class="corner-back-btn">←</button>
+            
+            <div class="level-carousel">
+                <button id="prev-level" class="arrow-btn">‹</button>
+                
+                <div id="level-card" class="level-card">
+                    <div class="level-header">
+                        <div class="difficulty-face" id="level-diff-face">:)</div>
+                        <h2 id="level-name">Spike Run</h2>
+                    </div>
+                    <div class="level-stats">
+                        <span id="level-diff-text">NORMAL</span>
+                        <span id="level-stars">★ 1</span>
+                    </div>
+                </div>
+
+                <button id="next-level" class="arrow-btn">›</button>
+            </div>
+            <p class="hint-text">Clique no cartão da fase para iniciar</p>
+        </div>
+
+        <!-- GARAGEM DE SKINS -->
+        <div id="skin-garage" class="overlay hidden">
+            <button id="back-from-skins" class="corner-back-btn">←</button>
+            
+            <div class="garage-box">
+                <h2>ICON KIT</h2>
+                
+                <div class="preview-stage">
+                    <canvas id="skin-preview" width="80" height="80"></canvas>
+                </div>
+
+                <!-- Modelos de Cubo -->
+                <div class="skin-row" id="skin-models"></div>
+
+                <!-- Cores Primárias -->
+                <div class="color-section">
+                    <span>COR 1</span>
+                    <div class="color-row" id="primary-colors"></div>
+                </div>
+
+                <!-- Cores Secundárias -->
+                <div class="color-section">
+                    <span>COR 2</span>
+                    <div class="color-row" id="secondary-colors"></div>
+                </div>
+            </div>
         </div>
 
         <!-- TELA DE VITÓRIA (LEVEL COMPLETE) -->
         <div id="win-screen" class="overlay hidden">
             <div class="win-box">
                 <h2>LEVEL COMPLETE!</h2>
-                <p>Spike Run concluída</p>
-                <button id="menu-btn">MENU</button>
+                <p id="win-level-name">Spike Run concluída</p>
+                <div class="win-buttons">
+                    <button id="replay-btn" class="gd-btn green">↻</button>
+                    <button id="win-menu-btn" class="gd-btn blue">MENU</button>
+                </div>
             </div>
         </div>
     </div>
