@@ -1071,16 +1071,22 @@ canvas {
     }
 
     #level-editor .editor-main-area {
-        min-height: 100px;
+        flex: 1 1 auto;
+        min-height: 180px;
+        max-height: min(42vh, 260px);
         display: flex;
-        align-items: center;
+        align-items: stretch;
         justify-content: center;
+        overflow: hidden;
+        background: #070d18;
     }
 
     #level-editor #editorCanvas {
+        display: block;
         width: 100%;
-        height: auto;
-        aspect-ratio: 30 / 11;
+        height: 100%;
+        aspect-ratio: auto;
+        touch-action: none;
     }
 
     #level-editor .editor-bottom-panel {
@@ -1109,5 +1115,33 @@ canvas {
 
     .gd-title span {
         font-size: clamp(40px, 10vw, 70px);
+    }
+}
+
+
+/* Editor mobile: canvas maior para manter o chão visível e área de toque confortável. */
+@media (max-width: 700px) {
+    #level-editor .editor-topbar {
+        overflow-x: auto;
+        justify-content: flex-start;
+    }
+
+    #level-editor .editor-top-center,
+    #level-editor .editor-top-left,
+    #level-editor .editor-top-right {
+        flex: 0 0 auto;
+    }
+
+    #level-editor .editor-main-area {
+        min-height: 180px;
+    }
+
+    #level-editor .editor-bottom-panel {
+        flex: 0 0 142px;
+    }
+
+    #level-editor .palette-item {
+        min-width: 86px;
+        min-height: 70px;
     }
 }
