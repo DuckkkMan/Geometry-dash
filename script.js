@@ -19,7 +19,7 @@ const JUMP_FORCE = -14.8;
 const GROUND_Y = 390;
 const GAME_SPEED = 7.2;
 const BLOCK_SIZE = 44;
-const RESPAWN_DELAY_MS = 1500; // 1.5 segundo após a explosão
+const RESPAWN_DELAY_MS = 1500;
 
 let bgScroll = 0;
 let groundScroll = 0;
@@ -28,6 +28,15 @@ let isHoldingJump = false;
 let particles = [];
 let winFlashAlpha = 0;
 let respawnTimer = null;
+
+// === ROSTOS DE DIFICULDADE (Assets/) ===
+const DIFFICULTY_FACES = {
+    azul: 'Assets/cara_azul.png',
+    verde: 'Assets/cara_verde.png',
+    amarela: 'Assets/cara_amarela.png',
+    vermelha: 'Assets/cara_vermelha.png',
+    maligna: 'Assets/cara_maligna.png'
+};
 
 // === SISTEMA DE SALVAMENTO LOCAL (localStorage) ===
 const STORAGE_KEY = 'gd_web_save_v025';
@@ -41,8 +50,8 @@ function loadSaveData() {
     }
     return {
         skin: { model: 0, primary: '#ffde00', secondary: '#00e5ff' },
-        progress: {}, // { "Spike Run": 100 }
-        attempts: {}  // { "Spike Run": 3 }
+        progress: {},
+        attempts: {}
     };
 }
 
@@ -65,25 +74,55 @@ let levelAttempts = savedData.attempts || {};
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
 
-// Fases disponíveis
+// Fases disponíveis (as duas iniciais usam cara_azul.png)
 const LEVELS = [
     {
         name: 'Spike Run',
-        difficulty: 'NORMAL',
+        difficulty: 'EASY',
         stars: 1,
-        color: '#38b000',
-        face: ':)',
+        faceKey: 'azul',
         finishX: 2400,
         spikes: [850, 1350, 1850]
     },
     {
-        name: 'Double Trouble',
+        name: 'Blue Rush',
+        difficulty: 'EASY',
+        stars: 1,
+        faceKey: 'azul',
+        finishX: 2550,
+        spikes: [820, 1280, 1760]
+    },
+    {
+        name: 'Green Circuit',
+        difficulty: 'NORMAL',
+        stars: 2,
+        faceKey: 'verde',
+        finishX: 2750,
+        spikes: [850, 894, 1450, 1980]
+    },
+    {
+        name: 'Amber Pulse',
         difficulty: 'HARD',
         stars: 3,
-        color: '#ff9900',
-        face: ':|',
-        finishX: 2800,
-        spikes: [850, 894, 1450, 1950, 1994]
+        faceKey: 'amarela',
+        finishX: 2950,
+        spikes: [850, 894, 1400, 1444, 1980]
+    },
+    {
+        name: 'Crimson Spike',
+        difficulty: 'HARDER',
+        stars: 4,
+        faceKey: 'vermelha',
+        finishX: 3150,
+        spikes: [820, 864, 1350, 1394, 1900, 1944]
+    },
+    {
+        name: 'Malice Core',
+        difficulty: 'DEMON',
+        stars: 5,
+        faceKey: 'maligna',
+        finishX: 3400,
+        spikes: [800, 844, 888, 1450, 1494, 2100, 2144]
     }
 ];
 let currentLevelIndex = 0;
@@ -291,7 +330,6 @@ function triggerDeath() {
     gameState = 'DEAD';
     isHoldingJump = false;
 
-    // Explosão de estilhaços do cubo
     const cx = player.x + player.size / 2;
     const cy = player.y + player.size / 2;
     for (let i = 0; i < 36; i++) {
@@ -312,7 +350,6 @@ function triggerDeath() {
         });
     }
 
-    // Espera 1.5s e reinicia a fase somando +1 attempt
     respawnTimer = setTimeout(() => {
         if (gameState === 'DEAD') {
             startAttempt(true);
@@ -327,7 +364,6 @@ function updateProgressUI(percent) {
     progressText.textContent = clamped + '%';
 }
 
-// Desenha o texto "Attempt X" clássico na fase
 function drawAttemptLabel() {
     const attemptX = 280 - levelDistance + 160;
     if (attemptX < -220 || attemptX > canvas.width + 220) return;
@@ -406,7 +442,6 @@ function drawSpike(x, y, w, h) {
     ctx.restore();
 }
 
-// Parede de Fim de Fase
 function drawFinishWall(screenX) {
     if (screenX > canvas.width + 50) return;
 
@@ -428,7 +463,6 @@ function drawFinishWall(screenX) {
     ctx.fillRect(screenX, 0, 6, GROUND_Y);
 }
 
-// Partículas (Explosão e Vitória)
 function spawnEndParticles(x, y, count = 4, burst = false) {
     for (let i = 0; i < count; i++) {
         particles.push({
@@ -539,7 +573,6 @@ function loop() {
         }
     }
     else if (gameState === 'DEAD') {
-        // Cenário fica parado durante os 1.5s da explosão
         drawBackground();
         drawGround();
         drawAttemptLabel();
@@ -686,8 +719,8 @@ function updateLevelCard() {
     document.getElementById('level-stars').textContent = best === 100 ? `★ ${lvl.stars} (COMPLETA)` : `☆ ${lvl.stars}`;
 
     const face = document.getElementById('level-diff-face');
-    face.textContent = lvl.face;
-    face.style.backgroundColor = lvl.color;
+    const src = DIFFICULTY_FACES[lvl.faceKey] || DIFFICULTY_FACES.azul;
+    face.innerHTML = `<img src="${src}" alt="${lvl.difficulty}" onerror="this.style.display='none';">`;
 }
 
 // Navegação dos Menus
