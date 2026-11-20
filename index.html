@@ -12,7 +12,7 @@
     <div id="game-container">
         <canvas id="gameCanvas" width="900" height="500"></canvas>
 
-        <!-- BARRA DE PROGRESSO (DURANTE A FASE) -->
+        <!-- BARRA DE PROGRESSO + % -->
         <div id="hud" class="hidden">
             <div class="progress-wrapper">
                 <div class="progress-bar-bg">
@@ -38,6 +38,8 @@
 
         <!-- TELA INICIAL (MENU PRINCIPAL) -->
         <div id="main-menu" class="overlay">
+            <button id="settings-btn" class="corner-settings-btn" aria-label="Configurações" title="Configurações">⚙</button>
+
             <div class="logo-container">
                 <h1 class="gd-title">GEOMETRY<br><span>DASH</span></h1>
                 <div class="version-badge">v0.3</div>
@@ -51,6 +53,23 @@
                 <button id="play-btn" aria-label="Jogar" title="Jogar">
                     <div class="play-triangle"></div>
                 </button>
+            </div>
+        </div>
+
+        <!-- CONFIGURAÇÕES (PC / CELULAR) -->
+        <div id="settings-screen" class="overlay hidden">
+            <button id="back-from-settings" class="corner-back-btn">←</button>
+
+            <div class="settings-box">
+                <h2>CONFIGURAÇÕES</h2>
+                <p class="settings-subtitle">PLATAFORMA / CONTROLE</p>
+
+                <div class="platform-toggle">
+                    <button id="mode-pc-btn" class="platform-btn selected" type="button">PC</button>
+                    <button id="mode-mobile-btn" class="platform-btn" type="button">CELULAR</button>
+                </div>
+
+                <p id="platform-hint" class="platform-hint">Modo PC: clique/espaço para pular e botão II para pausar.</p>
             </div>
         </div>
 
