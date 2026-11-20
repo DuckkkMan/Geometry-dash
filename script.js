@@ -26,14 +26,23 @@ let playerMode = 'cube';
 const HOLD_PAUSE_MS = 5000;
 let holdPauseTimer = null;
 
-// Física
+// Física do Cubo
 const GRAVITY = 0.95;
 const JUMP_FORCE = -14.8;
+
+// Física da Ship
+const SHIP_LIFT = -0.68;
+const SHIP_GRAVITY = 0.56;
+const SHIP_MAX_FALL = 7.5;
+const SHIP_MAX_RISE = -7.2;
+const CEILING_Y = 48;
+
+// Dimensões gerais
 const GROUND_Y = 390;
 const GAME_SPEED = 7.2;
 const BLOCK_SIZE = 44;
-const PORTAL_WIDTH = 52;
-const PORTAL_HEIGHT = 116;
+const PORTAL_WIDTH = 56;
+const PORTAL_HEIGHT = 122;
 const RESPAWN_DELAY_MS = 1500;
 
 let bgScroll = 0;
@@ -97,7 +106,7 @@ let levelAttempts = savedData.attempts || {};
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
 
-// Fases da v0.4: primeira fase mantém o ritmo original; segunda fase recebe Portal Ship.png e Portal Cubo.png
+// Fases da v0.4: primeira fase no cubo; segunda fase com Portal Ship.png e Portal Cubo.png funcionais
 const LEVELS = [
     {
         name: 'Spike Rush',
@@ -139,7 +148,7 @@ const LEVELS = [
         ],
         portals: [
             { x: 1420, type: 'ship', triggered: false },
-            { x: 2360, type: 'cube', triggered: false }
+            { x: 2420, type: 'cube', triggered: false }
         ]
     }
 ];
@@ -154,13 +163,13 @@ function applyPlatformSettingsUI() {
         pcBtn.classList.remove('selected');
         mobileBtn.classList.add('selected');
         pauseMenuBtn.classList.add('hidden');
-        hint.textContent = 'Modo Celular: toque para pular e segure por 5s para ir ao pause.';
+        hint.textContent = 'Modo Celular: toque para pular/voar e segure por 5s para ir ao pause.';
     } else {
         controlPlatform = 'pc';
         mobileBtn.classList.remove('selected');
         pcBtn.classList.add('selected');
         pauseMenuBtn.classList.remove('hidden');
-        hint.textContent = 'Modo PC: clique/espaço para pular e botão II para pausar.';
+        hint.textContent = 'Modo PC: clique/espaço para pular/voar e botão II para pausar.';
     }
 }
 
@@ -229,7 +238,7 @@ function resetAttemptsForLevel(levelName) {
 
 // === PORTAIS (Assets/Portal Cubo.png e Assets/Portal Ship.png) ===
 function drawPortal(portal, screenX) {
-    if (screenX + PORTAL_WIDTH < -60 || screenX > canvas.width + 60) return;
+    if (screenX + PORTAL_WIDTH < -70 || screenX > canvas.width + 70) return;
 
     const isCubePortal = portal.type === 'cube';
     const img = isCubePortal ? PORTAL_IMAGES.cube : PORTAL_IMAGES.ship;
@@ -261,15 +270,25 @@ function checkPortalTrigger(p, portal, portalScreenX) {
     const portalBottom = GROUND_Y;
 
     const overlaps =
-        p.x + p.size > portalScreenX + 8 &&
-        p.x < portalScreenX + PORTAL_WIDTH - 8 &&
+        p.x + p.size > portalScreenX + 6 &&
+        p.x < portalScreenX + PORTAL_WIDTH - 6 &&
         p.y + p.size > portalTop &&
         p.y < portalBottom;
 
     if (overlaps) {
         portal.triggered = true;
-        playerMode = portal.type === 'ship' ? 'ship' : 'cube';
-        spawnEndParticles(portalScreenX, GROUND_Y - PORTAL_HEIGHT * 0.65, 12, true);
+        const nextMode = portal.type === 'ship' ? 'ship' : 'cube';
+
+        if (nextMode !== playerMode) {
+            playerMode = nextMode;
+            if (playerMode === 'ship') {
+                p.dy = Math.min(p.dy, -3);
+                p.grounded = false;
+            } else {
+                p.rotation = Math.round(p.rotation / (Math.PI / 2)) * (Math.PI / 2);
+            }
+            spawnEndParticles(portalScreenX + PORTAL_WIDTH / 2, p.y + p.size / 2, 16, true);
+        }
     }
 }
 
@@ -325,6 +344,60 @@ function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
     targetCtx.restore();
 }
 
+// Desenha a nave Ship encaixando o cubo do jogador
+function drawShipPlayer(targetCtx, x, y, size, dy, skin) {
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+    const tilt = Math.max(-0.42, Math.min(0.42, dy * 0.045));
+
+    // Cubo menor montado dentro da ship
+    const cubeSize = size * 0.68;
+    drawCubeSkin(targetCtx, cx - cubeSize / 2, y - cubeSize * 0.42, cubeSize, tilt * 0.5, skin);
+
+    // Chassi da ship
+    targetCtx.save();
+    targetCtx.translate(cx, cy + size * 0.14);
+    targetCtx.rotate(tilt);
+
+    targetCtx.fillStyle = skin.secondary;
+    targetCtx.strokeStyle = '#000';
+    targetCtx.lineWidth = 3;
+
+    targetCtx.beginPath();
+    targetCtx.moveTo(-28, -6);
+    targetCtx.lineTo(14, -6);
+    targetCtx.lineTo(30, 6);
+    targetCtx.lineTo(18, 15);
+    targetCtx.lineTo(-22, 15);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.stroke();
+
+    // Detalhe frontal/asa da ship
+    targetCtx.fillStyle = skin.primary;
+    targetCtx.beginPath();
+    targetCtx.moveTo(-14, 2);
+    targetCtx.lineTo(8, 2);
+    targetCtx.lineTo(2, 11);
+    targetCtx.lineTo(-14, 11);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.stroke();
+
+    // Chama propulsora ao segurar subida
+    if (isHoldingJump && gameState === 'PLAYING') {
+        targetCtx.fillStyle = '#ff9900';
+        targetCtx.beginPath();
+        targetCtx.moveTo(-28, 1);
+        targetCtx.lineTo(-42 - Math.random() * 8, 5);
+        targetCtx.lineTo(-28, 10);
+        targetCtx.closePath();
+        targetCtx.fill();
+    }
+
+    targetCtx.restore();
+}
+
 // Jogador Principal
 const player = {
     x: 160,
@@ -343,6 +416,33 @@ const player = {
     },
 
     update() {
+        if (playerMode === 'ship') {
+            if (isHoldingJump) {
+                this.dy += SHIP_LIFT;
+            } else {
+                this.dy += SHIP_GRAVITY;
+            }
+
+            if (this.dy < SHIP_MAX_RISE) this.dy = SHIP_MAX_RISE;
+            if (this.dy > SHIP_MAX_FALL) this.dy = SHIP_MAX_FALL;
+
+            this.y += this.dy;
+            this.grounded = false;
+
+            if (this.y < CEILING_Y) {
+                this.y = CEILING_Y;
+                if (this.dy < 0) this.dy = 0;
+            }
+
+            if (this.y + this.size >= GROUND_Y) {
+                this.y = GROUND_Y - this.size;
+                if (this.dy > 0) this.dy = 0;
+                this.grounded = true;
+            }
+            return;
+        }
+
+        // Modo Cubo padrão
         if (isHoldingJump && this.grounded) {
             this.jump();
         }
@@ -362,14 +462,18 @@ const player = {
     },
 
     jump() {
-        if (this.grounded) {
+        if (playerMode === 'cube' && this.grounded) {
             this.dy = JUMP_FORCE;
             this.grounded = false;
         }
     },
 
     draw() {
-        drawCubeSkin(ctx, this.x, this.y, this.size, this.rotation, playerSkin);
+        if (playerMode === 'ship') {
+            drawShipPlayer(ctx, this.x, this.y, this.size, this.dy, playerSkin);
+        } else {
+            drawCubeSkin(ctx, this.x, this.y, this.size, this.rotation, playerSkin);
+        }
     }
 };
 
@@ -1040,7 +1144,7 @@ document.getElementById('win-menu-btn').addEventListener('click', () => {
     gameState = 'MENU';
 });
 
-// Controles de Pulo e Pause
+// Controles de Pulo/Voo e Pause
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape' || e.code === 'KeyP') {
         if (gameState === 'PAUSED') resumeCurrentGame();
