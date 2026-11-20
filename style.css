@@ -253,7 +253,7 @@ canvas {
 .level-carousel {
     display: flex;
     align-items: center;
-    gap: 30px;
+    gap: 24px;
 }
 
 .arrow-btn {
@@ -274,34 +274,35 @@ canvas {
 }
 
 .level-card {
-    width: 480px;
-    height: 210px;
+    width: 600px;
+    min-height: 235px;
     background: linear-gradient(180deg, #1e4b94 0%, #0e2652 100%);
     border: 4px solid #000;
     outline: 3px solid #00e5ff;
     border-radius: 18px;
-    padding: 25px;
+    padding: 22px 26px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: center;
     cursor: pointer;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
     transition: transform 0.15s;
 }
 
 .level-card:hover {
-    transform: scale(1.03);
+    transform: scale(1.02);
 }
 
 .level-header {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 22px;
 }
 
+/* Ícone de dificuldade aumentado em 2.5x (72 * 2.5 = 180px) */
 .difficulty-face {
-    width: 72px;
-    height: 72px;
+    width: 180px;
+    height: 180px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -312,7 +313,13 @@ canvas {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.75));
+    filter: drop-shadow(0 5px 0 rgba(0, 0, 0, 0.75));
+}
+
+.level-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .level-card h2 {
@@ -324,10 +331,11 @@ canvas {
 
 .level-stats {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 6px;
     color: #ffe600;
-    font-size: 16px;
-    -webkit-text-stroke: 1px #000;
+    font-size: 14px;
+    -webkit-text-stroke: 0.8px #000;
 }
 
 .hint-text {
