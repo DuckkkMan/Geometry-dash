@@ -106,7 +106,7 @@ let levelAttempts = savedData.attempts || {};
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
 
-// Fases da v0.4: primeira fase no cubo; segunda fase com Portal Ship.png e Portal Cubo.png funcionais
+// Fases da v0.4
 const LEVELS = [
     {
         name: 'Spike Rush',
@@ -344,56 +344,92 @@ function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
     targetCtx.restore();
 }
 
-// Desenha a nave Ship encaixando o cubo do jogador
+// Ship estilizada no padrão GD usando apenas as cores da skin e o cubo encaixado
 function drawShipPlayer(targetCtx, x, y, size, dy, skin) {
     const cx = x + size / 2;
-    const cy = y + size / 2;
-    const tilt = Math.max(-0.42, Math.min(0.42, dy * 0.045));
+    const cy = y + size / 2 + 4;
+    const tilt = Math.max(-0.45, Math.min(0.45, dy * 0.048));
 
-    // Cubo menor montado dentro da ship
-    const cubeSize = size * 0.68;
-    drawCubeSkin(targetCtx, cx - cubeSize / 2, y - cubeSize * 0.42, cubeSize, tilt * 0.5, skin);
-
-    // Chassi da ship
     targetCtx.save();
-    targetCtx.translate(cx, cy + size * 0.14);
+    targetCtx.translate(cx, cy);
     targetCtx.rotate(tilt);
 
-    targetCtx.fillStyle = skin.secondary;
-    targetCtx.strokeStyle = '#000';
-    targetCtx.lineWidth = 3;
-
-    targetCtx.beginPath();
-    targetCtx.moveTo(-28, -6);
-    targetCtx.lineTo(14, -6);
-    targetCtx.lineTo(30, 6);
-    targetCtx.lineTo(18, 15);
-    targetCtx.lineTo(-22, 15);
-    targetCtx.closePath();
-    targetCtx.fill();
-    targetCtx.stroke();
-
-    // Detalhe frontal/asa da ship
-    targetCtx.fillStyle = skin.primary;
-    targetCtx.beginPath();
-    targetCtx.moveTo(-14, 2);
-    targetCtx.lineTo(8, 2);
-    targetCtx.lineTo(2, 11);
-    targetCtx.lineTo(-14, 11);
-    targetCtx.closePath();
-    targetCtx.fill();
-    targetCtx.stroke();
-
-    // Chama propulsora ao segurar subida
+    // Chama propulsora traseira quando sobe
     if (isHoldingJump && gameState === 'PLAYING') {
-        targetCtx.fillStyle = '#ff9900';
+        const flameLen = 14 + Math.random() * 10;
+        targetCtx.fillStyle = '#ff6a00';
+        targetCtx.strokeStyle = '#000';
+        targetCtx.lineWidth = 2;
         targetCtx.beginPath();
-        targetCtx.moveTo(-28, 1);
-        targetCtx.lineTo(-42 - Math.random() * 8, 5);
-        targetCtx.lineTo(-28, 10);
+        targetCtx.moveTo(-26, 4);
+        targetCtx.lineTo(-26 - flameLen, 9);
+        targetCtx.lineTo(-26, 14);
+        targetCtx.closePath();
+        targetCtx.fill();
+        targetCtx.stroke();
+
+        targetCtx.fillStyle = '#ffe600';
+        targetCtx.beginPath();
+        targetCtx.moveTo(-26, 6);
+        targetCtx.lineTo(-26 - flameLen * 0.6, 9);
+        targetCtx.lineTo(-26, 12);
         targetCtx.closePath();
         targetCtx.fill();
     }
+
+    // Cubo do jogador encaixado no cockpit da ship
+    const cubeSize = 28;
+    drawCubeSkin(targetCtx, -cubeSize / 2 + 1, -24, cubeSize, 0, skin);
+
+    // Casco principal da ship (contorno grosso preto + cor secundária + faixa primária)
+    targetCtx.lineJoin = 'round';
+    targetCtx.lineCap = 'round';
+
+    // Sombra/base do casco
+    targetCtx.fillStyle = skin.secondary;
+    targetCtx.strokeStyle = '#000';
+    targetCtx.lineWidth = 3.2;
+    targetCtx.beginPath();
+    targetCtx.moveTo(-30, -2);
+    targetCtx.lineTo(-10, 4);
+    targetCtx.lineTo(14, 2);
+    targetCtx.lineTo(34, 9);
+    targetCtx.lineTo(22, 18);
+    targetCtx.lineTo(-22, 18);
+    targetCtx.lineTo(-32, 9);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.stroke();
+
+    // Faixa lateral estilizada com a cor primária da skin
+    targetCtx.fillStyle = skin.primary;
+    targetCtx.lineWidth = 2.4;
+    targetCtx.beginPath();
+    targetCtx.moveTo(-20, 6);
+    targetCtx.lineTo(16, 6);
+    targetCtx.lineTo(22, 11);
+    targetCtx.lineTo(-18, 11);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.stroke();
+
+    // Para-brisa / recorte escuro do cockpit para dar profundidade
+    targetCtx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    targetCtx.beginPath();
+    targetCtx.moveTo(-12, -2);
+    targetCtx.lineTo(12, -2);
+    targetCtx.lineTo(16, 3);
+    targetCtx.lineTo(-10, 3);
+    targetCtx.closePath();
+    targetCtx.fill();
+
+    // Brilho superior no bico da nave
+    targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    targetCtx.lineWidth = 2;
+    targetCtx.beginPath();
+    targetCtx.moveTo(14, 4);
+    targetCtx.lineTo(29, 8.5);
+    targetCtx.stroke();
 
     targetCtx.restore();
 }
