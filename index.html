@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#18204a">
+  <title>Geometry Dash — Fan Prototype</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Geometry Dash home"><span class="brand-mark">G</span><span>GEOMETRY<br><b>DASH</b></span></a>
+      <div class="top-stats"><span class="stat"><i class="gem"></i><b>0</b></span><span class="stat"><i class="star"></i><b>0</b></span></div>
+      <button class="sound-button" id="soundToggle" aria-label="Alternar som">♫</button>
+    </header>
+
+    <section class="home-screen" id="homeScreen">
+      <div class="menu-title"><span>GEOMETRY</span><strong>DASH</strong><small>JUMP • FLY • FLIP</small></div>
+      <div class="menu-stage">
+        <div class="decor decor-one"></div><div class="decor decor-two"></div><div class="decor decor-three"></div>
+        <div class="side-card">
+          <div class="card-heading">ICON KIT</div>
+          <div class="preview-frame"><canvas id="menuIcon" width="110" height="110"></canvas></div>
+          <button class="yellow-button" id="openSkins">EDITAR ÍCONE</button>
+          <div class="side-caption">ESCOLHA SUA SKIN</div>
+        </div>
+        <button class="play-button" id="playButton" aria-label="Jogar"><span class="play-triangle"></span></button>
+        <div class="side-card right-card">
+          <div class="card-heading">JOGAR</div>
+          <div class="mini-level"><span class="mini-stars">★★★</span><b>SPIKE RUN</b><small>1★ • NORMAL</small></div>
+          <div class="side-caption">FASE DE TESTE</div>
+        </div>
+      </div>
+      <div class="bottom-menu"><span>VERSÃO FAN 1.0</span><span>FEITO COM ♥ EM HTML / CSS / JS</span></div>
+    </section>
+
+    <section class="skin-screen hidden" id="skinScreen">
+      <div class="screen-heading"><button class="back-button" data-back>‹</button><div><small>GARAGE</small><h1>EDITOR DE ÍCONE</h1></div></div>
+      <div class="skin-layout">
+        <div class="large-preview"><div class="preview-label">PRÉVIA</div><canvas id="skinPreview" width="220" height="220"></canvas><div class="preview-caption">SEU CUBO</div></div>
+        <div class="skin-controls">
+          <div class="control-panel"><h2>SELECIONE O ÍCONE</h2><div class="icon-grid" id="iconGrid"></div></div>
+          <div class="control-panel"><h2>CORES</h2><div class="color-row"><label>PRIMÁRIA <input id="primaryColor" type="color" value="#35e8ff"></label><label>SECUNDÁRIA <input id="secondaryColor" type="color" value="#ffdc36"></label></div><div class="color-presets" id="colorPresets"></div></div>
+          <button class="green-button" id="saveSkin">SALVAR ÍCONE</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="game-screen hidden" id="gameScreen">
+      <div class="game-top"><button class="back-button" id="quitGame">‹</button><div><small>FASE 1</small><b>SPIKE RUN</b></div><span id="attemptLabel">TENTATIVA 1</span></div>
+      <div class="progress-track"><div id="progressFill"></div></div>
+      <div class="canvas-wrap"><canvas id="gameCanvas" width="960" height="540" aria-label="Gameplay. Pressione espaço, clique ou toque para pular."></canvas><div class="game-hint" id="gameHint">TOQUE / ESPAÇO PARA PULAR</div></div>
+      <div class="game-footer"><span>0/3 MOEDAS</span><span>SPIKE RUN</span><span id="percentLabel">0%</span></div>
+    </section>
+
+    <div class="modal hidden" id="pauseModal"><div class="modal-box"><h2>PAUSADO</h2><button class="green-button" id="resumeButton">CONTINUAR</button><button class="yellow-button" id="restartButton">REINICIAR</button><button class="dark-button" id="menuButton">MENU</button></div></div>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
