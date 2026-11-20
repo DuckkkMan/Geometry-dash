@@ -17,6 +17,10 @@ let stateBeforePause = 'PLAYING';
 let deadRemainingMs = 0;
 let deadStartedAt = 0;
 
+// Timer para segurar 5 segundos no toque (celular) e ir ao pause
+const HOLD_PAUSE_MS = 5000;
+let holdPauseTimer = null;
+
 // Física
 const GRAVITY = 0.95;
 const JUMP_FORCE = -14.8;
@@ -124,6 +128,21 @@ function clearRespawnTimer() {
         respawnTimer = null;
     }
     deadRemainingMs = 0;
+}
+
+function clearHoldPauseTimer() {
+    if (holdPauseTimer) {
+        clearTimeout(holdPauseTimer);
+        holdPauseTimer = null;
+    }
+}
+
+function startHoldPauseTimer() {
+    clearHoldPauseTimer();
+    holdPauseTimer = setTimeout(() => {
+        isHoldingJump = false;
+        pauseCurrentGame();
+    }, HOLD_PAUSE_MS);
 }
 
 function scheduleRespawn(delayMs) {
@@ -314,6 +333,7 @@ let activeAttemptNumber = 1;
 
 function startAttempt(countNewAttempt = true) {
     clearRespawnTimer();
+    clearHoldPauseTimer();
     const lvl = LEVELS[currentLevelIndex];
 
     if (countNewAttempt) {
@@ -367,6 +387,7 @@ function pauseCurrentGame() {
     const pausableStates = ['PLAYING', 'DEAD', 'ENDING_ANIM'];
     if (!pausableStates.includes(gameState)) return;
 
+    clearHoldPauseTimer();
     isHoldingJump = false;
     stateBeforePause = gameState;
 
@@ -610,6 +631,7 @@ function loop() {
 
             if (levelDistance >= cameraStopDistance) {
                 lockedFinishScreenX = finishScreenX;
+                clearHoldPauseTimer();
                 gameState = 'ENDING_ANIM';
                 isHoldingJump = false;
             }
@@ -795,6 +817,7 @@ function updateLevelCard() {
 // Navegação dos Menus e Pause
 document.getElementById('play-btn').addEventListener('click', () => {
     clearRespawnTimer();
+    clearHoldPauseTimer();
     mainMenu.classList.add('hidden');
     updateLevelCard();
     levelSelect.classList.remove('hidden');
@@ -803,6 +826,7 @@ document.getElementById('play-btn').addEventListener('click', () => {
 
 document.getElementById('skin-btn').addEventListener('click', () => {
     clearRespawnTimer();
+    clearHoldPauseTimer();
     mainMenu.classList.add('hidden');
     skinGarage.classList.remove('hidden');
     gameState = 'SKINS';
@@ -836,14 +860,9 @@ document.getElementById('level-card').addEventListener('click', () => {
     startAttempt(true);
 });
 
-const pauseBtn = document.getElementById('pause-menu-btn');
-pauseBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
+document.getElementById('pause-menu-btn').addEventListener('click', () => {
     pauseCurrentGame();
 });
-pauseBtn.addEventListener('touchstart', (e) => {
-    e.stopPropagation();
-}, { passive: true });
 
 document.getElementById('resume-btn').addEventListener('click', () => {
     resumeCurrentGame();
@@ -856,6 +875,7 @@ document.getElementById('pause-restart-btn').addEventListener('click', () => {
 
 document.getElementById('pause-exit-menu-btn').addEventListener('click', () => {
     clearRespawnTimer();
+    clearHoldPauseTimer();
     recordBestProgress(LEVELS[currentLevelIndex].name, currentRunPercent);
     pauseScreen.classList.add('hidden');
     hud.classList.add('hidden');
@@ -876,7 +896,7 @@ document.getElementById('win-menu-btn').addEventListener('click', () => {
     gameState = 'MENU';
 });
 
-// Controles de Pulo (apenas durante PLAYING)
+// Controles de Pulo e Pause (PC + Segurar 5s no Toque)
 window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape' || e.code === 'KeyP') {
         if (gameState === 'PAUSED') resumeCurrentGame();
@@ -903,11 +923,17 @@ canvas.addEventListener('touchstart', (e) => {
     if (gameState === 'PLAYING') {
         e.preventDefault();
         isHoldingJump = true;
+        startHoldPauseTimer();
     }
 }, { passive: false });
 
-window.addEventListener('touchend', () => { isHoldingJump = false; });
-window.addEventListener('touchcancel', () => { isHoldingJump = false; });
+function cancelMobileTouch() {
+    isHoldingJump = false;
+    clearHoldPauseTimer();
+}
+
+window.addEventListener('touchend', cancelMobileTouch);
+window.addEventListener('touchcancel', cancelMobileTouch);
 
 // Inicializa
 setupGarage();
