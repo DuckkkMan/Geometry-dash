@@ -1126,7 +1126,10 @@ function startAttempt(countNewAttempt = true) {
             height: isMini ? MINI_SPIKE_H : BLOCK_SIZE
         };
     });
-    activePlatforms = (lvl.platforms || []).map(pl => ({ ...pl }));
+    activePlatforms = [
+        ...(lvl.platforms || []).map(pl => ({ ...pl })),
+        ...(lvl.blocks || []).map(block => ({ ...block, isBlock: true }))
+    ];
     activePads = (lvl.pads || []).map(pd => ({ ...pd, cooldown: 0 }));
     activeOrbs = (lvl.orbs || []).map(ob => ({ ...ob, used: false }));
     activeSaws = (lvl.saws || []).map(sw => ({ ...sw, angle: 0 }));
@@ -1678,9 +1681,11 @@ const EDITOR_GRID = 38;
 const EDITOR_GROUND_Y = 270;
 const EDITOR_SCALE_Y = EDITOR_GROUND_Y / GROUND_Y;
 
-let editorToolMode = 'place'; // 'place' | 'erase'
+let editorToolMode = 'place'; // 'place' | 'erase' | 'pan'
 let editorShowGrid = true;
 let editorSelectedItem = 'spike';
+let editorPlatformDrag = null;
+let editorPanLastX = null;
 let editorScrollX = 0;
 let editorEditingId = null;
 let editorDraft = createEmptyEditorDraft();
@@ -1690,6 +1695,7 @@ const ASSET_PALETTE = [
     { id: 'mini_spike', label: 'MINI SPIKE', color: '#ff924c' },
     { id: 'ceil_spike', label: 'TETO SPIKE', color: '#d62828' },
     { id: 'platform', label: 'PLATAFORMA', color: '#00e5ff' },
+    { id: 'block', label: 'BLOCO', color: '#4cc9f0' },
     { id: 'pad_yellow', label: 'PAD AMAR.', color: '#ffe600' },
     { id: 'pad_pink', label: 'PAD ROSA', color: '#ff4fd8' },
     { id: 'orb_yellow', label: 'ORB AMAR.', color: '#ffd60a' },
@@ -1722,6 +1728,7 @@ function createEmptyEditorDraft() {
         finishX: 4400,
         spikes: [],
         platforms: [],
+        blocks: [],
         pads: [],
         orbs: [],
         saws: [],
@@ -1749,6 +1756,7 @@ function openEditorWithLevel(existingLevel = null) {
     if (existingLevel) {
         editorEditingId = existingLevel.id;
         editorDraft = JSON.parse(JSON.stringify(existingLevel));
+        editorDraft.blocks = editorDraft.blocks || [];
     } else {
         editorEditingId = null;
         editorDraft = createEmptyEditorDraft();
@@ -1901,7 +1909,9 @@ function renderEditorPalettes() {
 function syncEditorToolButtons() {
     document.getElementById('tool-place-btn').classList.toggle('active', editorToolMode === 'place');
     document.getElementById('tool-erase-btn').classList.toggle('active', editorToolMode === 'erase');
+    document.getElementById('tool-pan-btn').classList.toggle('active', editorToolMode === 'pan');
     document.getElementById('editor-grid-btn').textContent = editorShowGrid ? 'GRID: ON' : 'GRID: OFF';
+    document.getElementById('editorCanvas').style.cursor = editorToolMode === 'pan' ? 'grab' : (editorToolMode === 'erase' ? 'not-allowed' : 'crosshair');
 }
 
 function eraseAtWorldCoord(worldX, worldY) {
@@ -1912,6 +1922,7 @@ function eraseAtWorldCoord(worldX, worldY) {
 
     editorDraft.spikes = editorDraft.spikes.filter(s => !(nearX(s.x) && nearY(s.y || GROUND_Y)));
     editorDraft.platforms = editorDraft.platforms.filter(p => !(worldX >= p.x - 16 && worldX <= p.x + p.w + 16 && nearY(p.y)));
+    editorDraft.blocks = (editorDraft.blocks || []).filter(b => !(worldX >= b.x - 8 && worldX <= b.x + b.w + 8 && worldY >= b.y - 8 && worldY <= b.y + b.h + 8));
     editorDraft.pads = editorDraft.pads.filter(p => !nearX(p.x));
     editorDraft.orbs = editorDraft.orbs.filter(o => !(nearX(o.x) && nearY(o.y)));
     editorDraft.saws = editorDraft.saws.filter(sw => !(nearX(sw.x) && nearY(sw.y)));
@@ -1936,7 +1947,10 @@ function placeSelectedAtWorldCoord(worldX, worldY) {
             editorDraft.spikes.push({ x: clampedX, y: CEILING_Y, sizeType: 'normal', inverted: true });
             break;
         case 'platform':
-            editorDraft.platforms.push({ x: clampedX, y: Math.min(GROUND_Y - 36, clampedY), w: 120, h: 26 });
+            editorDraft.platforms.push({ x: clampedX, y: Math.min(GROUND_Y - 36, clampedY), w: EDITOR_GRID, h: 26 });
+            break;
+        case 'block':
+            editorDraft.blocks.push({ x: clampedX, y: Math.min(GROUND_Y - BLOCK_SIZE, Math.max(CEILING_Y, clampedY - BLOCK_SIZE / 2)), w: BLOCK_SIZE, h: BLOCK_SIZE });
             break;
         case 'pad_yellow':
             editorDraft.pads.push({ x: clampedX, color: 'yellow', cooldown: 0 });
@@ -2044,11 +2058,27 @@ function drawEditorCanvas() {
     editorDraft.platforms.forEach(pl => {
         const sx = toSX(pl.x);
         const sy = toSY(pl.y);
+        const width = Math.max(EDITOR_GRID, pl.w);
+        const height = Math.max(12, (pl.h || 26) * EDITOR_SCALE_Y);
         eCtx.fillStyle = '#00e5ff';
         eCtx.strokeStyle = '#000';
         eCtx.lineWidth = 2;
-        eCtx.fillRect(sx, sy, pl.w * 0.8, 18);
-        eCtx.strokeRect(sx, sy, pl.w * 0.8, 18);
+        eCtx.fillRect(sx, sy, width, height);
+        eCtx.strokeRect(sx, sy, width, height);
+    });
+
+    (editorDraft.blocks || []).forEach(block => {
+        const sx = toSX(block.x);
+        const sy = toSY(block.y);
+        const width = (block.w || BLOCK_SIZE);
+        const height = (block.h || BLOCK_SIZE) * EDITOR_SCALE_Y;
+        eCtx.fillStyle = '#2475bd';
+        eCtx.strokeStyle = '#ffffff';
+        eCtx.lineWidth = 2;
+        eCtx.fillRect(sx, sy, width, height);
+        eCtx.strokeRect(sx, sy, width, height);
+        eCtx.strokeStyle = 'rgba(255,255,255,0.35)';
+        eCtx.strokeRect(sx + 5, sy + 5, width - 10, Math.max(5, height - 10));
     });
 
     editorDraft.spikes.forEach(sp => {
@@ -2170,29 +2200,38 @@ function editAtEditorPointer(pointerEvent) {
     const point = getEditorWorldCoords(pointerEvent);
     expandEditorLevelIfNeeded(point.x);
 
-    if (!lastEditorDragPoint) {
-        if (editorToolMode === 'erase') eraseAtWorldCoord(point.x, point.y);
-        else placeSelectedAtWorldCoord(point.x, point.y);
-        lastEditorDragPoint = point;
-        return;
+    if (editorToolMode === 'erase') {
+        if (!lastEditorDragPoint) eraseAtWorldCoord(point.x, point.y);
+        else {
+            const dx = point.x - lastEditorDragPoint.x;
+            const dy = point.y - lastEditorDragPoint.y;
+            const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / EDITOR_GRID));
+            for (let i = 1; i <= steps; i++) {
+                eraseAtWorldCoord(
+                    lastEditorDragPoint.x + dx * i / steps,
+                    lastEditorDragPoint.y + dy * i / steps
+                );
+            }
+        }
+    } else if (editorToolMode === 'place' && editorSelectedItem !== 'platform') {
+        if (!lastEditorDragPoint) placeSelectedAtWorldCoord(point.x, point.y);
+        else {
+            const dx = point.x - lastEditorDragPoint.x;
+            const dy = point.y - lastEditorDragPoint.y;
+            const distance = Math.hypot(dx, dy);
+            if (distance >= EDITOR_GRID * 0.65) {
+                const steps = Math.max(1, Math.ceil(distance / EDITOR_GRID));
+                for (let i = 1; i <= steps; i++) {
+                    const x = lastEditorDragPoint.x + dx * (i / steps);
+                    const y = lastEditorDragPoint.y + dy * (i / steps);
+                    placeSelectedAtWorldCoord(
+                        editorShowGrid ? Math.round(x / EDITOR_GRID) * EDITOR_GRID : x,
+                        editorShowGrid ? Math.round(y / EDITOR_GRID) * EDITOR_GRID : y
+                    );
+                }
+            }
+        }
     }
-
-    const dx = point.x - lastEditorDragPoint.x;
-    const dy = point.y - lastEditorDragPoint.y;
-    const distance = Math.hypot(dx, dy);
-    if (distance < 8) return;
-
-    // Interpola os pontos para não deixar buracos quando o dedo/mouse se move rápido.
-    const steps = Math.max(1, Math.ceil(distance / EDITOR_GRID));
-    for (let i = 1; i <= steps; i++) {
-        const x = lastEditorDragPoint.x + dx * (i / steps);
-        const y = lastEditorDragPoint.y + dy * (i / steps);
-        const px = editorShowGrid ? Math.round(x / EDITOR_GRID) * EDITOR_GRID : x;
-        const py = editorShowGrid ? Math.round(y / EDITOR_GRID) * EDITOR_GRID : y;
-        if (editorToolMode === 'erase') eraseAtWorldCoord(px, py);
-        else placeSelectedAtWorldCoord(px, py);
-    }
-
     lastEditorDragPoint = point;
 }
 
@@ -2201,22 +2240,57 @@ editorCanvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     lastEditorDragPoint = null;
     editorCanvas.setPointerCapture?.(e.pointerId);
-    editAtEditorPointer(e);
-});
 
-editorCanvas.addEventListener('pointermove', (e) => {
-    if (gameState !== 'EDITOR' || !lastEditorDragPoint) return;
-    if (e.pointerType === 'touch') {
-        const rect = editorCanvas.getBoundingClientRect();
-        const localX = e.clientX - rect.left;
-        if (localX > rect.width - 28) editorScrollX += 18;
-        else if (localX < 28) editorScrollX = Math.max(0, editorScrollX - 18);
+    if (editorToolMode === 'pan') {
+        editorPanLastX = e.clientX;
+        editorCanvas.style.cursor = 'grabbing';
+        return;
+    }
+
+    const point = getEditorWorldCoords(e);
+    if (editorToolMode === 'place' && editorSelectedItem === 'platform') {
+        expandEditorLevelIfNeeded(point.x);
+        const x = Math.max(260, Math.min(editorDraft.finishX - 120, point.x));
+        const y = Math.min(GROUND_Y - 36, Math.max(CEILING_Y, point.y));
+        const platform = { x, y, w: EDITOR_GRID, h: 26 };
+        editorDraft.platforms.push(platform);
+        editorPlatformDrag = { platform, startX: x };
+        lastEditorDragPoint = point;
+        return;
     }
     editAtEditorPointer(e);
 });
 
+editorCanvas.addEventListener('pointermove', (e) => {
+    if (gameState !== 'EDITOR') return;
+
+    if (editorToolMode === 'pan' && editorPanLastX !== null) {
+        const rect = editorCanvas.getBoundingClientRect();
+        const scaleX = editorCanvas.width / Math.max(1, rect.width);
+        const delta = (e.clientX - editorPanLastX) * scaleX;
+        editorScrollX = Math.max(0, Math.min(editorDraft.finishX - 120, editorScrollX - delta));
+        editorPanLastX = e.clientX;
+        return;
+    }
+
+    if (editorPlatformDrag) {
+        const point = getEditorWorldCoords(e);
+        expandEditorLevelIfNeeded(point.x);
+        const x = Math.min(editorPlatformDrag.startX, point.x);
+        const right = Math.max(editorPlatformDrag.startX + EDITOR_GRID, point.x);
+        editorPlatformDrag.platform.x = Math.max(260, x);
+        editorPlatformDrag.platform.w = Math.max(EDITOR_GRID, right - x);
+        return;
+    }
+
+    if (lastEditorDragPoint) editAtEditorPointer(e);
+});
+
 function stopEditorPointerDrag() {
     lastEditorDragPoint = null;
+    editorPlatformDrag = null;
+    editorPanLastX = null;
+    if (editorToolMode === 'pan') editorCanvas.style.cursor = 'grab';
 }
 editorCanvas.addEventListener('pointerup', stopEditorPointerDrag);
 editorCanvas.addEventListener('pointercancel', stopEditorPointerDrag);
@@ -2360,11 +2434,22 @@ document.getElementById('editor-exit-btn').addEventListener('click', () => {
 
 document.getElementById('tool-place-btn').addEventListener('click', () => {
     editorToolMode = 'place';
+    if (!editorSelectedItem) editorSelectedItem = 'spike';
+    renderEditorPalettes();
     syncEditorToolButtons();
 });
 
 document.getElementById('tool-erase-btn').addEventListener('click', () => {
     editorToolMode = 'erase';
+    editorSelectedItem = null;
+    renderEditorPalettes();
+    syncEditorToolButtons();
+});
+
+document.getElementById('tool-pan-btn').addEventListener('click', () => {
+    editorToolMode = 'pan';
+    editorSelectedItem = null;
+    renderEditorPalettes();
     syncEditorToolButtons();
 });
 
