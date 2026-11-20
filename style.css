@@ -1145,3 +1145,31 @@ canvas {
         min-height: 70px;
     }
 }
+
+
+/* === EXPANSÃO V1: GARAGEM MULTIMODO E FERRAMENTAS DO EDITOR === */
+.mode-skin-panel{width:min(680px,92vw);margin:10px auto 0;padding:12px;background:rgba(3,12,28,.72);border:2px solid rgba(0,229,255,.5);border-radius:12px}
+.mode-skin-heading{color:#00e5ff;font-size:12px;font-weight:900;letter-spacing:2px;margin-bottom:8px}
+.mode-skin-tabs{display:flex;gap:6px;overflow-x:auto;padding:3px 2px 9px;scrollbar-width:thin}
+.mode-skin-tab{flex:0 0 auto;padding:8px 12px;border:2px solid #06101f;border-radius:7px;background:linear-gradient(#284a72,#12233d);color:#dbeafe;font:900 10px Orbitron,sans-serif;cursor:pointer}
+.mode-skin-tab.selected{border-color:#ffe600;background:linear-gradient(#2789b8,#14517a);color:#fff;box-shadow:0 0 10px #00e5ff66}
+.mode-skin-models{display:grid;grid-template-columns:repeat(8,minmax(42px,1fr));gap:6px;margin:6px 0}
+.mode-model{min-width:0;display:grid;place-items:center;background:#101e34;border:2px solid #030914;border-radius:8px;cursor:pointer;padding:2px}
+.mode-model.selected{border-color:#ffe600;box-shadow:0 0 9px #ffe60066}
+.mode-model canvas{width:42px;height:42px;max-width:100%}
+.mode-skin-colors{display:flex;flex-direction:column;gap:7px;color:#fff;font-size:10px;font-weight:900;text-align:left}
+.mode-color-row{display:flex;flex-wrap:wrap;gap:7px}
+.mode-color-swatch{width:25px;height:25px;border:2px solid #050b16;border-radius:50%;box-shadow:0 0 0 1px #ffffff66;cursor:pointer}
+#tool-select-btn.active{background:linear-gradient(#ffe600,#e58b00);color:#111}
+#editor-undo-btn,#editor-redo-btn{min-width:34px;font-size:16px}
+#editor-export-btn,#editor-import-btn{background:linear-gradient(#2684c7,#124a86);color:white}
+#level-editor .editor-top-center{flex-wrap:nowrap}
+#mode-skin-panel button:focus-visible,#level-editor button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+@media(max-width:700px){
+ .mode-skin-panel{width:94vw;padding:9px}
+ .mode-skin-models{grid-template-columns:repeat(4,minmax(42px,1fr))}
+ .mode-skin-tab{padding:9px 11px}
+ #level-editor .editor-topbar{min-height:50px}
+ #level-editor .editor-top-center{gap:5px}
+ #level-editor .mini-btn{white-space:nowrap}
+}
