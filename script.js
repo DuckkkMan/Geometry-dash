@@ -10,7 +10,7 @@ const levelSelect = document.getElementById('level-select');
 const skinGarage = document.getElementById('skin-garage');
 const winScreen = document.getElementById('win-screen');
 
-// Estados: 'MENU', 'LEVEL_SELECT', 'SKINS', 'PLAYING', 'ENDING_ANIM', 'WIN'
+// Estados: 'MENU', 'LEVEL_SELECT', 'SKINS', 'PLAYING', 'DEAD', 'ENDING_ANIM', 'WIN'
 let gameState = 'MENU';
 
 // Física
@@ -19,16 +19,18 @@ const JUMP_FORCE = -14.8;
 const GROUND_Y = 390;
 const GAME_SPEED = 7.2;
 const BLOCK_SIZE = 44;
+const RESPAWN_DELAY_MS = 1500; // 1.5 segundo após a explosão
 
 let bgScroll = 0;
 let groundScroll = 0;
 let levelDistance = 0;
 let isHoldingJump = false;
 let particles = [];
-let winFlashAlpha = 0; // Flash branco suave ao completar a fase
+let winFlashAlpha = 0;
+let respawnTimer = null;
 
 // === SISTEMA DE SALVAMENTO LOCAL (localStorage) ===
-const STORAGE_KEY = 'gd_web_save_v02';
+const STORAGE_KEY = 'gd_web_save_v025';
 
 function loadSaveData() {
     try {
@@ -39,7 +41,8 @@ function loadSaveData() {
     }
     return {
         skin: { model: 0, primary: '#ffde00', secondary: '#00e5ff' },
-        progress: {} // Ex: { "Spike Run": 100 }
+        progress: {}, // { "Spike Run": 100 }
+        attempts: {}  // { "Spike Run": 3 }
     };
 }
 
@@ -47,7 +50,8 @@ function writeSaveData() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             skin: playerSkin,
-            progress: levelProgress
+            progress: levelProgress,
+            attempts: levelAttempts
         }));
     } catch (e) {
         console.warn('Erro ao salvar no navegador:', e);
@@ -57,6 +61,7 @@ function writeSaveData() {
 const savedData = loadSaveData();
 let playerSkin = savedData.skin || { model: 0, primary: '#ffde00', secondary: '#00e5ff' };
 let levelProgress = savedData.progress || {};
+let levelAttempts = savedData.attempts || {};
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
 
@@ -83,6 +88,13 @@ const LEVELS = [
 ];
 let currentLevelIndex = 0;
 
+function clearRespawnTimer() {
+    if (respawnTimer) {
+        clearTimeout(respawnTimer);
+        respawnTimer = null;
+    }
+}
+
 function recordBestProgress(levelName, percent) {
     const cleanPercent = Math.min(100, Math.max(0, Math.floor(percent)));
     const prev = levelProgress[levelName] || 0;
@@ -90,6 +102,13 @@ function recordBestProgress(levelName, percent) {
         levelProgress[levelName] = cleanPercent;
         writeSaveData();
     }
+}
+
+function incrementAttempt(levelName) {
+    const current = levelAttempts[levelName] || 0;
+    levelAttempts[levelName] = current + 1;
+    writeSaveData();
+    return levelAttempts[levelName];
 }
 
 // Desenha o cubo em qualquer canvas
@@ -188,7 +207,6 @@ const player = {
     },
 
     draw() {
-        // Tamanho sempre 100% original (BLOCK_SIZE)
         drawCubeSkin(ctx, this.x, this.y, this.size, this.rotation, playerSkin);
     }
 };
@@ -245,9 +263,16 @@ let activeSpikes = [];
 let activeFinishX = 2400;
 let lockedFinishScreenX = 0;
 let currentRunPercent = 0;
+let activeAttemptNumber = 1;
 
-function initLevel() {
+function startAttempt(countNewAttempt = true) {
+    clearRespawnTimer();
     const lvl = LEVELS[currentLevelIndex];
+
+    if (countNewAttempt) {
+        activeAttemptNumber = incrementAttempt(lvl.name);
+    }
+
     levelDistance = 0;
     currentRunPercent = 0;
     particles = [];
@@ -256,6 +281,43 @@ function initLevel() {
     activeFinishX = lvl.finishX;
     activeSpikes = lvl.spikes.map(x => ({ x, width: BLOCK_SIZE, height: BLOCK_SIZE }));
     updateProgressUI(0);
+    gameState = 'PLAYING';
+}
+
+function triggerDeath() {
+    if (gameState !== 'PLAYING') return;
+
+    recordBestProgress(LEVELS[currentLevelIndex].name, currentRunPercent);
+    gameState = 'DEAD';
+    isHoldingJump = false;
+
+    // Explosão de estilhaços do cubo
+    const cx = player.x + player.size / 2;
+    const cy = player.y + player.size / 2;
+    for (let i = 0; i < 36; i++) {
+        const angle = (Math.PI * 2 * i) / 36 + (Math.random() - 0.5) * 0.35;
+        const speed = 2.5 + Math.random() * 9.5;
+        particles.push({
+            x: cx,
+            y: cy,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 2,
+            size: 6 + Math.random() * 9,
+            color: i % 3 === 0 ? playerSkin.primary : (i % 3 === 1 ? playerSkin.secondary : '#ffffff'),
+            alpha: 1,
+            decay: 0.014,
+            gravity: 0.25,
+            rot: Math.random() * Math.PI,
+            vRot: (Math.random() - 0.5) * 0.25
+        });
+    }
+
+    // Espera 1.5s e reinicia a fase somando +1 attempt
+    respawnTimer = setTimeout(() => {
+        if (gameState === 'DEAD') {
+            startAttempt(true);
+        }
+    }, RESPAWN_DELAY_MS);
 }
 
 function updateProgressUI(percent) {
@@ -263,6 +325,23 @@ function updateProgressUI(percent) {
     currentRunPercent = clamped;
     progressFill.style.width = clamped + '%';
     progressText.textContent = clamped + '%';
+}
+
+// Desenha o texto "Attempt X" clássico na fase
+function drawAttemptLabel() {
+    const attemptX = 280 - levelDistance + 160;
+    if (attemptX < -220 || attemptX > canvas.width + 220) return;
+
+    ctx.save();
+    ctx.font = '900 28px Orbitron, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#ffffff';
+    const label = `Attempt ${activeAttemptNumber}`;
+    ctx.strokeText(label, attemptX, GROUND_Y - 125);
+    ctx.fillText(label, attemptX, GROUND_Y - 125);
+    ctx.restore();
 }
 
 // Cenário
@@ -349,7 +428,7 @@ function drawFinishWall(screenX) {
     ctx.fillRect(screenX, 0, 6, GROUND_Y);
 }
 
-// Partículas
+// Partículas (Explosão e Vitória)
 function spawnEndParticles(x, y, count = 4, burst = false) {
     for (let i = 0; i < count; i++) {
         particles.push({
@@ -359,7 +438,11 @@ function spawnEndParticles(x, y, count = 4, burst = false) {
             vy: burst ? (Math.random() - 0.5) * 12 : (Math.random() - 0.5) * 6,
             size: 5 + Math.random() * 6,
             color: Math.random() > 0.5 ? '#7fff00' : '#ffe600',
-            alpha: 1
+            alpha: 1,
+            decay: 0.025,
+            gravity: 0,
+            rot: 0,
+            vRot: 0
         });
     }
 }
@@ -369,7 +452,9 @@ function updateAndDrawParticles() {
         const pt = particles[i];
         pt.x += pt.vx;
         pt.y += pt.vy;
-        pt.alpha -= 0.025;
+        if (pt.gravity) pt.vy += pt.gravity;
+        if (pt.vRot) pt.rot += pt.vRot;
+        pt.alpha -= pt.decay || 0.025;
 
         if (pt.alpha <= 0) {
             particles.splice(i, 1);
@@ -377,9 +462,14 @@ function updateAndDrawParticles() {
         }
 
         ctx.save();
-        ctx.globalAlpha = pt.alpha;
+        ctx.globalAlpha = Math.max(0, pt.alpha);
+        ctx.translate(pt.x, pt.y);
+        ctx.rotate(pt.rot || 0);
         ctx.fillStyle = pt.color;
-        ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(-pt.size / 2, -pt.size / 2, pt.size, pt.size);
+        ctx.strokeRect(-pt.size / 2, -pt.size / 2, pt.size, pt.size);
         ctx.restore();
     }
 }
@@ -416,6 +506,7 @@ function loop() {
 
         drawBackground();
         drawGround();
+        drawAttemptLabel();
 
         const cameraStopDistance = (activeFinishX + 160) - (canvas.width - 120);
         const progress = (levelDistance / cameraStopDistance) * 97;
@@ -427,8 +518,7 @@ function loop() {
                 drawSpike(screenX, GROUND_Y, s.width, s.height);
 
                 if (checkSpikeCollision(player, screenX, s.width, s.height)) {
-                    recordBestProgress(LEVELS[currentLevelIndex].name, currentRunPercent);
-                    initLevel();
+                    triggerDeath();
                     break;
                 }
             }
@@ -437,15 +527,35 @@ function loop() {
         const finishScreenX = activeFinishX - levelDistance + 160;
         drawFinishWall(finishScreenX);
 
-        player.update();
-        player.draw();
+        if (gameState === 'PLAYING') {
+            player.update();
+            player.draw();
 
-        if (levelDistance >= cameraStopDistance) {
-            lockedFinishScreenX = finishScreenX;
-            gameState = 'ENDING_ANIM';
-            isHoldingJump = false;
+            if (levelDistance >= cameraStopDistance) {
+                lockedFinishScreenX = finishScreenX;
+                gameState = 'ENDING_ANIM';
+                isHoldingJump = false;
+            }
         }
-    } 
+    }
+    else if (gameState === 'DEAD') {
+        // Cenário fica parado durante os 1.5s da explosão
+        drawBackground();
+        drawGround();
+        drawAttemptLabel();
+
+        for (let s of activeSpikes) {
+            const screenX = s.x - levelDistance + 160;
+            if (screenX + s.width > -50 && screenX < canvas.width + 50) {
+                drawSpike(screenX, GROUND_Y, s.width, s.height);
+            }
+        }
+
+        const finishScreenX = activeFinishX - levelDistance + 160;
+        drawFinishWall(finishScreenX);
+
+        updateAndDrawParticles();
+    }
     else if (gameState === 'ENDING_ANIM') {
         drawBackground();
         drawGround();
@@ -459,7 +569,6 @@ function loop() {
 
         drawFinishWall(lockedFinishScreenX);
 
-        // Cubo avança até a parede mantendo o tamanho 100% original
         player.x += 8.5;
         player.y += (GROUND_Y / 2 - player.y) * 0.08;
         player.rotation += 0.22;
@@ -477,13 +586,12 @@ function loop() {
             updateProgressUI(100);
             recordBestProgress(LEVELS[currentLevelIndex].name, 100);
 
-            // Explosão de partículas e flash branco na batida final
             spawnEndParticles(lockedFinishScreenX - 10, player.y, 28, true);
             winFlashAlpha = 0.75;
 
             gameState = 'WIN';
             hud.classList.add('hidden');
-            document.getElementById('win-level-name').textContent = `${LEVELS[currentLevelIndex].name} • 100%`;
+            document.getElementById('win-level-name').textContent = `${LEVELS[currentLevelIndex].name} • 100% (Attempt ${activeAttemptNumber})`;
             winScreen.classList.remove('hidden');
         }
     }
@@ -493,7 +601,6 @@ function loop() {
         drawFinishWall(lockedFinishScreenX);
         updateAndDrawParticles();
 
-        // Flash suave que desaparece rapidamente
         if (winFlashAlpha > 0) {
             ctx.fillStyle = `rgba(255, 255, 255, ${winFlashAlpha})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -534,7 +641,7 @@ function setupGarage() {
             document.querySelectorAll('.skin-option').forEach(el => el.classList.remove('selected'));
             opt.classList.add('selected');
             renderSkinUI();
-            writeSaveData(); // Salva escolha localmente
+            writeSaveData();
         });
         modelsDiv.appendChild(opt);
     }
@@ -548,7 +655,7 @@ function setupGarage() {
             primDiv.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
             sw1.classList.add('selected');
             renderSkinUI();
-            writeSaveData(); // Salva cor 1 localmente
+            writeSaveData();
         });
         primDiv.appendChild(sw1);
 
@@ -560,7 +667,7 @@ function setupGarage() {
             secDiv.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
             sw2.classList.add('selected');
             renderSkinUI();
-            writeSaveData(); // Salva cor 2 localmente
+            writeSaveData();
         });
         secDiv.appendChild(sw2);
     });
@@ -572,9 +679,10 @@ function setupGarage() {
 function updateLevelCard() {
     const lvl = LEVELS[currentLevelIndex];
     const best = levelProgress[lvl.name] || 0;
+    const attempts = levelAttempts[lvl.name] || 0;
 
     document.getElementById('level-name').textContent = lvl.name;
-    document.getElementById('level-diff-text').textContent = `${lvl.difficulty} • RECORDE: ${best}%`;
+    document.getElementById('level-diff-text').textContent = `${lvl.difficulty} • RECORDE: ${best}% • ATT: ${attempts}`;
     document.getElementById('level-stars').textContent = best === 100 ? `★ ${lvl.stars} (COMPLETA)` : `☆ ${lvl.stars}`;
 
     const face = document.getElementById('level-diff-face');
@@ -584,6 +692,7 @@ function updateLevelCard() {
 
 // Navegação dos Menus
 document.getElementById('play-btn').addEventListener('click', () => {
+    clearRespawnTimer();
     mainMenu.classList.add('hidden');
     updateLevelCard();
     levelSelect.classList.remove('hidden');
@@ -591,6 +700,7 @@ document.getElementById('play-btn').addEventListener('click', () => {
 });
 
 document.getElementById('skin-btn').addEventListener('click', () => {
+    clearRespawnTimer();
     mainMenu.classList.add('hidden');
     skinGarage.classList.remove('hidden');
     gameState = 'SKINS';
@@ -621,11 +731,11 @@ document.getElementById('next-level').addEventListener('click', () => {
 document.getElementById('level-card').addEventListener('click', () => {
     levelSelect.classList.add('hidden');
     hud.classList.remove('hidden');
-    initLevel();
-    gameState = 'PLAYING';
+    startAttempt(true);
 });
 
 document.getElementById('pause-menu-btn').addEventListener('click', () => {
+    clearRespawnTimer();
     recordBestProgress(LEVELS[currentLevelIndex].name, currentRunPercent);
     hud.classList.add('hidden');
     mainMenu.classList.remove('hidden');
@@ -635,8 +745,7 @@ document.getElementById('pause-menu-btn').addEventListener('click', () => {
 document.getElementById('replay-btn').addEventListener('click', () => {
     winScreen.classList.add('hidden');
     hud.classList.remove('hidden');
-    initLevel();
-    gameState = 'PLAYING';
+    startAttempt(true);
 });
 
 document.getElementById('win-menu-btn').addEventListener('click', () => {
