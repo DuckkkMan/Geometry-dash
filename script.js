@@ -19,8 +19,11 @@ let stateBeforePause = 'PLAYING';
 let deadRemainingMs = 0;
 let deadStartedAt = 0;
 
-// Timer para segurar 5 segundos no toque no modo CELULAR e ir ao pause
-const HOLD_PAUSE_MS = 2000;
+// Modo do jogador ('cube' | 'ship')
+let playerMode = 'cube';
+
+// Timer para segurar 5 segundos no toque e ir para o pause
+const HOLD_PAUSE_MS = 5000;
 let holdPauseTimer = null;
 
 // Física
@@ -29,6 +32,8 @@ const JUMP_FORCE = -14.8;
 const GROUND_Y = 390;
 const GAME_SPEED = 7.2;
 const BLOCK_SIZE = 44;
+const PORTAL_WIDTH = 52;
+const PORTAL_HEIGHT = 116;
 const RESPAWN_DELAY_MS = 1500;
 
 let bgScroll = 0;
@@ -45,8 +50,16 @@ const DIFFICULTY_FACES = {
     verde: 'Assets/cara_verde.png'
 };
 
+// === IMAGENS DOS PORTAIS (Assets/) ===
+const PORTAL_IMAGES = {
+    cube: new Image(),
+    ship: new Image()
+};
+PORTAL_IMAGES.cube.src = 'Assets/Portal Cubo.png';
+PORTAL_IMAGES.ship.src = 'Assets/Portal Ship.png';
+
 // === SISTEMA DE SALVAMENTO LOCAL (localStorage) ===
-const STORAGE_KEY = 'gd_web_save_v03';
+const STORAGE_KEY = 'gd_web_save_v04';
 
 function loadSaveData() {
     try {
@@ -56,7 +69,7 @@ function loadSaveData() {
         console.warn('Erro ao carregar save local:', e);
     }
     return {
-        platform: 'pc', // Padrão original de PC
+        platform: 'pc',
         skin: { model: 0, primary: '#ffde00', secondary: '#00e5ff' },
         progress: {},
         attempts: {}
@@ -84,7 +97,7 @@ let levelAttempts = savedData.attempts || {};
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
 
-// Fases oficiais da v0.3
+// Fases da v0.4: primeira fase mantém o ritmo original; segunda fase recebe Portal Ship.png e Portal Cubo.png
 const LEVELS = [
     {
         name: 'Spike Rush',
@@ -102,7 +115,8 @@ const LEVELS = [
             1680,
             2120, 2164,
             2620
-        ]
+        ],
+        portals: []
     },
     {
         name: 'Emerald Pulse',
@@ -122,6 +136,10 @@ const LEVELS = [
             2620,
             3060, 3104,
             3580
+        ],
+        portals: [
+            { x: 1420, type: 'ship', triggered: false },
+            { x: 2360, type: 'cube', triggered: false }
         ]
     }
 ];
@@ -207,6 +225,52 @@ function incrementAttempt(levelName) {
 function resetAttemptsForLevel(levelName) {
     levelAttempts[levelName] = 0;
     writeSaveData();
+}
+
+// === PORTAIS (Assets/Portal Cubo.png e Assets/Portal Ship.png) ===
+function drawPortal(portal, screenX) {
+    if (screenX + PORTAL_WIDTH < -60 || screenX > canvas.width + 60) return;
+
+    const isCubePortal = portal.type === 'cube';
+    const img = isCubePortal ? PORTAL_IMAGES.cube : PORTAL_IMAGES.ship;
+    const drawY = GROUND_Y - PORTAL_HEIGHT;
+
+    ctx.save();
+
+    if (img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, screenX, drawY, PORTAL_WIDTH, PORTAL_HEIGHT);
+    } else {
+        const centerX = screenX + PORTAL_WIDTH / 2;
+        const centerY = drawY + PORTAL_HEIGHT / 2;
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000';
+        ctx.fillStyle = isCubePortal ? '#38b000' : '#0096ff';
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, PORTAL_WIDTH / 2, PORTAL_HEIGHT / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+function checkPortalTrigger(p, portal, portalScreenX) {
+    if (portal.triggered) return;
+
+    const portalTop = GROUND_Y - PORTAL_HEIGHT;
+    const portalBottom = GROUND_Y;
+
+    const overlaps =
+        p.x + p.size > portalScreenX + 8 &&
+        p.x < portalScreenX + PORTAL_WIDTH - 8 &&
+        p.y + p.size > portalTop &&
+        p.y < portalBottom;
+
+    if (overlaps) {
+        portal.triggered = true;
+        playerMode = portal.type === 'ship' ? 'ship' : 'cube';
+        spawnEndParticles(portalScreenX, GROUND_Y - PORTAL_HEIGHT * 0.65, 12, true);
+    }
 }
 
 // Desenha o cubo em qualquer canvas
@@ -358,6 +422,7 @@ const bgBot = {
 
 // Variáveis da fase ativa
 let activeSpikes = [];
+let activePortals = [];
 let activeFinishX = 3100;
 let lockedFinishScreenX = 0;
 let currentRunPercent = 0;
@@ -375,6 +440,7 @@ function startAttempt(countNewAttempt = true) {
         activeAttemptNumber = 1;
     }
 
+    playerMode = 'cube';
     levelDistance = 0;
     currentRunPercent = 0;
     particles = [];
@@ -382,6 +448,7 @@ function startAttempt(countNewAttempt = true) {
     player.reset();
     activeFinishX = lvl.finishX;
     activeSpikes = lvl.spikes.map(x => ({ x, width: BLOCK_SIZE, height: BLOCK_SIZE }));
+    activePortals = (lvl.portals || []).map(pt => ({ ...pt, triggered: false }));
     updateProgressUI(0);
     gameState = 'PLAYING';
 }
@@ -643,6 +710,12 @@ function loop() {
         const progress = (levelDistance / cameraStopDistance) * 97;
         updateProgressUI(progress);
 
+        for (let pt of activePortals) {
+            const screenX = pt.x - levelDistance + 160;
+            drawPortal(pt, screenX);
+            checkPortalTrigger(player, pt, screenX);
+        }
+
         for (let s of activeSpikes) {
             const screenX = s.x - levelDistance + 160;
             if (screenX + s.width > -50 && screenX < canvas.width + 50) {
@@ -675,6 +748,11 @@ function loop() {
         drawGround();
         drawAttemptLabel();
 
+        for (let pt of activePortals) {
+            const screenX = pt.x - levelDistance + 160;
+            drawPortal(pt, screenX);
+        }
+
         for (let s of activeSpikes) {
             const screenX = s.x - levelDistance + 160;
             if (screenX + s.width > -50 && screenX < canvas.width + 50) {
@@ -692,6 +770,11 @@ function loop() {
         drawBackground();
         drawGround();
         drawAttemptLabel();
+
+        for (let pt of activePortals) {
+            const screenX = pt.x - levelDistance + 160;
+            drawPortal(pt, screenX);
+        }
 
         for (let s of activeSpikes) {
             const screenX = s.x - levelDistance + 160;
@@ -712,6 +795,11 @@ function loop() {
     else if (gameState === 'ENDING_ANIM') {
         drawBackground();
         drawGround();
+
+        for (let pt of activePortals) {
+            const screenX = pt.x - levelDistance + 160;
+            drawPortal(pt, screenX);
+        }
 
         for (let s of activeSpikes) {
             const screenX = s.x - levelDistance + 160;
