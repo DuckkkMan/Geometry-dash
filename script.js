@@ -20,7 +20,7 @@ let deadRemainingMs = 0;
 let deadStartedAt = 0;
 
 // Timer para segurar 5 segundos no toque no modo CELULAR e ir ao pause
-const HOLD_PAUSE_MS = 5000;
+const HOLD_PAUSE_MS = 2000;
 let holdPauseTimer = null;
 
 // Física
