@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geometry Dash v0.5</title>
+    <title>Geometry Dash v0.7</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -44,7 +44,7 @@
 
             <div class="logo-container">
                 <h1 class="gd-title">GEOMETRY<br><span>DASH</span></h1>
-                <div class="version-badge">v0.5</div>
+                <div class="version-badge">v0.7</div>
             </div>
 
             <div class="menu-buttons-row">
@@ -55,6 +55,113 @@
                 <button id="play-btn" aria-label="Jogar" title="Jogar">
                     <div class="play-triangle"></div>
                 </button>
+
+                <button id="editor-btn" class="side-btn editor-main-btn" aria-label="Editor" title="Editor de Fases">
+                    <span class="hammer-icon">🛠</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SUBMENU DO EDITOR: CRIAR OU CRIAÇÕES -->
+        <div id="editor-hub" class="overlay hidden">
+            <button id="back-from-editor-hub" class="corner-back-btn">←</button>
+
+            <div class="editor-hub-box">
+                <h2>EDITOR</h2>
+                <p class="settings-subtitle">ESCOLHA UMA OPÇÃO</p>
+
+                <div class="editor-hub-actions">
+                    <button id="open-create-editor-btn" class="gd-btn green hub-action-btn" type="button">CRIAR</button>
+                    <button id="open-creations-btn" class="gd-btn blue hub-action-btn" type="button">CRIAÇÕES</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- LISTA DE CRIAÇÕES (JOGAR, EDITAR, RENOMEAR, DIFICULDADE, APAGAR) -->
+        <div id="creations-screen" class="overlay hidden">
+            <button id="back-from-creations" class="corner-back-btn">←</button>
+
+            <div class="creations-box">
+                <div class="creations-header">
+                    <h2>CRIAÇÕES</h2>
+                    <button id="creations-new-btn" class="gd-btn green small-gd-btn" type="button">+ NOVA</button>
+                </div>
+
+                <div id="creations-list" class="creations-list"></div>
+            </div>
+        </div>
+
+        <!-- EDITOR DE FASES COMPLETO (GRID + PALETA + TRIGGERS + BG/GROUND + TESTE) -->
+        <div id="level-editor" class="overlay hidden">
+            <div class="editor-topbar">
+                <div class="editor-top-left">
+                    <button id="editor-exit-btn" class="mini-btn red" type="button">← SAIR</button>
+                    <input id="editor-level-title" class="editor-title-input" type="text" maxlength="26" value="Minha Fase">
+                    <select id="editor-level-diff" class="editor-select">
+                        <option value="EASY">EASY</option>
+                        <option value="NORMAL" selected>NORMAL</option>
+                        <option value="HARD">HARD</option>
+                        <option value="INSANE">INSANE</option>
+                    </select>
+                </div>
+
+                <div class="editor-top-center">
+                    <button id="tool-place-btn" class="mini-btn active" type="button">COLOCAR</button>
+                    <button id="tool-erase-btn" class="mini-btn" type="button">APAGAR</button>
+                    <button id="editor-grid-btn" class="mini-btn active" type="button">GRID: ON</button>
+                    <button id="editor-clear-btn" class="mini-btn warn" type="button">LIMPAR</button>
+                </div>
+
+                <div class="editor-top-right">
+                    <button id="editor-save-btn" class="mini-btn blue" type="button">SALVAR</button>
+                    <button id="editor-test-btn" class="mini-btn green" type="button">▶ TESTAR</button>
+                </div>
+            </div>
+
+            <div class="editor-main-area">
+                <canvas id="editorCanvas" width="900" height="330"></canvas>
+            </div>
+
+            <div class="editor-bottom-panel">
+                <div class="editor-tabs">
+                    <button class="editor-tab active" data-tab="assets" type="button">ASSETS</button>
+                    <button class="editor-tab" data-tab="triggers" type="button">TRIGGERS</button>
+                    <button class="editor-tab" data-tab="style" type="button">BG / GROUND</button>
+                </div>
+
+                <div id="editor-panel-assets" class="editor-tab-content">
+                    <div id="editor-palette" class="editor-palette"></div>
+                </div>
+
+                <div id="editor-panel-triggers" class="editor-tab-content hidden">
+                    <div id="editor-triggers-palette" class="editor-palette"></div>
+                </div>
+
+                <div id="editor-panel-style" class="editor-tab-content hidden">
+                    <div class="style-controls-grid">
+                        <label class="style-control">
+                            <span>BG TOPO</span>
+                            <input id="style-bg-top" type="color" value="#1e1b4b">
+                        </label>
+                        <label class="style-control">
+                            <span>BG BASE</span>
+                            <input id="style-bg-bottom" type="color" value="#4338ca">
+                        </label>
+                        <label class="style-control">
+                            <span>GROUND</span>
+                            <input id="style-ground-fill" type="color" value="#110e2e">
+                        </label>
+                        <label class="style-control">
+                            <span>GRID CHÃO</span>
+                            <input id="style-ground-grid" type="color" value="#3730a3">
+                        </label>
+                        <label class="style-control">
+                            <span>TAMANHO (X)</span>
+                            <input id="style-finish-x" type="range" min="2200" max="7500" step="100" value="4400">
+                            <span id="style-finish-label">4400</span>
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
 
