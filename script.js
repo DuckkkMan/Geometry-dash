@@ -25,13 +25,38 @@ let groundScroll = 0;
 let levelDistance = 0;
 let isHoldingJump = false;
 let particles = [];
+let winFlashAlpha = 0; // Flash branco suave ao completar a fase
 
-// Customização do Jogador
-let playerSkin = {
-    model: 0,
-    primary: '#ffde00',
-    secondary: '#00e5ff'
-};
+// === SISTEMA DE SALVAMENTO LOCAL (localStorage) ===
+const STORAGE_KEY = 'gd_web_save_v02';
+
+function loadSaveData() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch (e) {
+        console.warn('Erro ao carregar save local:', e);
+    }
+    return {
+        skin: { model: 0, primary: '#ffde00', secondary: '#00e5ff' },
+        progress: {} // Ex: { "Spike Run": 100 }
+    };
+}
+
+function writeSaveData() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            skin: playerSkin,
+            progress: levelProgress
+        }));
+    } catch (e) {
+        console.warn('Erro ao salvar no navegador:', e);
+    }
+}
+
+const savedData = loadSaveData();
+let playerSkin = savedData.skin || { model: 0, primary: '#ffde00', secondary: '#00e5ff' };
+let levelProgress = savedData.progress || {};
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
 
@@ -57,6 +82,15 @@ const LEVELS = [
     }
 ];
 let currentLevelIndex = 0;
+
+function recordBestProgress(levelName, percent) {
+    const cleanPercent = Math.min(100, Math.max(0, Math.floor(percent)));
+    const prev = levelProgress[levelName] || 0;
+    if (cleanPercent > prev) {
+        levelProgress[levelName] = cleanPercent;
+        writeSaveData();
+    }
+}
 
 // Desenha o cubo em qualquer canvas
 function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
@@ -118,7 +152,6 @@ const player = {
     dy: 0,
     grounded: true,
     rotation: 0,
-    scale: 1,
 
     reset() {
         this.x = 160;
@@ -126,7 +159,6 @@ const player = {
         this.dy = 0;
         this.grounded = true;
         this.rotation = 0;
-        this.scale = 1;
     },
 
     update() {
@@ -156,14 +188,8 @@ const player = {
     },
 
     draw() {
-        ctx.save();
-        if (this.scale !== 1) {
-            ctx.translate(this.x + this.size / 2, this.y + this.size / 2);
-            ctx.scale(this.scale, this.scale);
-            ctx.translate(-(this.x + this.size / 2), -(this.y + this.size / 2));
-        }
+        // Tamanho sempre 100% original (BLOCK_SIZE)
         drawCubeSkin(ctx, this.x, this.y, this.size, this.rotation, playerSkin);
-        ctx.restore();
     }
 };
 
@@ -217,12 +243,15 @@ const bgBot = {
 // Variáveis da fase ativa
 let activeSpikes = [];
 let activeFinishX = 2400;
-let lockedFinishScreenX = 0; // Posição X na tela onde a parede de chegada trava
+let lockedFinishScreenX = 0;
+let currentRunPercent = 0;
 
 function initLevel() {
     const lvl = LEVELS[currentLevelIndex];
     levelDistance = 0;
+    currentRunPercent = 0;
     particles = [];
+    winFlashAlpha = 0;
     player.reset();
     activeFinishX = lvl.finishX;
     activeSpikes = lvl.spikes.map(x => ({ x, width: BLOCK_SIZE, height: BLOCK_SIZE }));
@@ -231,6 +260,7 @@ function initLevel() {
 
 function updateProgressUI(percent) {
     const clamped = Math.min(100, Math.max(0, Math.floor(percent)));
+    currentRunPercent = clamped;
     progressFill.style.width = clamped + '%';
     progressText.textContent = clamped + '%';
 }
@@ -297,11 +327,10 @@ function drawSpike(x, y, w, h) {
     ctx.restore();
 }
 
-// Parede de Fim de Fase (Estilo Geometry Dash: brilha e fecha o lado direito sem mostrar nada atrás)
+// Parede de Fim de Fase
 function drawFinishWall(screenX) {
     if (screenX > canvas.width + 50) return;
 
-    // Preenche tudo atrás da parede com luz brilhante (bloqueia a visão atrás do fim)
     const wallWidth = Math.max(120, canvas.width - screenX + 50);
     const grad = ctx.createLinearGradient(screenX, 0, screenX + 90, 0);
     grad.addColorStop(0, '#ffffff');
@@ -310,27 +339,26 @@ function drawFinishWall(screenX) {
     ctx.fillStyle = grad;
     ctx.fillRect(screenX, 0, wallWidth, GROUND_Y);
 
-    // Aura de brilho antes da parede
     const aura = ctx.createLinearGradient(screenX - 50, 0, screenX, 0);
     aura.addColorStop(0, 'rgba(0, 255, 170, 0)');
     aura.addColorStop(1, 'rgba(0, 255, 170, 0.55)');
     ctx.fillStyle = aura;
     ctx.fillRect(screenX - 50, 0, 50, GROUND_Y);
 
-    // Borda vertical branca sólida
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(screenX, 0, 6, GROUND_Y);
 }
 
-// Partículas da animação de fim de fase
-function spawnEndParticles(x, y) {
-    for (let i = 0; i < 4; i++) {
+// Partículas
+function spawnEndParticles(x, y, count = 4, burst = false) {
+    for (let i = 0; i < count; i++) {
         particles.push({
-            x: x + Math.random() * 20,
+            x: x + Math.random() * 30,
             y: y + Math.random() * 40,
-            vx: -2 - Math.random() * 4,
-            vy: (Math.random() - 0.5) * 6,
-            size: 4 + Math.random() * 6,
+            vx: burst ? (Math.random() - 0.5) * 12 : -2 - Math.random() * 4,
+            vy: burst ? (Math.random() - 0.5) * 12 : (Math.random() - 0.5) * 6,
+            size: 5 + Math.random() * 6,
+            color: Math.random() > 0.5 ? '#7fff00' : '#ffe600',
             alpha: 1
         });
     }
@@ -341,15 +369,18 @@ function updateAndDrawParticles() {
         const pt = particles[i];
         pt.x += pt.vx;
         pt.y += pt.vy;
-        pt.alpha -= 0.03;
+        pt.alpha -= 0.025;
 
         if (pt.alpha <= 0) {
             particles.splice(i, 1);
             continue;
         }
 
-        ctx.fillStyle = `rgba(127, 255, 0, ${pt.alpha})`;
+        ctx.save();
+        ctx.globalAlpha = pt.alpha;
+        ctx.fillStyle = pt.color;
         ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
+        ctx.restore();
     }
 }
 
@@ -386,18 +417,17 @@ function loop() {
         drawBackground();
         drawGround();
 
-        // Calcula o ponto onde a câmera deve parar (quando a parede de chegada entra a 120px da borda direita)
         const cameraStopDistance = (activeFinishX + 160) - (canvas.width - 120);
         const progress = (levelDistance / cameraStopDistance) * 97;
         updateProgressUI(progress);
 
-        // Desenha espinhos
         for (let s of activeSpikes) {
             const screenX = s.x - levelDistance + 160;
             if (screenX + s.width > -50 && screenX < canvas.width + 50) {
                 drawSpike(screenX, GROUND_Y, s.width, s.height);
 
                 if (checkSpikeCollision(player, screenX, s.width, s.height)) {
+                    recordBestProgress(LEVELS[currentLevelIndex].name, currentRunPercent);
                     initLevel();
                     break;
                 }
@@ -410,19 +440,16 @@ function loop() {
         player.update();
         player.draw();
 
-        // Em 97% (3% antes do fim), a câmera PARA de ir pra frente e inicia a animação final!
         if (levelDistance >= cameraStopDistance) {
-            lockedFinishScreenX = finishScreenX; // Trava a parede exatamente onde ela está na tela
+            lockedFinishScreenX = finishScreenX;
             gameState = 'ENDING_ANIM';
             isHoldingJump = false;
         }
     } 
     else if (gameState === 'ENDING_ANIM') {
-        // CÂMERA COMPLETAMENTE PARADA (bgScroll, groundScroll e lockedFinishScreenX congelados)
         drawBackground();
         drawGround();
 
-        // Desenha os últimos espinhos já passados parados no lugar
         for (let s of activeSpikes) {
             const screenX = s.x - levelDistance + 160;
             if (screenX + s.width > -50 && screenX < canvas.width + 50) {
@@ -430,31 +457,33 @@ function loop() {
             }
         }
 
-        // Parede parada na direita, tampando tudo atrás do fim
         drawFinishWall(lockedFinishScreenX);
 
-        // Apenas o cubo avança em direção à parede parada, flutuando e girando
+        // Cubo avança até a parede mantendo o tamanho 100% original
         player.x += 8.5;
         player.y += (GROUND_Y / 2 - player.y) * 0.08;
         player.rotation += 0.22;
-        player.scale = Math.max(0.25, player.scale - 0.012);
 
-        spawnEndParticles(player.x, player.y);
+        spawnEndParticles(player.x, player.y, 4, false);
         updateAndDrawParticles();
         player.draw();
 
-        // Calcula exato de 97% até 100% conforme o cubo vai de x=160 até encostar na parede
         const travelDone = Math.max(0, player.x - 160);
         const totalTravel = Math.max(1, (lockedFinishScreenX - player.size / 2) - 160);
         const finalPercent = 97 + (travelDone / totalTravel) * 3;
         updateProgressUI(finalPercent);
 
-        // Assim que encosta na parede (100%), finaliza sem travar em 99%
         if (player.x + player.size / 2 >= lockedFinishScreenX) {
             updateProgressUI(100);
+            recordBestProgress(LEVELS[currentLevelIndex].name, 100);
+
+            // Explosão de partículas e flash branco na batida final
+            spawnEndParticles(lockedFinishScreenX - 10, player.y, 28, true);
+            winFlashAlpha = 0.75;
+
             gameState = 'WIN';
             hud.classList.add('hidden');
-            document.getElementById('win-level-name').textContent = `${LEVELS[currentLevelIndex].name} concluída!`;
+            document.getElementById('win-level-name').textContent = `${LEVELS[currentLevelIndex].name} • 100%`;
             winScreen.classList.remove('hidden');
         }
     }
@@ -463,6 +492,13 @@ function loop() {
         drawGround();
         drawFinishWall(lockedFinishScreenX);
         updateAndDrawParticles();
+
+        // Flash suave que desaparece rapidamente
+        if (winFlashAlpha > 0) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${winFlashAlpha})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            winFlashAlpha = Math.max(0, winFlashAlpha - 0.04);
+        }
     }
 
     requestAnimationFrame(loop);
@@ -498,6 +534,7 @@ function setupGarage() {
             document.querySelectorAll('.skin-option').forEach(el => el.classList.remove('selected'));
             opt.classList.add('selected');
             renderSkinUI();
+            writeSaveData(); // Salva escolha localmente
         });
         modelsDiv.appendChild(opt);
     }
@@ -511,6 +548,7 @@ function setupGarage() {
             primDiv.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
             sw1.classList.add('selected');
             renderSkinUI();
+            writeSaveData(); // Salva cor 1 localmente
         });
         primDiv.appendChild(sw1);
 
@@ -522,6 +560,7 @@ function setupGarage() {
             secDiv.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
             sw2.classList.add('selected');
             renderSkinUI();
+            writeSaveData(); // Salva cor 2 localmente
         });
         secDiv.appendChild(sw2);
     });
@@ -532,9 +571,12 @@ function setupGarage() {
 // === SELEÇÃO DE FASES ===
 function updateLevelCard() {
     const lvl = LEVELS[currentLevelIndex];
+    const best = levelProgress[lvl.name] || 0;
+
     document.getElementById('level-name').textContent = lvl.name;
-    document.getElementById('level-diff-text').textContent = lvl.difficulty;
-    document.getElementById('level-stars').textContent = `★ ${lvl.stars}`;
+    document.getElementById('level-diff-text').textContent = `${lvl.difficulty} • RECORDE: ${best}%`;
+    document.getElementById('level-stars').textContent = best === 100 ? `★ ${lvl.stars} (COMPLETA)` : `☆ ${lvl.stars}`;
+
     const face = document.getElementById('level-diff-face');
     face.textContent = lvl.face;
     face.style.backgroundColor = lvl.color;
@@ -584,6 +626,7 @@ document.getElementById('level-card').addEventListener('click', () => {
 });
 
 document.getElementById('pause-menu-btn').addEventListener('click', () => {
+    recordBestProgress(LEVELS[currentLevelIndex].name, currentRunPercent);
     hud.classList.add('hidden');
     mainMenu.classList.remove('hidden');
     gameState = 'MENU';
@@ -598,6 +641,7 @@ document.getElementById('replay-btn').addEventListener('click', () => {
 
 document.getElementById('win-menu-btn').addEventListener('click', () => {
     winScreen.classList.add('hidden');
+    updateLevelCard();
     mainMenu.classList.remove('hidden');
     gameState = 'MENU';
 });
