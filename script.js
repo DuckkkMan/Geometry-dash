@@ -26,7 +26,7 @@ let levelDistance = 0;
 let isHoldingJump = false;
 let particles = [];
 
-// Customização do Jogador (Salva no navegador)
+// Customização do Jogador
 let playerSkin = {
     model: 0,
     primary: '#ffde00',
@@ -35,7 +35,7 @@ let playerSkin = {
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
 
-// Fases disponíveis na v0.2
+// Fases disponíveis
 const LEVELS = [
     {
         name: 'Spike Run',
@@ -58,17 +58,15 @@ const LEVELS = [
 ];
 let currentLevelIndex = 0;
 
-// Função reutilizável para desenhar qualquer cubo em qualquer canvas
+// Desenha o cubo em qualquer canvas
 function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
     targetCtx.save();
     targetCtx.translate(x + size / 2, y + size / 2);
     targetCtx.rotate(rotation);
 
-    const half = size / 2;
     const scale = size / 44;
     targetCtx.scale(scale, scale);
 
-    // Base do Cubo
     targetCtx.fillStyle = skin.primary;
     targetCtx.fillRect(-22, -22, 44, 44);
     targetCtx.lineWidth = 3.5;
@@ -80,7 +78,6 @@ function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
     targetCtx.lineWidth = 2;
 
     if (skin.model === 0) {
-        // Ícone Clássico 1
         targetCtx.fillRect(-13, -12, 9, 9);
         targetCtx.strokeRect(-13, -12, 9, 9);
         targetCtx.fillRect(4, -12, 9, 9);
@@ -88,7 +85,6 @@ function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
         targetCtx.fillRect(-13, 4, 26, 8);
         targetCtx.strokeRect(-13, 4, 26, 8);
     } else if (skin.model === 1) {
-        // Ícone Creeper / Robô
         targetCtx.fillRect(-12, -11, 8, 8);
         targetCtx.strokeRect(-12, -11, 8, 8);
         targetCtx.fillRect(4, -11, 8, 8);
@@ -96,7 +92,6 @@ function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
         targetCtx.fillRect(-6, -2, 12, 14);
         targetCtx.strokeRect(-6, -2, 12, 14);
     } else if (skin.model === 2) {
-        // Ícone Geométrico (Losango interno)
         targetCtx.beginPath();
         targetCtx.moveTo(0, -14);
         targetCtx.lineTo(14, 0);
@@ -106,7 +101,6 @@ function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
         targetCtx.fill();
         targetCtx.stroke();
     } else {
-        // Ícone Visor Ciclope
         targetCtx.fillRect(-15, -9, 30, 10);
         targetCtx.strokeRect(-15, -9, 30, 10);
         targetCtx.fillRect(-8, 6, 16, 5);
@@ -173,7 +167,7 @@ const player = {
     }
 };
 
-// CUBO BOT DO FUNDO DA TELA INICIAL (Pula espinhos infinitos)
+// Cubo Bot da Tela Inicial
 const bgBot = {
     x: 180,
     y: GROUND_Y - BLOCK_SIZE,
@@ -184,7 +178,6 @@ const bgBot = {
     spikes: [600, 950, 1320],
 
     update() {
-        // Move os espinhos infinitos do fundo
         for (let i = 0; i < this.spikes.length; i++) {
             this.spikes[i] -= GAME_SPEED;
             if (this.spikes[i] < -60) {
@@ -192,7 +185,6 @@ const bgBot = {
                 this.spikes[i] = maxSpike + 320 + Math.random() * 140;
             }
 
-            // IA: Pula automaticamente na distância exata antes do espinho
             const distToSpike = this.spikes[i] - (this.x + this.size);
             if (distToSpike > 0 && distToSpike < 105 && this.grounded) {
                 this.dy = JUMP_FORCE;
@@ -225,6 +217,7 @@ const bgBot = {
 // Variáveis da fase ativa
 let activeSpikes = [];
 let activeFinishX = 2400;
+let lockedFinishScreenX = 0; // Posição X na tela onde a parede de chegada trava
 
 function initLevel() {
     const lvl = LEVELS[currentLevelIndex];
@@ -304,21 +297,29 @@ function drawSpike(x, y, w, h) {
     ctx.restore();
 }
 
-// Portal / Parede de Fim de Fase
+// Parede de Fim de Fase (Estilo Geometry Dash: brilha e fecha o lado direito sem mostrar nada atrás)
 function drawFinishWall(screenX) {
-    if (screenX > canvas.width + 100) return;
+    if (screenX > canvas.width + 50) return;
 
-    // Aura brilhante
-    const grad = ctx.createLinearGradient(screenX - 40, 0, screenX + 80, 0);
-    grad.addColorStop(0, 'rgba(0, 255, 170, 0)');
-    grad.addColorStop(0.5, 'rgba(0, 255, 170, 0.75)');
-    grad.addColorStop(1, 'rgba(255, 255, 255, 0.95)');
+    // Preenche tudo atrás da parede com luz brilhante (bloqueia a visão atrás do fim)
+    const wallWidth = Math.max(120, canvas.width - screenX + 50);
+    const grad = ctx.createLinearGradient(screenX, 0, screenX + 90, 0);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.25, '#00ffaa');
+    grad.addColorStop(1, '#004433');
     ctx.fillStyle = grad;
-    ctx.fillRect(screenX - 40, 0, 120, GROUND_Y);
+    ctx.fillRect(screenX, 0, wallWidth, GROUND_Y);
 
-    // Feixe central
+    // Aura de brilho antes da parede
+    const aura = ctx.createLinearGradient(screenX - 50, 0, screenX, 0);
+    aura.addColorStop(0, 'rgba(0, 255, 170, 0)');
+    aura.addColorStop(1, 'rgba(0, 255, 170, 0.55)');
+    ctx.fillStyle = aura;
+    ctx.fillRect(screenX - 50, 0, 50, GROUND_Y);
+
+    // Borda vertical branca sólida
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(screenX, 0, 8, GROUND_Y);
+    ctx.fillRect(screenX, 0, 6, GROUND_Y);
 }
 
 // Partículas da animação de fim de fase
@@ -374,7 +375,6 @@ function loop() {
         drawBackground();
         drawGround();
 
-        // Cubo bot pulando espinhos infinitos no fundo
         bgBot.update();
         bgBot.draw();
     } 
@@ -386,14 +386,14 @@ function loop() {
         drawBackground();
         drawGround();
 
-        // Calcula porcentagem atual
-        const totalDist = activeFinishX - player.x;
-        const progress = (levelDistance / totalDist) * 100;
+        // Calcula o ponto onde a câmera deve parar (quando a parede de chegada entra a 120px da borda direita)
+        const cameraStopDistance = (activeFinishX + 160) - (canvas.width - 120);
+        const progress = (levelDistance / cameraStopDistance) * 97;
         updateProgressUI(progress);
 
         // Desenha espinhos
         for (let s of activeSpikes) {
-            const screenX = s.x - levelDistance + player.x;
+            const screenX = s.x - levelDistance + 160;
             if (screenX + s.width > -50 && screenX < canvas.width + 50) {
                 drawSpike(screenX, GROUND_Y, s.width, s.height);
 
@@ -404,44 +404,53 @@ function loop() {
             }
         }
 
-        const finishScreenX = activeFinishX - levelDistance + player.x;
+        const finishScreenX = activeFinishX - levelDistance + 160;
         drawFinishWall(finishScreenX);
 
         player.update();
         player.draw();
 
-        // 3% ANTES DO FIM (97%): Inicia a animação clássica sendo puxado até o fim!
-        if (progress >= 97) {
+        // Em 97% (3% antes do fim), a câmera PARA de ir pra frente e inicia a animação final!
+        if (levelDistance >= cameraStopDistance) {
+            lockedFinishScreenX = finishScreenX; // Trava a parede exatamente onde ela está na tela
             gameState = 'ENDING_ANIM';
             isHoldingJump = false;
         }
     } 
     else if (gameState === 'ENDING_ANIM') {
-        // O cenário desacelera e o cubo voa sendo sugado para dentro da parede de chegada
-        bgScroll += 1;
-        groundScroll += 2;
+        // CÂMERA COMPLETAMENTE PARADA (bgScroll, groundScroll e lockedFinishScreenX congelados)
         drawBackground();
         drawGround();
 
-        const finishScreenX = activeFinishX - levelDistance + player.x;
-        drawFinishWall(finishScreenX);
+        // Desenha os últimos espinhos já passados parados no lugar
+        for (let s of activeSpikes) {
+            const screenX = s.x - levelDistance + 160;
+            if (screenX + s.width > -50 && screenX < canvas.width + 50) {
+                drawSpike(screenX, GROUND_Y, s.width, s.height);
+            }
+        }
 
-        // Move o cubo até o portal de chegada girando e flutuando
-        player.x += 6.5;
-        player.y += (GROUND_Y / 2 - player.y) * 0.08; // Sobe suavemente em direção ao centro do portal
+        // Parede parada na direita, tampando tudo atrás do fim
+        drawFinishWall(lockedFinishScreenX);
+
+        // Apenas o cubo avança em direção à parede parada, flutuando e girando
+        player.x += 8.5;
+        player.y += (GROUND_Y / 2 - player.y) * 0.08;
         player.rotation += 0.22;
-        player.scale = Math.max(0.2, player.scale - 0.015);
+        player.scale = Math.max(0.25, player.scale - 0.012);
 
         spawnEndParticles(player.x, player.y);
         updateAndDrawParticles();
         player.draw();
 
-        // Atualiza os últimos 3% na barra (97% -> 100%)
-        const remainingRatio = Math.min(1, (player.x - 160) / (finishScreenX - 160));
-        updateProgressUI(97 + remainingRatio * 3);
+        // Calcula exato de 97% até 100% conforme o cubo vai de x=160 até encostar na parede
+        const travelDone = Math.max(0, player.x - 160);
+        const totalTravel = Math.max(1, (lockedFinishScreenX - player.size / 2) - 160);
+        const finalPercent = 97 + (travelDone / totalTravel) * 3;
+        updateProgressUI(finalPercent);
 
-        // Quando entra totalmente no fim
-        if (player.x >= finishScreenX) {
+        // Assim que encosta na parede (100%), finaliza sem travar em 99%
+        if (player.x + player.size / 2 >= lockedFinishScreenX) {
             updateProgressUI(100);
             gameState = 'WIN';
             hud.classList.add('hidden');
@@ -452,19 +461,18 @@ function loop() {
     else if (gameState === 'WIN') {
         drawBackground();
         drawGround();
+        drawFinishWall(lockedFinishScreenX);
         updateAndDrawParticles();
     }
 
     requestAnimationFrame(loop);
 }
 
-// === GARAGEM DE SKINS & ÍCONE DO BOTÃO ===
+// === GARAGEM DE SKINS ===
 function renderSkinUI() {
-    // Atualiza o ícone pequeno dentro do botão do menu inicial
     const btnCanvas = document.getElementById('skin-btn-icon');
     drawCubeSkin(btnCanvas.getContext('2d'), 4, 4, 36, 0, playerSkin);
 
-    // Atualiza o preview grande na garagem
     const prevCanvas = document.getElementById('skin-preview');
     const pCtx = prevCanvas.getContext('2d');
     pCtx.clearRect(0, 0, 80, 80);
@@ -476,7 +484,6 @@ function setupGarage() {
     const primDiv = document.getElementById('primary-colors');
     const secDiv = document.getElementById('secondary-colors');
 
-    // 4 Modelos de cubo
     for (let i = 0; i < 4; i++) {
         const opt = document.createElement('div');
         opt.className = 'skin-option' + (playerSkin.model === i ? ' selected' : '');
@@ -495,7 +502,6 @@ function setupGarage() {
         modelsDiv.appendChild(opt);
     }
 
-    // Paleta de Cores
     COLORS.forEach(color => {
         const sw1 = document.createElement('div');
         sw1.className = 'color-swatch' + (playerSkin.primary === color ? ' selected' : '');
