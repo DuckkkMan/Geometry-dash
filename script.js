@@ -943,6 +943,39 @@ function drawShipPlayer(targetCtx, x, y, size, dy, skin) {
     targetCtx.restore();
 }
 
+// Linha contínua que registra o caminho percorrido pelo jogador nesta tentativa.
+function drawPlayerTrail(targetCtx, points, distance) {
+    if (!points || points.length < 2) return;
+    targetCtx.save();
+    targetCtx.beginPath();
+    let started = false;
+    for (const point of points) {
+        const screenX = point.x - distance + 160;
+        if (screenX < -30 || screenX > targetCtx.canvas.width + 30) {
+            if (started) targetCtx.stroke();
+            targetCtx.beginPath();
+            started = false;
+            continue;
+        }
+        if (!started) {
+            targetCtx.moveTo(screenX, point.y);
+            started = true;
+        } else {
+            targetCtx.lineTo(screenX, point.y);
+        }
+    }
+    if (started) {
+        targetCtx.strokeStyle = '#ffffff';
+        targetCtx.lineWidth = 3;
+        targetCtx.lineCap = 'round';
+        targetCtx.lineJoin = 'round';
+        targetCtx.shadowColor = '#00e5ff';
+        targetCtx.shadowBlur = 8;
+        targetCtx.stroke();
+    }
+    targetCtx.restore();
+}
+
 // Jogador Principal
 const player = {
     x: 160,
@@ -1088,6 +1121,7 @@ let activeFinishX = 3400;
 let lockedFinishScreenX = 0;
 let currentRunPercent = 0;
 let activeAttemptNumber = 1;
+let playerTrail = [];
 
 function startAttempt(countNewAttempt = true) {
     clearRespawnTimer();
@@ -1106,6 +1140,7 @@ function startAttempt(countNewAttempt = true) {
     }
 
     particles = [];
+    playerTrail = [];
     winFlashAlpha = 0;
     screenShake = 0;
     currentGameSpeed = BASE_GAME_SPEED;
@@ -1572,6 +1607,8 @@ function loop() {
 
         if (gameState === 'PLAYING') {
             player.update();
+            playerTrail.push({ x: levelDistance, y: player.y + player.size / 2 });
+            if (playerTrail.length > 1400) playerTrail.shift();
 
             for (let pl of activePlatforms) {
                 const screenX = pl.x - levelDistance + 160;
@@ -1579,6 +1616,7 @@ function loop() {
             }
 
             if (gameState === 'PLAYING') {
+                drawPlayerTrail(ctx, playerTrail, levelDistance);
                 player.draw();
                 jumpJustPressed = false;
             }
@@ -1616,6 +1654,7 @@ function loop() {
         if (stateBeforePause === 'DEAD') {
             drawParticlesOnly();
         } else {
+            drawPlayerTrail(ctx, playerTrail, levelDistance);
             player.draw();
         }
     }
@@ -2143,6 +2182,27 @@ function drawEditorCanvas() {
         eCtx.strokeStyle = '#ffe600';
         eCtx.strokeRect(sx, 30, 16, EDITOR_GROUND_Y - 30);
     });
+
+    // Personagem-guia e sua linha ficam visíveis o tempo todo no editor.
+    const guideX = 160;
+    const guideY = EDITOR_GROUND_Y - BLOCK_SIZE * EDITOR_SCALE_Y;
+    eCtx.save();
+    eCtx.strokeStyle = '#ffffff';
+    eCtx.lineWidth = 3;
+    eCtx.lineCap = 'round';
+    eCtx.shadowColor = '#00e5ff';
+    eCtx.shadowBlur = 8;
+    eCtx.beginPath();
+    eCtx.moveTo(72, guideY + BLOCK_SIZE * EDITOR_SCALE_Y / 2);
+    eCtx.lineTo(guideX, guideY + BLOCK_SIZE * EDITOR_SCALE_Y / 2);
+    eCtx.stroke();
+    eCtx.shadowBlur = 0;
+    eCtx.fillStyle = '#ffde00';
+    eCtx.strokeStyle = '#000000';
+    eCtx.lineWidth = 2;
+    eCtx.fillRect(guideX, guideY, BLOCK_SIZE, BLOCK_SIZE * EDITOR_SCALE_Y);
+    eCtx.strokeRect(guideX, guideY, BLOCK_SIZE, BLOCK_SIZE * EDITOR_SCALE_Y);
+    eCtx.restore();
 
     const finX = toSX(finishX);
     eCtx.strokeStyle = '#00ffaa';
