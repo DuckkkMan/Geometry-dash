@@ -1309,8 +1309,9 @@ function drawGround() {
 
     ctx.strokeStyle = isInLevel ? (runtimeGroundGrid || lvl.groundGrid) : '#0044cc';
     ctx.lineWidth = 2;
-    const tile = 55;
-    const offset = -(groundScroll % tile);
+    const tile = BLOCK_SIZE;
+    let offset = 160 - (groundScroll % tile);
+    while (offset > 0) offset -= tile;
 
     for (let x = offset; x < canvas.width; x += tile) {
         ctx.strokeRect(x, GROUND_Y, tile, tile);
