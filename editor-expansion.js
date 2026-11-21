@@ -77,9 +77,27 @@ let localRedoStack = [];
 let localHistoryLock = false;
 let snapEnabled = true;
 const gridUnit = BLOCK_SIZE;
+const GRID_PREF_KEY = 'gd_web_editor_grid_v1';
 let gridLineStrength = 'normal';
 let gridSettingsOpen = false;
 let eraseGestureMode = 'click';
+
+try {
+  const savedGrid = JSON.parse(localStorage.getItem(GRID_PREF_KEY) || 'null');
+  if (savedGrid && typeof savedGrid === 'object') {
+    if (typeof savedGrid.visible === 'boolean') editorShowGrid = savedGrid.visible;
+    if (['soft', 'normal', 'strong'].includes(savedGrid.strength)) gridLineStrength = savedGrid.strength;
+  }
+} catch (_) {}
+
+function persistGridSettings() {
+  try {
+    localStorage.setItem(GRID_PREF_KEY, JSON.stringify({
+      visible: Boolean(editorShowGrid),
+      strength: gridLineStrength
+    }));
+  } catch (_) {}
+}
 
 function makeId() {
   return 'obj_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
@@ -274,16 +292,23 @@ function addEditorCommandBar() {
 
   const rail = document.createElement('nav');
   rail.id = 'editor-tool-rail';
-  rail.innerHTML = '<button type="button" data-tool="place" class="active"><b>＋</b><span>Colocar</span></button><button type="button" data-tool="select"><b>↖</b><span>Editar</span></button><button type="button" data-tool="erase"><b>⌫</b><span>Apagar</span></button>';
+  rail.innerHTML = '<button type="button" data-tool="place" class="active"><b>＋</b><span>Colocar</span></button><button type="button" data-tool="select"><b>↖</b><span>Editar</span></button><button type="button" data-tool="pan"><b>✋</b><span>Mover</span></button><button type="button" data-tool="erase"><b>⌫</b><span>Apagar</span></button>';
   editorRoot.appendChild(rail);
 
   rail.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
     editorToolMode = b.dataset.tool;
-    rail.querySelectorAll('[data-tool]').forEach(x => x.classList.toggle('active', x === b));
     $('editor-delete-panel')?.classList.toggle('hidden', editorToolMode !== 'erase');
     $('editor-inspector')?.classList.toggle('editor-inspector-open', editorToolMode === 'select');
     syncEditorToolButtons();
   }));
+
+  const previousSyncEditorToolButtons = syncEditorToolButtons;
+  syncEditorToolButtons = function () {
+    previousSyncEditorToolButtons();
+    rail.querySelectorAll('[data-tool]').forEach(button => {
+      button.classList.toggle('active', button.dataset.tool === editorToolMode);
+    });
+  };
 
   const del = document.createElement('section');
   del.id = 'editor-delete-panel';
@@ -340,8 +365,10 @@ function addGridSettings() {
   const panel = document.createElement('section');
   panel.id = 'editor-grid-settings-panel';
   panel.className = 'hidden';
-  panel.innerHTML = '<div class="grid-settings-head"><strong>GRADE DO EDITOR</strong><button type="button" id="editor-grid-settings-close" aria-label="Fechar">×</button></div><div class="grid-settings-cell"><span>Tamanho da célula</span><b>44 × 44 px · 1 CUBO</b><small>Fixo para manter o alinhamento idêntico ao jogo.</small></div><label class="grid-settings-option"><input id="grid-setting-visible" type="checkbox" checked><span>Mostrar grade</span></label><label class="grid-settings-option"><span>Contraste das linhas</span><select id="grid-setting-strength"><option value="soft">Suave</option><option value="normal" selected>Normal</option><option value="strong">Forte</option></select></label>';
+  panel.innerHTML = '<div class="grid-settings-head"><strong>GRADE DO EDITOR</strong><button type="button" id="editor-grid-settings-close" aria-label="Fechar">×</button></div><div class="grid-settings-cell"><span>Tamanho da célula</span><b>44 × 44 px · 1 CUBO</b><small>Fixo para manter o alinhamento idêntico ao jogo.</small></div><label class="grid-settings-option"><input id="grid-setting-visible" type="checkbox"><span>Mostrar grade</span></label><label class="grid-settings-option"><span>Contraste das linhas</span><select id="grid-setting-strength"><option value="soft">Suave</option><option value="normal">Normal</option><option value="strong">Forte</option></select></label>';
   editorRoot.appendChild(panel);
+  $('grid-setting-visible').checked = Boolean(editorShowGrid);
+  $('grid-setting-strength').value = gridLineStrength;
 
   button.addEventListener('click', () => {
     gridSettingsOpen = !gridSettingsOpen;
@@ -353,11 +380,13 @@ function addGridSettings() {
   });
   $('grid-setting-visible').addEventListener('change', ev => {
     editorShowGrid = ev.target.checked;
+    persistGridSettings();
     syncEditorToolButtons();
     drawEditorCanvas();
   });
   $('grid-setting-strength').addEventListener('change', ev => {
     gridLineStrength = ev.target.value;
+    persistGridSettings();
     drawEditorCanvas();
   });
 }
@@ -515,7 +544,15 @@ editAtEditorPointer = function (pointerEvent) {
 // Mantém a grade desenhada exatamente na mesma unidade (44px) e deslocamento (editorScrollX) que o clique
 const oldDrawEditor = drawEditorCanvas;
 drawEditorCanvas = function () {
-  oldDrawEditor();
+  // O renderizador original também desenha a grade. Desative-a temporariamente
+  // para evitar linhas duplicadas e deixar o contraste controlado por esta camada.
+  const showGrid = editorShowGrid;
+  editorShowGrid = false;
+  try {
+    oldDrawEditor();
+  } finally {
+    editorShowGrid = showGrid;
+  }
   if (gameState !== 'EDITOR' || !editorDraft || !editorShowGrid) return;
 
   const w = editorCanvas.width;
@@ -568,5 +605,37 @@ addEditorCommandBar();
 addGridSettings();
 addInspector();
 refreshInspector();
+
+document.addEventListener('keydown', event => {
+  if (gameState !== 'EDITOR') return;
+  const target = event.target;
+  if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+
+  const key = event.key.toLowerCase();
+  const modifier = event.ctrlKey || event.metaKey;
+  if (modifier && key === 'z') {
+    event.preventDefault();
+    if (event.shiftKey) redoLocalEditor();
+    else undoLocalEditor();
+    return;
+  }
+  if (modifier && key === 'y') {
+    event.preventDefault();
+    redoLocalEditor();
+    return;
+  }
+  if ((key === 'delete' || key === 'backspace') && getSelectionRecords().length) {
+    event.preventDefault();
+    recordHistory();
+    getSelectionRecords().forEach(record => {
+      const list = editorDraft[record.key];
+      const index = list.indexOf(record.obj);
+      if (index >= 0) list.splice(index, 1);
+    });
+    selectedObjects = [];
+    refreshInspector();
+    drawEditorCanvas();
+  }
+});
 if (gameState === 'EDITOR') drawEditorCanvas();
 })();
