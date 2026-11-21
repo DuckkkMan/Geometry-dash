@@ -108,7 +108,7 @@
                 <div class="editor-top-center">
                     <button id="tool-place-btn" class="mini-btn active" type="button">COLOCAR</button>
                     <button id="tool-erase-btn" class="mini-btn" type="button">APAGAR</button>
-                    <button id="tool-pan-btn" class="mini-btn" type="button">MÃO / MOVER</button>
+                    <button id="tool-pan-btn" class="mini-btn" type="button">ARRASTAR CÂMERA</button>
                     <button id="editor-grid-btn" class="mini-btn active" type="button">GRID: ON</button>
                     <button id="editor-clear-btn" class="mini-btn warn" type="button">LIMPAR</button>
                 </div>
@@ -121,6 +121,25 @@
 
             <div class="editor-main-area">
                 <canvas id="editorCanvas" width="900" height="330"></canvas>
+                <div class="editor-corner-tools" aria-label="Ferramentas do editor">
+                    <button id="editor-mode-block" class="editor-mode-btn active" type="button">▦<span>BLOCO</span></button>
+                    <button id="editor-mode-edit" class="editor-mode-btn" type="button">✥<span>EDITAR</span></button>
+                    <button id="editor-mode-delete" class="editor-mode-btn" type="button">⌫<span>DELETE</span></button>
+                </div>
+                <section id="editor-transform-panel" class="editor-transform-panel hidden">
+                    <div class="transform-title">EDIÇÃO AVANÇADA</div>
+                    <div class="transform-row">
+                        <button id="transform-left" type="button">←</button><button id="transform-up" type="button">↑</button>
+                        <button id="transform-down" type="button">↓</button><button id="transform-right" type="button">→</button>
+                    </div>
+                    <label>ROTAÇÃO <output id="transform-rotation-value">0°</output>
+                        <input id="transform-rotation" type="range" min="-180" max="180" value="0" step="1">
+                    </label>
+                    <label>ESCALA <output id="transform-scale-value">100%</output>
+                        <input id="transform-scale" type="range" min="25" max="300" value="100" step="5">
+                    </label>
+                    <button id="transform-reset" class="transform-reset" type="button">RESETAR TRANSFORMAÇÃO</button>
+                </section>
             </div>
 
             <div class="editor-bottom-panel">
@@ -131,7 +150,17 @@
                 </div>
 
                 <div id="editor-panel-assets" class="editor-tab-content">
-                    <div id="editor-palette" class="editor-palette"></div>
+                    <div class="asset-browser">
+                        <div class="asset-category-top">
+                            <button id="asset-category-prev" class="asset-page-arrow" type="button" aria-label="Categoria anterior">‹</button>
+                            <div class="asset-browser-heading">
+                                <strong id="asset-category-title">BLOCOS</strong>
+                                <span id="asset-category-count">Selecione um objeto para colocar na fase</span>
+                            </div>
+                            <button id="asset-category-next" class="asset-page-arrow" type="button" aria-label="Próxima categoria">›</button>
+                        </div>
+                        <div id="editor-palette" class="editor-palette"></div>
+                    </div>
                 </div>
 
                 <div id="editor-panel-triggers" class="editor-tab-content hidden">

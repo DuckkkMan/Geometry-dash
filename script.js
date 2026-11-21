@@ -188,7 +188,8 @@ function writeSaveData() {
             skin: playerSkin,
             progress: levelProgress,
             attempts: levelAttempts,
-            customLevels: customLevels
+            customLevels: customLevels,
+            secretCoins: Array.from(secretCoins || [])
         }));
     } catch (e) {
         console.warn('Erro ao salvar no navegador:', e);
@@ -196,6 +197,7 @@ function writeSaveData() {
 }
 
 const savedData = loadSaveData();
+let secretCoins = new Set(Array.isArray(savedData.secretCoins) ? savedData.secretCoins : []);
 let controlPlatform = savedData.platform === 'mobile' ? 'mobile' : 'pc';
 let playerSkin = savedData.skin || { model: 0, primary: '#ffde00', secondary: '#00e5ff' };
 let levelProgress = savedData.progress || {};
@@ -210,7 +212,7 @@ const LEVELS = [
         name: 'Spike Rush',
         difficulty: 'EASY',
         stars: 1,
-        faceKey: 'azul',
+        faceKey: 'maligno',
         bgTop: '#0038a8',
         bgBottom: '#0066ff',
         groundFill: '#001d5c',
@@ -275,8 +277,8 @@ const LEVELS = [
         ],
         orbs: [
             { x: 1580, y: GROUND_Y - 110, color: 'yellow', used: false },
-            { x: 2190, y: GROUND_Y - 125, color: 'pink', used: false },
-            { x: 3480, y: GROUND_Y - 105, color: 'yellow', used: false }
+            { x: 2190, y: GROUND_Y - 125, color: 'pink', used: true },
+            { x: 3480, y: GROUND_Y - 10, color: 'yellow', used: false }
         ],
         saws: [{ x: 1620, y: GROUND_Y - 165, r: 22, angle: 0 }],
         pillars: [{ x: 2680, h: 90, w: 34 }],
@@ -473,21 +475,17 @@ function drawPortal(portal, screenX) {
 
     const isCubePortal = portal.type === 'cube';
     const img = isCubePortal ? PORTAL_IMAGES.cube : PORTAL_IMAGES.ship;
-    const drawY = GROUND_Y - PORTAL_HEIGHT;
+    const scale=portal.scale||1,w=PORTAL_WIDTH*scale,h=PORTAL_HEIGHT*scale;
+    const bottom=portal.y===undefined?GROUND_Y:portal.y;
+    const drawY=bottom-h;
 
-    ctx.save();
+    ctx.save();ctx.globalAlpha=portal.alpha===undefined?1:portal.alpha;
+    ctx.translate(screenX+PORTAL_WIDTH/2,bottom-h/2);ctx.rotate(portal.rotation||0);
     if (img.complete && img.naturalWidth > 0) {
-        ctx.drawImage(img, screenX, drawY, PORTAL_WIDTH, PORTAL_HEIGHT);
+        ctx.drawImage(img,-w/2,-h/2,w,h);
     } else {
-        const centerX = screenX + PORTAL_WIDTH / 2;
-        const centerY = drawY + PORTAL_HEIGHT / 2;
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#000';
-        ctx.fillStyle = isCubePortal ? '#38b000' : '#0096ff';
-        ctx.beginPath();
-        ctx.ellipse(centerX, centerY, PORTAL_WIDTH / 2, PORTAL_HEIGHT / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+        ctx.lineWidth=4;ctx.strokeStyle='#000';ctx.fillStyle=portal.color||(isCubePortal?'#38b000':'#0096ff');
+        ctx.beginPath();ctx.ellipse(0,0,w/2,h/2,0,0,Math.PI*2);ctx.fill();ctx.stroke();
     }
     ctx.restore();
 }
@@ -495,12 +493,14 @@ function drawPortal(portal, screenX) {
 function checkPortalTrigger(p, portal, portalScreenX) {
     if (portal.triggered) return;
 
-    const portalTop = GROUND_Y - PORTAL_HEIGHT;
-    const portalBottom = GROUND_Y;
+    const scale=portal.scale||1;
+    const portalBottom=portal.y===undefined?GROUND_Y:portal.y;
+    const portalTop=portalBottom-PORTAL_HEIGHT*scale;
+    const portalWidth=PORTAL_WIDTH*scale;
 
     const overlaps =
         p.x + p.size > portalScreenX + 6 &&
-        p.x < portalScreenX + PORTAL_WIDTH - 6 &&
+        p.x < portalScreenX + portalWidth - 6 &&
         p.y + p.size > portalTop &&
         p.y < portalBottom;
 
@@ -523,9 +523,9 @@ function checkPortalTrigger(p, portal, portalScreenX) {
 
 // === PADS DE PULO (AMARELO E ROSA) ===
 function drawPad(pad, screenX) {
-    const w = 36;
-    const h = 11;
-    const y = GROUND_Y - h;
+    const w = 36 * (pad.scale || 1);
+    const h = 11 * (pad.scale || 1);
+    const y = pad.y === undefined ? GROUND_Y - h : pad.y;
     if (screenX + w < -40 || screenX > canvas.width + 40) return;
 
     const isPink = pad.color === 'pink';
@@ -533,14 +533,17 @@ function drawPad(pad, screenX) {
     const glowColor = isPink ? 'rgba(255, 79, 216, 0.35)' : 'rgba(255, 230, 0, 0.35)';
 
     ctx.save();
+    ctx.globalAlpha = pad.alpha === undefined ? 1 : pad.alpha;
+    ctx.translate(screenX + w/2, y + h/2);
+    ctx.rotate(pad.rotation || 0);
     ctx.fillStyle = glowColor;
-    ctx.fillRect(screenX - 4, y - 8, w + 8, h + 10);
+    ctx.fillRect(-w/2 - 4, -h/2 - 8, w + 8, h + 10);
 
-    ctx.fillStyle = mainColor;
+    ctx.fillStyle = pad.colorHex || mainColor;
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.roundRect(screenX, y, w, h, [6, 6, 2, 2]);
+    ctx.roundRect(-w/2, -h/2, w, h, [6, 6, 2, 2]);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
@@ -551,19 +554,18 @@ function checkPadCollision(p, pad, screenX) {
         pad.cooldown--;
         return;
     }
-    const w = 36;
-    const h = 14;
-    const padTop = GROUND_Y - h;
+    const w = 36 * (pad.scale || 1);
+    const h = 14 * (pad.scale || 1);
+    const padTop = pad.y === undefined ? GROUND_Y - h : pad.y;
 
     const overlaps =
         p.x + p.size > screenX + 3 &&
         p.x < screenX + w - 3 &&
         p.y + p.size >= padTop &&
-        p.y < GROUND_Y;
+        p.y < padTop + h;
 
     if (overlaps) {
         pad.cooldown = 12;
-        playerMode = 'cube';
         p.dy = pad.color === 'pink' ? PAD_PINK_FORCE : PAD_YELLOW_FORCE;
         p.grounded = false;
         playSfx('pad');
@@ -577,28 +579,29 @@ function drawOrb(orb, screenX) {
     if (screenX + radius * 2 < -40 || screenX - radius * 2 > canvas.width + 40) return;
 
     const isPink = orb.color === 'pink';
-    const outerColor = isPink ? '#ff4fd8' : '#ffe600';
+    const outerColor = orb.colorHex || (isPink ? '#ff4fd8' : '#ffe600');
     const innerColor = isPink ? '#ffd1f5' : '#fff8b8';
 
     ctx.save();
-    ctx.globalAlpha = orb.used ? 0.45 : 1;
+    ctx.globalAlpha = (orb.alpha === undefined ? 1 : orb.alpha) * (orb.used ? 0.45 : 1);
+    ctx.translate(screenX,orb.y);ctx.rotate(orb.rotation||0);ctx.scale(orb.scale||1,orb.scale||1);
 
     ctx.fillStyle = isPink ? 'rgba(255, 79, 216, 0.25)' : 'rgba(255, 230, 0, 0.25)';
     ctx.beginPath();
-    ctx.arc(screenX, orb.y, radius + 7, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius + 7, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = outerColor;
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(screenX, orb.y, radius, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = innerColor;
     ctx.beginPath();
-    ctx.arc(screenX, orb.y, radius * 0.45, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius * 0.45, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -612,12 +615,11 @@ function checkOrbTrigger(p, orb, screenX) {
     const pcy = p.y + p.size / 2;
     const dx = pcx - screenX;
     const dy = pcy - orb.y;
-    const hitDist = p.size * 0.65 + 18;
+    const hitDist = p.size * 0.65 + 18 * (orb.scale || 1);
 
     if (dx * dx + dy * dy <= hitDist * hitDist) {
         orb.used = true;
         jumpJustPressed = false;
-        playerMode = 'cube';
         p.dy = orb.color === 'pink' ? ORB_PINK_FORCE : ORB_YELLOW_FORCE;
         p.grounded = false;
         playSfx('pad');
@@ -630,27 +632,28 @@ function drawPlatform(plat, screenX) {
     if (screenX + plat.w < -60 || screenX > canvas.width + 60) return;
 
     ctx.save();
-    ctx.fillStyle = '#18376b';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    ctx.fillRect(screenX, plat.y, plat.w, plat.h);
-    ctx.strokeRect(screenX, plat.y, plat.w, plat.h);
-
-    ctx.strokeStyle = '#00e5ff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(screenX + 3, plat.y + 3, plat.w - 6, plat.h - 6);
+    const scale=plat.scale||1,w=plat.w*scale,h=plat.h*scale;
+    ctx.save();ctx.globalAlpha=plat.alpha===undefined?1:plat.alpha;
+    ctx.translate(screenX+w/2,plat.y+h/2);ctx.rotate(plat.rotation||0);
+    ctx.fillStyle=plat.color||'#18376b';ctx.strokeStyle='#000';ctx.lineWidth=3;
+    ctx.fillRect(-w/2,-h/2,w,h);ctx.strokeRect(-w/2,-h/2,w,h);
+    ctx.strokeStyle='#00e5ff';ctx.lineWidth=2;ctx.strokeRect(-w/2+3,-h/2+3,w-6,h-6);ctx.restore();
     ctx.restore();
 }
 
 function handlePlatformCollision(p, plat, screenX) {
+    const scale=plat.scale||1;
+    const width=plat.w*scale,height=plat.h*scale;
+    const left=screenX+plat.w/2-width/2;
+    const top=plat.y+plat.h/2-height/2;
     const prevBottom = p.prevY + p.size;
     const currBottom = p.y + p.size;
-    const horizOverlap = p.x + p.size - 5 > screenX && p.x + 5 < screenX + plat.w;
+    const horizOverlap = p.x + p.size - 5 > left && p.x + 5 < left + width;
 
     if (!horizOverlap) return false;
 
-    if (p.dy >= 0 && prevBottom <= plat.y + 10 && currBottom >= plat.y) {
-        p.y = plat.y - p.size;
+    if (p.dy >= 0 && prevBottom <= top + 10 && currBottom >= top) {
+        p.y = top - p.size;
         p.dy = 0;
         p.grounded = true;
         if (playerMode === 'cube') {
@@ -659,8 +662,8 @@ function handlePlatformCollision(p, plat, screenX) {
         return false;
     }
 
-    const vertOverlap = p.y + p.size - 6 > plat.y && p.y + 6 < plat.y + plat.h;
-    if (vertOverlap && p.x + p.size > screenX + 4 && p.x < screenX + plat.w - 4) {
+    const vertOverlap = p.y + p.size - 6 > top && p.y + 6 < top + height;
+    if (vertOverlap && p.x + p.size > left + 4 && p.x < left + width - 4) {
         triggerDeath();
         return true;
     }
@@ -670,15 +673,16 @@ function handlePlatformCollision(p, plat, screenX) {
 
 // === ASSETS EXTRA v0.7: SERRAS, PILARES DECORATIVOS, MOEDAS E TRIGGERS ===
 function drawSaw(saw, screenX) {
-    const r = saw.r || 22;
+    const r = (saw.r || 22) * (saw.scale || 1);
     if (screenX + r * 2 < -50 || screenX - r * 2 > canvas.width + 50) return;
 
     ctx.save();
+    ctx.globalAlpha=saw.alpha===undefined?1:saw.alpha;
     ctx.translate(screenX, saw.y);
-    ctx.rotate(saw.angle || 0);
+    ctx.rotate((saw.angle || 0)+(saw.rotation||0));
 
     const teeth = 10;
-    ctx.fillStyle = '#334155';
+    ctx.fillStyle = saw.color || '#334155';
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -705,7 +709,7 @@ function drawSaw(saw, screenX) {
 }
 
 function checkSawCollision(p, saw, screenX) {
-    const r = (saw.r || 22) * 0.72;
+    const r = (saw.r || 22) * (saw.scale || 1) * 0.72;
     const pcx = p.x + p.size / 2;
     const pcy = p.y + p.size / 2;
     const dx = pcx - screenX;
@@ -715,36 +719,44 @@ function checkSawCollision(p, saw, screenX) {
 }
 
 function drawPillar(pillar, screenX) {
-    const w = pillar.w || 34;
-    const h = pillar.h || 90;
+    const w = (pillar.w || 34) * (pillar.scale || 1);
+    const h = (pillar.h || 90) * (pillar.scale || 1);
+    const bottom = pillar.y === undefined ? GROUND_Y : pillar.y;
     if (screenX + w < -50 || screenX > canvas.width + 50) return;
 
     ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
-    ctx.lineWidth = 2;
-    ctx.fillRect(screenX, GROUND_Y - h, w, h);
-    ctx.strokeRect(screenX, GROUND_Y - h, w, h);
+    ctx.globalAlpha = pillar.alpha === undefined ? 1 : pillar.alpha;
+    ctx.translate(screenX + w/2, bottom - h/2);
+    ctx.rotate(pillar.rotation || 0);
+    ctx.fillStyle = pillar.color || '#64748b';
+    ctx.strokeStyle = '#050b16';
+    ctx.lineWidth = 3;
+    ctx.fillRect(-w/2, -h/2, w, h);
+    ctx.strokeRect(-w/2, -h/2, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(-w/2 + 4, -h/2 + 4, Math.max(3,w * 0.18), h - 8);
     ctx.restore();
 }
 
 function drawCoin(coin, screenX) {
     if (coin.collected) return;
-    const r = 13;
+    const r = 13 * (coin.scale || 1);
     if (screenX + r * 2 < -40 || screenX - r * 2 > canvas.width + 40) return;
 
     ctx.save();
-    ctx.fillStyle = '#ffd60a';
-    ctx.strokeStyle = '#000';
+    ctx.globalAlpha=coin.alpha===undefined?1:coin.alpha;
+    ctx.translate(screenX,coin.y);ctx.rotate(coin.rotation||0);
+    ctx.fillStyle = coin.secret ? '#20c9ff' : (coin.color || '#ffd60a');
+    ctx.strokeStyle = coin.secret ? '#063b73' : '#000';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(screenX, coin.y, r, 0, Math.PI * 2);
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#fff3b0';
+    ctx.fillStyle = coin.secret ? '#e8fbff' : '#fff3b0';
     ctx.beginPath();
-    ctx.arc(screenX - 3, coin.y - 3, r * 0.35, 0, Math.PI * 2);
+    ctx.arc(-3, -3, r * 0.35, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 }
@@ -755,9 +767,15 @@ function checkCoinTrigger(p, coin, screenX) {
     const pcy = p.y + p.size / 2;
     const dx = pcx - screenX;
     const dy = pcy - coin.y;
-    const hitDist = p.size * 0.55 + 14;
+    const hitDist = p.size * 0.55 + 14 * (coin.scale || 1);
     if (dx * dx + dy * dy <= hitDist * hitDist) {
         coin.collected = true;
+        if (coin.secret) {
+            const coinKey = `${activePlayableLevel.name}:${coin.id || coin.x}`;
+            secretCoins.add(coinKey);
+            writeSaveData();
+            window.updateSecretCoinCounter?.();
+        }
         playSfx('coin');
         spawnEndParticles(screenX, coin.y, 12, true);
     }
@@ -1134,7 +1152,7 @@ function startAttempt(countNewAttempt = true) {
     activeOrbs = (lvl.orbs || []).map(ob => ({ ...ob, used: false }));
     activeSaws = (lvl.saws || []).map(sw => ({ ...sw, angle: 0 }));
     activePillars = (lvl.pillars || []).map(pi => ({ ...pi }));
-    activeCoins = (lvl.coins || []).map(co => ({ ...co, collected: false }));
+    activeCoins = (lvl.coins || []).map(co => ({ ...co, collected: Boolean(co.secret && secretCoins.has(`${lvl.name}:${co.id || co.x}`)) }));
     activeTriggers = (lvl.triggers || []).map(tr => ({ ...tr, triggered: false }));
     activePortals = (lvl.portals || []).map(pt => ({ ...pt, triggered: false }));
 
@@ -1544,6 +1562,18 @@ function loop() {
         for (let co of activeCoins) {
             const screenX = co.x - levelDistance + 160;
             checkCoinTrigger(player, co, screenX);
+        }
+
+        for (let pillar of activePillars) {
+            const sx = pillar.x - levelDistance + 160;
+            const w = (pillar.w || 34) * (pillar.scale || 1);
+            const h = (pillar.h || 90) * (pillar.scale || 1);
+            const pillarBottom = pillar.y === undefined ? GROUND_Y : pillar.y;
+            if (player.x + player.size - 4 > sx && player.x + 4 < sx + w &&
+                player.y + player.size - 4 > pillarBottom - h && player.y + 4 < pillarBottom) {
+                triggerDeath();
+                break;
+            }
         }
 
         for (let sw of activeSaws) {
@@ -2023,18 +2053,17 @@ function drawEditorCanvas() {
     if (editorShowGrid) {
         eCtx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
         eCtx.lineWidth = 1;
-        const startGridX = -(editorScrollX % EDITOR_GRID);
-        for (let gx = startGridX; gx < editorCanvas.width; gx += EDITOR_GRID) {
-            eCtx.beginPath();
-            eCtx.moveTo(gx, 0);
-            eCtx.lineTo(gx, EDITOR_GROUND_Y);
-            eCtx.stroke();
+        const startGridX = 80 - (editorScrollX % EDITOR_GRID);
+        const gridStepY = EDITOR_GRID;
+        for (let gx = startGridX, col = Math.round(editorScrollX / EDITOR_GRID); gx < editorCanvas.width; gx += EDITOR_GRID, col++) {
+            eCtx.strokeStyle = col % 4 === 0 ? 'rgba(80,205,255,0.30)' : 'rgba(255,255,255,0.12)';
+            eCtx.lineWidth = col % 4 === 0 ? 1.4 : 1;
+            eCtx.beginPath(); eCtx.moveTo(gx, 0); eCtx.lineTo(gx, EDITOR_GROUND_Y); eCtx.stroke();
         }
-        for (let gy = 0; gy <= EDITOR_GROUND_Y; gy += EDITOR_GRID) {
-            eCtx.beginPath();
-            eCtx.moveTo(0, gy);
-            eCtx.lineTo(editorCanvas.width, gy);
-            eCtx.stroke();
+        for (let gy = 0, row = 0; gy <= EDITOR_GROUND_Y; gy += gridStepY, row++) {
+            eCtx.strokeStyle = row % 4 === 0 ? 'rgba(80,205,255,0.30)' : 'rgba(255,255,255,0.12)';
+            eCtx.lineWidth = row % 4 === 0 ? 1.4 : 1;
+            eCtx.beginPath(); eCtx.moveTo(0, gy); eCtx.lineTo(editorCanvas.width, gy); eCtx.stroke();
         }
     }
 
@@ -2050,98 +2079,88 @@ function drawEditorCanvas() {
 
     editorDraft.pillars.forEach(pi => {
         const sx = toSX(pi.x);
-        const h = (pi.h || 90) * EDITOR_SCALE_Y;
-        eCtx.fillStyle = 'rgba(255,255,255,0.2)';
-        eCtx.fillRect(sx, EDITOR_GROUND_Y - h, 24, h);
+        const bottom = pi.y === undefined ? EDITOR_GROUND_Y : toSY(pi.y);
+        const h = (pi.h || 90) * EDITOR_SCALE_Y * (pi.scale || 1);
+        eCtx.save();eCtx.globalAlpha=pi.alpha===undefined?1:pi.alpha;
+        eCtx.translate(sx+(pi.w||34)/2,bottom-h/2);eCtx.rotate(pi.rotation||0);
+        eCtx.fillStyle=pi.color||'#64748b';eCtx.strokeStyle='#07101d';eCtx.lineWidth=2;
+        eCtx.fillRect(-(pi.w||34)*(pi.scale||1)/2,-h/2,(pi.w||34)*(pi.scale||1),h);
+        eCtx.strokeRect(-(pi.w||34)*(pi.scale||1)/2,-h/2,(pi.w||34)*(pi.scale||1),h);eCtx.restore();
     });
 
     editorDraft.platforms.forEach(pl => {
-        const sx = toSX(pl.x);
-        const sy = toSY(pl.y);
-        const width = Math.max(EDITOR_GRID, pl.w);
-        const height = Math.max(12, (pl.h || 26) * EDITOR_SCALE_Y);
-        eCtx.fillStyle = '#00e5ff';
-        eCtx.strokeStyle = '#000';
-        eCtx.lineWidth = 2;
-        eCtx.fillRect(sx, sy, width, height);
-        eCtx.strokeRect(sx, sy, width, height);
+        const sx=toSX(pl.x),sy=toSY(pl.y),scale=pl.scale||1;
+        const width=Math.max(EDITOR_GRID,pl.w)*scale,height=Math.max(12,(pl.h||26)*EDITOR_SCALE_Y)*scale;
+        eCtx.save();eCtx.globalAlpha=pl.alpha===undefined?1:pl.alpha;
+        eCtx.translate(sx+width/2,sy+height/2);eCtx.rotate(pl.rotation||0);
+        eCtx.fillStyle=pl.color||'#00e5ff';eCtx.strokeStyle='#000';eCtx.lineWidth=2;
+        eCtx.fillRect(-width/2,-height/2,width,height);eCtx.strokeRect(-width/2,-height/2,width,height);eCtx.restore();
     });
 
     (editorDraft.blocks || []).forEach(block => {
-        const sx = toSX(block.x);
-        const sy = toSY(block.y);
-        const width = (block.w || BLOCK_SIZE);
-        const height = (block.h || BLOCK_SIZE) * EDITOR_SCALE_Y;
-        eCtx.fillStyle = '#2475bd';
-        eCtx.strokeStyle = '#ffffff';
-        eCtx.lineWidth = 2;
-        eCtx.fillRect(sx, sy, width, height);
-        eCtx.strokeRect(sx, sy, width, height);
-        eCtx.strokeStyle = 'rgba(255,255,255,0.35)';
-        eCtx.strokeRect(sx + 5, sy + 5, width - 10, Math.max(5, height - 10));
+        const sx=toSX(block.x),sy=toSY(block.y),scale=block.scale||1;
+        const width=(block.w||BLOCK_SIZE)*scale,height=(block.h||BLOCK_SIZE)*scale;
+        eCtx.save();eCtx.globalAlpha=block.alpha===undefined?1:block.alpha;
+        eCtx.translate(sx+width/2,sy+height/2);eCtx.rotate(block.rotation||0);
+        eCtx.fillStyle=block.color||'#2475bd';eCtx.strokeStyle='#ffffff';eCtx.lineWidth=2;
+        eCtx.fillRect(-width/2,-height/2,width,height);eCtx.strokeRect(-width/2,-height/2,width,height);
+        eCtx.strokeStyle='rgba(255,255,255,0.35)';eCtx.strokeRect(-width/2+5,-height/2+5,Math.max(5,width-10),Math.max(5,height-10));eCtx.restore();
     });
 
     editorDraft.spikes.forEach(sp => {
         const sx = toSX(sp.x);
-        const sy = sp.inverted ? toSY(CEILING_Y) : EDITOR_GROUND_Y;
-        const h = (sp.sizeType === 'mini' ? 18 : 30);
-        eCtx.fillStyle = '#ff595e';
-        eCtx.strokeStyle = '#fff';
-        eCtx.beginPath();
+        const sy = sp.y===undefined?(sp.inverted?toSY(CEILING_Y):EDITOR_GROUND_Y):toSY(sp.y);
+        const h=(sp.sizeType==='mini'?18:30)*(sp.scale||1);
+        eCtx.save();eCtx.globalAlpha=sp.alpha===undefined?1:sp.alpha;eCtx.translate(sx+15,sy);eCtx.rotate(sp.rotation||0);
+        eCtx.fillStyle=sp.color||'#ff595e';eCtx.strokeStyle='#fff';eCtx.beginPath();
         if (sp.inverted) {
-            eCtx.moveTo(sx, sy);
-            eCtx.lineTo(sx + 15, sy + h);
-            eCtx.lineTo(sx + 30, sy);
+            eCtx.moveTo(-15, 0);
+            eCtx.lineTo(0, h);
+            eCtx.lineTo(15, 0);
         } else {
-            eCtx.moveTo(sx, sy);
-            eCtx.lineTo(sx + 15, sy - h);
-            eCtx.lineTo(sx + 30, sy);
+            eCtx.moveTo(-15, 0);
+            eCtx.lineTo(0, -h);
+            eCtx.lineTo(15, 0);
         }
         eCtx.closePath();
-        eCtx.fill();
-        eCtx.stroke();
+        eCtx.fill();eCtx.stroke();eCtx.restore();
     });
 
     editorDraft.pads.forEach(pd => {
-        const sx = toSX(pd.x);
-        eCtx.fillStyle = pd.color === 'pink' ? '#ff4fd8' : '#ffe600';
-        eCtx.fillRect(sx, EDITOR_GROUND_Y - 8, 26, 8);
+        const sx=toSX(pd.x),y=pd.y===undefined?EDITOR_GROUND_Y-8:toSY(pd.y),scale=pd.scale||1;
+        eCtx.save();eCtx.globalAlpha=pd.alpha===undefined?1:pd.alpha;eCtx.translate(sx+13,y+4);eCtx.rotate(pd.rotation||0);
+        eCtx.fillStyle=pd.colorHex|| (pd.color==='pink'?'#ff4fd8':'#ffe600');eCtx.fillRect(-13*scale,-4*scale,26*scale,8*scale);eCtx.restore();
     });
 
     editorDraft.orbs.forEach(ob => {
         const sx = toSX(ob.x);
         const sy = toSY(ob.y);
-        eCtx.fillStyle = ob.color === 'pink' ? '#ff4fd8' : '#ffe600';
-        eCtx.beginPath();
-        eCtx.arc(sx, sy, 11, 0, Math.PI * 2);
-        eCtx.fill();
+        eCtx.save();eCtx.globalAlpha=ob.alpha===undefined?1:ob.alpha;
+        eCtx.translate(sx,sy);eCtx.rotate(ob.rotation||0);eCtx.fillStyle=ob.colorHex||(ob.color==='pink'?'#ff4fd8':'#ffe600');
+        eCtx.beginPath();eCtx.arc(0,0,11*(ob.scale||1),0,Math.PI*2);eCtx.fill();eCtx.restore();
     });
 
     editorDraft.saws.forEach(sw => {
-        eCtx.fillStyle = '#94a3b8';
-        eCtx.beginPath();
-        eCtx.arc(toSX(sw.x), toSY(sw.y), 14, 0, Math.PI * 2);
-        eCtx.fill();
+        eCtx.save();eCtx.globalAlpha=sw.alpha===undefined?1:sw.alpha;eCtx.translate(toSX(sw.x),toSY(sw.y));eCtx.rotate(sw.rotation||0);
+        eCtx.fillStyle=sw.color||'#94a3b8';eCtx.beginPath();eCtx.arc(0,0,14*(sw.scale||1),0,Math.PI*2);eCtx.fill();eCtx.restore();
     });
 
     editorDraft.coins.forEach(co => {
-        eCtx.fillStyle = '#ffd60a';
-        eCtx.beginPath();
-        eCtx.arc(toSX(co.x), toSY(co.y), 9, 0, Math.PI * 2);
-        eCtx.fill();
+        eCtx.save();eCtx.globalAlpha=co.alpha===undefined?1:co.alpha;eCtx.translate(toSX(co.x),toSY(co.y));eCtx.rotate(co.rotation||0);
+        eCtx.fillStyle=co.secret?'#20c9ff':(co.color||'#ffd60a');eCtx.beginPath();eCtx.arc(0,0,9*(co.scale||1),0,Math.PI*2);eCtx.fill();eCtx.restore();
     });
 
     editorDraft.portals.forEach(pt => {
-        const sx = toSX(pt.x);
-        eCtx.strokeStyle = pt.type === 'ship' ? '#38bdf8' : '#80ed99';
-        eCtx.lineWidth = 3;
-        eCtx.strokeRect(sx, EDITOR_GROUND_Y - 78, 32, 78);
+        const sx=toSX(pt.x),bottom=pt.y===undefined?EDITOR_GROUND_Y:toSY(pt.y),scale=pt.scale||1;
+        eCtx.save();eCtx.globalAlpha=pt.alpha===undefined?1:pt.alpha;eCtx.translate(sx+16,bottom-39*scale);eCtx.rotate(pt.rotation||0);
+        eCtx.strokeStyle=pt.color|| (pt.type==='ship'?'#38bdf8':'#80ed99');eCtx.lineWidth=3;
+        eCtx.strokeRect(-16*scale,-39*scale,32*scale,78*scale);eCtx.restore();
     });
 
     editorDraft.triggers.forEach(tr => {
-        const sx = toSX(tr.x);
-        eCtx.strokeStyle = '#ffe600';
-        eCtx.strokeRect(sx, 30, 16, EDITOR_GROUND_Y - 30);
+        const sx=toSX(tr.x),sy=tr.y===undefined?30:toSY(tr.y);
+        eCtx.save();eCtx.globalAlpha=tr.alpha===undefined?1:tr.alpha;eCtx.translate(sx+8,sy);eCtx.rotate(tr.rotation||0);
+        eCtx.strokeStyle=tr.color||'#ffe600';eCtx.lineWidth=2*(tr.scale||1);eCtx.strokeRect(-8,0,16,(EDITOR_GROUND_Y-sy)*(tr.scale||1));eCtx.restore();
     });
 
     const finX = toSX(finishX);
@@ -2174,7 +2193,7 @@ function getEditorWorldCoords(pointerEvent) {
 
     if (editorShowGrid) {
         worldX = Math.round(worldX / EDITOR_GRID) * EDITOR_GRID;
-        worldY = Math.round(worldY / EDITOR_GRID) * EDITOR_GRID;
+        worldY = Math.round(worldY / (EDITOR_GRID / EDITOR_SCALE_Y)) * (EDITOR_GRID / EDITOR_SCALE_Y);
     }
 
     return { x: worldX, y: worldY };

@@ -1405,3 +1405,80 @@ canvas {
   .mode-model canvas{width:46px;height:46px}
   .mode-color-swatch{width:22px;height:22px}
 }
+
+
+/* === EDITOR: BIBLIOTECA DE OBJETOS POR CATEGORIA === */
+#level-editor .editor-bottom-panel { height:154px; flex:0 0 154px; min-width:0; }
+#level-editor #editor-panel-assets { display:flex; align-items:stretch; min-height:0; padding:5px 8px 8px; overflow:hidden; }
+#level-editor .asset-browser { display:flex; width:100%; min-width:0; min-height:0; gap:10px; }
+#level-editor .asset-categories { display:flex; flex:0 0 112px; flex-direction:column; gap:4px; overflow-y:auto; padding-right:5px; border-right:1px solid rgba(120,170,230,.2); }
+#level-editor .asset-category-btn { min-height:24px; padding:5px 7px; border:1px solid #29466f; border-radius:5px; background:#101f38; color:#a9c5e8; font:800 9px 'Orbitron',sans-serif; text-align:left; cursor:pointer; white-space:nowrap; }
+#level-editor .asset-category-btn:hover,#level-editor .asset-category-btn.active { color:#fff; border-color:#00d9ff; background:linear-gradient(90deg,#14527a,#1b3762); box-shadow:inset 3px 0 #00e5ff; }
+#level-editor .asset-browser-content { display:flex; flex:1 1 auto; flex-direction:column; min-width:0; min-height:0; gap:5px; }
+#level-editor .asset-browser-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:15px; color:#e7f4ff; font:800 9px 'Orbitron',sans-serif; }
+#level-editor .asset-browser-heading strong { color:#ffe600; }
+#level-editor .asset-browser-heading span { color:#7898bd; font:600 8px Arial,sans-serif; }
+#level-editor #editor-palette { display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); align-content:start; align-items:stretch; gap:6px; min-height:0; overflow:auto; padding:2px 4px 4px 2px; }
+#level-editor .asset-card { display:flex; min-width:0; height:82px; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:5px 3px; border:1px solid #29466f; border-radius:7px; background:linear-gradient(180deg,#1a3154,#101d34); color:#dcecff; font:800 8px 'Orbitron',sans-serif; cursor:pointer; }
+#level-editor .asset-card:hover { border-color:#00d9ff; background:#203f69; transform:translateY(-1px); }
+#level-editor .asset-card.selected { border:2px solid #9dff00; background:linear-gradient(180deg,#294d70,#17304f); box-shadow:0 0 9px rgba(157,255,0,.28); }
+#level-editor .asset-preview { display:grid; place-items:center; width:38px; height:38px; border:2px solid rgba(255,255,255,.55); border-radius:8px; color:#07101d; font:900 22px Arial,sans-serif; text-shadow:0 1px 0 rgba(255,255,255,.35); box-shadow:inset 0 0 8px rgba(255,255,255,.25),0 2px 4px #050a12; }
+#level-editor .asset-card span:last-child { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#level-editor #editor-triggers-palette { display:flex; flex-wrap:nowrap; overflow:auto; width:100%; }
+#level-editor #editor-triggers-palette .palette-item { flex:0 0 82px; }
+#level-editor #tool-select-btn.active { background:linear-gradient(180deg,#9dff00,#38b000); color:#07101d; outline:2px solid #fff; }
+#level-editor .editor-topbar { min-width:0; }
+#level-editor .editor-top-center { flex-wrap:nowrap; }
+@media(max-width:700px) {
+ #level-editor .editor-bottom-panel { height:154px; flex-basis:154px; }
+ #level-editor .asset-categories { flex-basis:92px; }
+ #level-editor .asset-category-btn { font-size:8px; padding:5px; }
+ #level-editor .asset-browser-heading span { display:none; }
+ #level-editor #editor-palette { grid-template-columns:repeat(auto-fill,minmax(68px,1fr)); }
+ #level-editor .asset-card { height:76px; }
+ #level-editor .editor-topbar { overflow-x:auto; }
+}
+
+
+/* === EDITOR REORGANIZADO: FERRAMENTAS NO CANTO === */
+#level-editor .editor-main-area{position:relative;overflow:hidden;background:#07101d}
+#level-editor .editor-top-center{display:none!important}
+#level-editor .editor-bottom-panel{flex:0 0 112px;height:112px;min-height:112px}
+#level-editor .editor-tabs,#level-editor #editor-panel-triggers,#level-editor #editor-panel-style{display:none!important}
+#level-editor #editor-panel-assets{display:block!important;height:100%;padding:5px 10px}
+#level-editor .asset-browser{display:flex;flex-direction:column;height:100%;gap:6px}
+#level-editor .asset-category-top{display:flex;align-items:center;justify-content:center;gap:16px;min-height:34px}
+#level-editor .asset-browser-heading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:190px}
+#level-editor .asset-browser-heading strong{color:#ffe600;font-size:13px;letter-spacing:1.4px;text-shadow:0 2px #000}
+#level-editor .asset-browser-heading span{color:#9bb8d8;font:9px Arial,sans-serif}
+#level-editor .asset-page-arrow{width:34px;height:30px;border:2px solid #020817;border-radius:7px;background:linear-gradient(#2585c9,#124477);color:#fff;font:900 25px/20px Arial;cursor:pointer;box-shadow:0 2px 0 #000}
+#level-editor .asset-page-arrow:hover{filter:brightness(1.25);transform:scale(1.06)}
+#level-editor .editor-palette{display:flex;align-items:center;justify-content:flex-start;gap:7px;overflow-x:auto;overflow-y:hidden;height:65px;padding:4px 2px;scrollbar-width:thin}
+#level-editor .asset-card{flex:0 0 70px;width:70px;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:2px solid #06101f;border-radius:7px;background:linear-gradient(180deg,#1d3d69,#10213d);color:#eaf6ff;font:800 8px Arial,sans-serif;cursor:pointer}
+#level-editor .asset-card.selected{border-color:#ffe600;outline:2px solid #00d9ff;background:linear-gradient(180deg,#285b91,#153052)}
+#level-editor .asset-preview{width:28px;height:28px;display:grid;place-items:center;border:2px solid;border-radius:5px;color:#fff;font:900 17px Arial;text-shadow:0 2px #000}
+#level-editor .editor-corner-tools{position:absolute;left:8px;top:8px;z-index:5;display:flex;flex-direction:column;gap:6px}
+#level-editor .editor-mode-btn{width:58px;height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:2px solid #020817;border-radius:8px;background:linear-gradient(180deg,#1e4775,#102744);color:#fff;font:900 18px Arial;cursor:pointer;box-shadow:0 3px 0 #000}
+#level-editor .editor-mode-btn span{font:900 7px Arial;letter-spacing:.4px}
+#level-editor .editor-mode-btn.active{background:linear-gradient(180deg,#ffe85c,#c47700);color:#07101d;outline:2px solid #fff}
+#level-editor .editor-transform-panel{position:absolute;right:8px;top:8px;z-index:5;width:178px;padding:9px;background:rgba(7,17,34,.94);border:2px solid #00cfff;border-radius:9px;box-shadow:0 4px 14px #0009;color:#eaf6ff;font:9px Arial,sans-serif}
+#level-editor .transform-title{text-align:center;color:#ffe600;font:900 10px Orbitron,Arial;margin-bottom:8px}
+#level-editor .transform-row{display:flex;justify-content:center;gap:4px;margin-bottom:8px}
+#level-editor .transform-row button,#level-editor .transform-reset{border:1px solid #020817;border-radius:5px;background:#20558a;color:#fff;font-weight:900;min-width:30px;height:25px;cursor:pointer}
+#level-editor .editor-transform-panel label{display:block;margin:7px 0;color:#bfe7ff;font-weight:900}
+#level-editor .editor-transform-panel output{float:right;color:#ffe600}
+#level-editor .editor-transform-panel input{display:block;width:100%;height:15px;accent-color:#00d9ff}
+#level-editor .transform-reset{width:100%;font-size:8px;margin-top:3px}
+#level-editor .editor-transform-panel.no-selection{opacity:.55}
+@media(max-width:700px){
+ #level-editor .editor-bottom-panel{flex-basis:112px;height:112px}
+ #level-editor .editor-corner-tools{left:4px;top:4px;gap:4px}
+ #level-editor .editor-mode-btn{width:46px;height:42px;font-size:15px}
+ #level-editor .editor-mode-btn span{font-size:6px}
+ #level-editor .editor-transform-panel{right:4px;top:4px;width:145px;padding:6px}
+ #level-editor .asset-card{flex-basis:60px;width:60px}
+}
+
+/* Correção da grade: células quadradas e origem alinhada ao offset do canvas. */
+#level-editor #editor-panel-triggers{display:none!important}
+#level-editor .editor-palette{align-items:center}

@@ -1,0 +1,164 @@
+Prepare uma grande atualização no editor de fases do meu Geometry Dash, reformulando sua interface, adicionando uma quantidade muito maior de assets e implementando novas ferramentas de edição e personalização. O objetivo é transformar o editor em uma ferramenta muito mais completa, organizada, intuitiva e próxima da experiência do editor original de Geometry Dash.
+
+1. REORGANIZAÇÃO COMPLETA DAS CATEGORIAS DE ASSETS
+
+Atualmente, o editor possui poucas categorias e muitos objetos ficam misturados. Quero aumentar consideravelmente a quantidade de categorias, separando os objetos de maneira lógica e organizada.
+
+Criar categorias específicas, como:
+- Blocks: blocos e plataformas.
+- Spikes: espinhos e obstáculos.
+- Orbs: todas as cores e tipos de orbs.
+- Pads: plataformas de impulso.
+- Portals: portais de modos, gravidade e velocidade.
+- Decorations: objetos decorativos.
+- Effects: efeitos visuais e partículas.
+- Structures: pilares, paredes e estruturas.
+- Triggers: todos os tipos de triggers.
+- Other: objetos diversos.
+Cada categoria deve possuir uma biblioteca própria, com miniaturas dos objetos, utilizando a aparência real de cada asset. Também quero que o nome de cada objeto seja exibido para facilitar sua identificação.
+
+2. EXPANSÃO DA BIBLIOTECA DE ASSETS
+
+Adicionar o máximo possível de novos assets, aumentando significativamente a variedade de objetos disponíveis para criação de fases.
+
+Priorizar:
+- Novos modelos de blocos e plataformas.
+- Espinhos de diferentes formatos e tamanhos.
+- Novas opções de decoração.
+- Mais efeitos visuais.
+- Engrenagens, correntes, pilares, estruturas e elementos de cenário.
+- Novos objetos decorativos para preencher espaços vazios.
+- Mais cores de Orbs, incluindo todas as cores tradicionais.
+- Mais tipos de Pads.
+- Novos objetos de gameplay.
+Adicionar pelo menos 15 novos assets relacionados a Orbs, Pads e outras mecânicas semelhantes, além dos objetos que já existem.
+
+Os novos assets devem possuir aparência consistente com o estilo visual do Geometry Dash e não devem ser apenas cópias com pequenas alterações de cor.
+
+3. NOVA INTERFACE DO EDITOR
+
+Reformular a interface para ficar mais próxima do editor original de Geometry Dash.
+
+Quero que as ferramentas e os assets fiquem organizados principalmente na parte inferior da tela, deixando a área central livre para visualizar e editar a fase.
+
+A interface deve possuir:
+- Uma barra inferior com os botões Place, Move e Delete.
+- Um painel de seleção de assets ao lado ou abaixo das ferramentas.
+- Miniaturas dos objetos em pequenos quadrados, mostrando a imagem real de cada asset.
+- Nome dos objetos selecionados.
+- Categorias organizadas e de fácil acesso.
+- Espaçamento adequado para exibir vários objetos sem deixar a interface apertada.
+- Navegação simples entre as categorias.
+- Uma interface visualmente moderna, limpa e intuitiva.
+O botão Place deve permitir selecionar e posicionar objetos. O botão Move deve permitir selecionar e movimentar objetos existentes. O botão Delete deve permitir selecionar e excluir objetos.
+
+4. NOVAS FERRAMENTAS DE EDIÇÃO
+
+Adicionar ferramentas que permitam trabalhar com os objetos de maneira mais precisa:
+- Rotacionar objetos.
+- Aumentar e diminuir o tamanho dos objetos.
+- Espelhar objetos horizontalmente e verticalmente.
+- Mover objetos com maior precisão.
+- Ajustar a posição por valores numéricos.
+- Controlar os eixos X e Y individualmente.
+- Permitir selecionar vários objetos ao mesmo tempo.
+- Copiar e colar objetos.
+- Duplicar objetos.
+- Agrupar e desagrupar objetos.
+- Copiar propriedades de um objeto para outro.
+A movimentação deve ser precisa e não depender exclusivamente do mouse. Quero controles que permitam ajustar os valores de posicionamento de maneira exata.
+
+5. CONFIGURAÇÕES PERSONALIZADAS DA FASE
+
+Criar um menu de configurações da fase, permitindo definir suas características antes mesmo de começar a construir.
+
+Adicionar opções para:
+- Escolher o modo inicial do jogador: Cube, Ship, Ball, UFO, Wave, Robot e Spider.
+- Definir a velocidade inicial da fase.
+- Personalizar a cor inicial do Background.
+- Personalizar a cor inicial do Ground.
+- Escolher cores livremente através de um seletor de cores.
+- Configurar outras propriedades iniciais da fase quando necessário.
+As cores do Background e do Ground não devem ficar limitadas a uma lista de cores predefinidas. O usuário deve poder escolher qualquer cor desejada.
+
+6. IMPLEMENTAÇÃO E EXPANSÃO DOS TRIGGERS
+
+Adicionar novos triggers e melhorar os que já existem.
+
+Quero implementar ou ampliar os seguintes:
+- Move Trigger.
+- Pulse Trigger.
+- Scale Trigger.
+- Color Trigger.
+- Speed Trigger.
+O Speed Trigger deve existir como um objeto visível dentro do editor, permitindo selecionar e configurar sua velocidade.
+
+Adicionar as seguintes opções de velocidade:
+- -1x
+- 1x
+- 2x
+- 3x
+- 4x
+- 5x
+- Custom
+A opção Custom deve permitir definir uma velocidade personalizada.
+
+O Move Trigger deve possuir um sistema de grupos, permitindo associar objetos a grupos e movimentá-los através dos triggers.
+
+Também quero que os triggers possuam configurações próprias, como duração, intensidade, velocidade, distância e outras propriedades necessárias para cada tipo de efeito.
+
+Os triggers devem ser selecionáveis e editáveis como qualquer outro objeto do editor.
+
+7. SISTEMA DE GRUPOS
+
+Implementar um sistema completo de grupos de objetos.
+
+Permitir:
+- Atribuir um ou vários grupos a um objeto.
+- Editar os grupos de um objeto.
+- Selecionar objetos pertencentes ao mesmo grupo.
+- Utilizar grupos nos triggers.
+- Fazer com que vários objetos sejam controlados simultaneamente.
+- Utilizar os grupos nos sistemas Move, Pulse, Scale e Color.
+O sistema deve permitir criar mecanismos complexos, como plataformas móveis, objetos que mudam de tamanho, estruturas que mudam de cor e elementos que se movimentam em conjunto.
+
+8. RECONSTRUÇÃO COMPLETA DA GRID
+
+Reformular completamente o sistema de grid do editor.
+
+Corrigir os problemas de alinhamento entre a grade visual, as coordenadas dos objetos e o sistema de posicionamento.
+
+Implementar:
+- Linhas secundárias e principais.
+- Alinhamento correto entre a grid e os objetos.
+- Snap to Grid funcional.
+- Posicionamento preciso.
+- Melhor visualização da grade.
+- Compatibilidade com diferentes níveis de zoom.
+- Atualização correta da grade durante a movimentação da câmera.
+- Melhor representação da área de construção e do chão.
+A grid deve servir como uma referência real para posicionar objetos, e não apenas como um elemento visual.
+
+9. QUALIDADE E ORGANIZAÇÃO DO CÓDIGO
+
+Todas as novas funcionalidades devem ser integradas ao sistema atual do jogo.
+
+É importante que:
+- Os assets antigos continuem funcionando.
+- Os novos objetos possuam colisões adequadas.
+- Os objetos decorativos não interfiram na jogabilidade quando não deveriam.
+- Os triggers funcionem corretamente durante a execução da fase.
+- O sistema de grupos seja consistente.
+- O posicionamento dos objetos seja preservado ao salvar e carregar fases.
+- A importação e exportação JSON continuem funcionando, incluindo as novas propriedades.
+- O editor continue funcionando em diferentes resoluções de tela.
+- As novas funcionalidades não causem conflitos com os sistemas existentes.
+Evite criar apenas elementos visuais sem funcionalidade. Cada ferramenta, asset ou trigger deve funcionar de verdade dentro do editor e durante a execução da fase.
+
+OBJETIVO FINAL
+
+Quero transformar o editor atual em um editor de Geometry Dash muito mais completo, com uma biblioteca enorme de assets, diversas categorias, ferramentas avançadas, triggers funcionais, sistema de grupos, personalização de cores e uma interface inspirada no editor original do Geometry Dash.
+
+A prioridade é aumentar a liberdade de criação, permitindo que os jogadores construam fases muito mais elaboradas, variadas e personalizadas.
+
+Não quero apenas uma mudança estética: quero uma evolução real do editor, com funcionalidades completas, integração entre os sistemas e compatibilidade com as fases já existentes.
