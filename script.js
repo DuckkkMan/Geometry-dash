@@ -475,21 +475,17 @@ function drawPortal(portal, screenX) {
 
     const isCubePortal = portal.type === 'cube';
     const img = isCubePortal ? PORTAL_IMAGES.cube : PORTAL_IMAGES.ship;
-    const drawY = GROUND_Y - PORTAL_HEIGHT;
+    const scale=portal.scale||1,w=PORTAL_WIDTH*scale,h=PORTAL_HEIGHT*scale;
+    const bottom=portal.y===undefined?GROUND_Y:portal.y;
+    const drawY=bottom-h;
 
-    ctx.save();
+    ctx.save();ctx.globalAlpha=portal.alpha===undefined?1:portal.alpha;
+    ctx.translate(screenX+PORTAL_WIDTH/2,bottom-h/2);ctx.rotate(portal.rotation||0);
     if (img.complete && img.naturalWidth > 0) {
-        ctx.drawImage(img, screenX, drawY, PORTAL_WIDTH, PORTAL_HEIGHT);
+        ctx.drawImage(img,-w/2,-h/2,w,h);
     } else {
-        const centerX = screenX + PORTAL_WIDTH / 2;
-        const centerY = drawY + PORTAL_HEIGHT / 2;
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#000';
-        ctx.fillStyle = isCubePortal ? '#38b000' : '#0096ff';
-        ctx.beginPath();
-        ctx.ellipse(centerX, centerY, PORTAL_WIDTH / 2, PORTAL_HEIGHT / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+        ctx.lineWidth=4;ctx.strokeStyle='#000';ctx.fillStyle=portal.color||(isCubePortal?'#38b000':'#0096ff');
+        ctx.beginPath();ctx.ellipse(0,0,w/2,h/2,0,0,Math.PI*2);ctx.fill();ctx.stroke();
     }
     ctx.restore();
 }
@@ -497,12 +493,14 @@ function drawPortal(portal, screenX) {
 function checkPortalTrigger(p, portal, portalScreenX) {
     if (portal.triggered) return;
 
-    const portalTop = GROUND_Y - PORTAL_HEIGHT;
-    const portalBottom = GROUND_Y;
+    const scale=portal.scale||1;
+    const portalBottom=portal.y===undefined?GROUND_Y:portal.y;
+    const portalTop=portalBottom-PORTAL_HEIGHT*scale;
+    const portalWidth=PORTAL_WIDTH*scale;
 
     const overlaps =
         p.x + p.size > portalScreenX + 6 &&
-        p.x < portalScreenX + PORTAL_WIDTH - 6 &&
+        p.x < portalScreenX + portalWidth - 6 &&
         p.y + p.size > portalTop &&
         p.y < portalBottom;
 
