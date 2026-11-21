@@ -540,7 +540,7 @@ function locateEditorObject(point) {
   trackedArrays.forEach(key=>(editorDraft[key]||[]).forEach(obj=>{
     const x=(obj.x||0)+(obj.w||0)/2;
     let y=obj.y;
-    if(y===undefined)y=(key==='spikes'||key==='pads'||key==='pillars')?GROUND_Y-22:GROUND_Y-90;
+    if(y===undefined)y=({spikes:GROUND_Y-22,pads:GROUND_Y-8,pillars:GROUND_Y,portals:GROUND_Y-60,triggers:GROUND_Y-90})[key]??GROUND_Y-90;
     const d=Math.hypot(point.x-x,point.y-y);
     if(d<bestDist&&d<62){bestDist=d;best={key,obj};}
   }));
@@ -603,7 +603,11 @@ editorCanvas.addEventListener('pointermove',e=>{
   if(gameState!=='EDITOR'||editorToolMode!=='select'||editorCanvas.dataset.moving!=='1'||!selectedEditorObject)return;
   const p=getEditorWorldCoords(e),dx=p.x-Number(editorCanvas.dataset.lastX),dy=p.y-Number(editorCanvas.dataset.lastY);
   selectedEditorObject.obj.x=Math.max(250,(selectedEditorObject.obj.x||0)+dx);
-  if(selectedEditorObject.obj.y!==undefined)selectedEditorObject.obj.y=Math.max(CEILING_Y,Math.min(GROUND_Y-20,selectedEditorObject.obj.y+dy));
+  if(selectedEditorObject.obj.y===undefined){
+    const defaults={pads:GROUND_Y-8,pillars:GROUND_Y,spikes:GROUND_Y,portals:GROUND_Y-60,triggers:GROUND_Y-90};
+    selectedEditorObject.obj.y=defaults[selectedEditorObject.key]??GROUND_Y-90;
+  }
+  selectedEditorObject.obj.y=Math.max(CEILING_Y,Math.min(GROUND_Y,selectedEditorObject.obj.y+dy));
   editorCanvas.dataset.lastX=String(p.x);editorCanvas.dataset.lastY=String(p.y);drawEditorCanvas();syncTransformControls();
 },true);
 editorCanvas.addEventListener('pointerup',()=>{editorCanvas.dataset.moving='0';},true);
@@ -824,8 +828,7 @@ EXTRA_ASSETS.forEach(a=>{if(!ASSET_PALETTE.some(x=>x.id===a.id))ASSET_PALETTE.pu
 const EDITOR_CATEGORIES=[
  {id:'blocks',title:'BLOCOS E PLATAFORMAS'},
  {id:'spikes',title:'ESPINHOS'},
- {id:'pads',title:'PADS DE IMPULSO'},
- {id:'orbs',title:'ORBS DE PULO'},
+ {id:'gameplay',title:'PADS • ORBS • SPEEDS'},
  {id:'portals',title:'PORTAIS'},
  {id:'decor',title:'DECORAÇÃO E OBSTÁCULOS'},
  {id:'triggers',title:'TRIGGERS E EFEITOS'}
@@ -836,8 +839,7 @@ function categoryForEditorAsset(item){
  const id=item.id;
  if(id==='block'||id==='platform'||id.startsWith('block_'))return 'blocks';
  if(id.includes('spike'))return 'spikes';
- if(id.startsWith('pad_'))return 'pads';
- if(id.startsWith('orb_'))return 'orbs';
+ if(id.startsWith('pad_')||id.startsWith('orb_')||id.startsWith('trig_speed_'))return 'gameplay';
  if(id.startsWith('portal_'))return 'portals';
  if(id.startsWith('trig_'))return 'triggers';
  return 'decor';
@@ -894,7 +896,7 @@ function changeSelectedObject(fn){
  snapshotEditor();fn(selectedEditorObject.obj);drawEditorCanvas();syncTransformControls();
 }
 [['transform-left',-EDITOR_GRID,0],['transform-right',EDITOR_GRID,0],['transform-up',0,-EDITOR_GRID],['transform-down',0,EDITOR_GRID]].forEach(([id,dx,dy])=>{
- document.getElementById(id)?.addEventListener('click',()=>changeSelectedObject(o=>{o.x=Math.max(0,(o.x||0)+dx);if(o.y!==undefined)o.y=Math.max(CEILING_Y,Math.min(GROUND_Y-12,o.y+dy));}));
+ document.getElementById(id)?.addEventListener('click',()=>changeSelectedObject(o=>{o.x=Math.max(0,(o.x||0)+dx);if(o.y===undefined)o.y=GROUND_Y-90;o.y=Math.max(CEILING_Y,Math.min(GROUND_Y-12,o.y+dy));}));
 });
 document.getElementById('transform-rotation')?.addEventListener('input',e=>{
  if(!selectedEditorObject?.obj)return;
@@ -977,5 +979,89 @@ settingsCoinCounter.style.display='block';
 document.querySelector('#settings-screen .settings-box')?.appendChild(settingsCoinCounter);
 setupSecretCoinSettings();
 updateSecretCoinCounter();
+
+
+/* === SPEEDS E TRIGGERS EDITÁVEIS === */
+const SPEED_ASSETS=[
+ {id:'trig_speed_reverse',label:'SPEED -1x',color:'#ef4444',multiplier:-1},
+ {id:'trig_speed_1',label:'SPEED 1x',color:'#22c55e',multiplier:1},
+ {id:'trig_speed_2',label:'SPEED 2x',color:'#f59e0b',multiplier:2},
+ {id:'trig_speed_3',label:'SPEED 3x',color:'#f97316',multiplier:3},
+ {id:'trig_speed_4',label:'SPEED 4x',color:'#ec4899',multiplier:4},
+ {id:'trig_speed_custom',label:'SPEED CUSTOM',color:'#a78bfa',multiplier:1}
+];
+SPEED_ASSETS.forEach(a=>{if(!ASSET_PALETTE.some(x=>x.id===a.id))ASSET_PALETTE.push(a);});
+const EDITOR_TRIGGER_ASSETS=[
+ {id:'trig_move',label:'MOVE TRIGGER',color:'#38bdf8'},
+ {id:'trig_scale',label:'SCALE TRIGGER',color:'#a78bfa'},
+ {id:'trig_rotate',label:'ROTATE TRIGGER',color:'#f59e0b'},
+ {id:'trig_color',label:'COLOR TRIGGER',color:'#ec4899'},
+ {id:'trig_alpha',label:'TRANSPARENCY',color:'#94a3b8'},
+ {id:'trig_bg_custom',label:'BG COLOR',color:'#06b6d4'}
+];
+EDITOR_TRIGGER_ASSETS.forEach(a=>{if(!TRIGGER_PALETTE.some(x=>x.id===a.id))TRIGGER_PALETTE.push(a);});
+function getTriggerAssetConfig(id){return SPEED_ASSETS.find(a=>a.id===id)||EDITOR_TRIGGER_ASSETS.find(a=>a.id===id);}
+const oldPlaceTriggerAssets=placeSelectedAtWorldCoord;
+placeSelectedAtWorldCoord=function(x,y){
+ const cfg=getTriggerAssetConfig(editorSelectedItem);
+ if(cfg){
+  let obj={x,y,triggered:false,kind:cfg.id.replace('trig_','')};
+  if(cfg.id.startsWith('trig_speed_')){
+   let mult=cfg.multiplier;
+   if(cfg.id==='trig_speed_custom'){
+    const raw=prompt('Multiplicador da velocidade (ex.: 1.5, 2, -1):','1.5');
+    if(raw===null)return;
+    mult=Number(raw);
+    if(!Number.isFinite(mult)||mult===0){alert('Informe uma velocidade diferente de zero.');return;}
+    obj.label='CUSTOM '+mult+'x';
+   }
+   obj.kind='speed_custom';obj.multiplier=mult;obj.label=obj.label||cfg.label;
+  } else if(cfg.id==='trig_bg_custom'){
+   const top=prompt('Cor superior do fundo (HEX):','#1e1b4b');if(!top)return;
+   const bottom=prompt('Cor inferior do fundo (HEX):','#4338ca');if(!bottom)return;
+   if(!/^#[0-9a-f]{6}$/i.test(top)||!/^#[0-9a-f]{6}$/i.test(bottom)){alert('Use cores HEX no formato #RRGGBB.');return;}
+   obj.kind='bg';obj.bgTop=top;obj.bgBottom=bottom;obj.label='BG CUSTOM';
+  } else {
+   obj.kind=cfg.id.replace('trig_','');
+   if(obj.kind==='color'){obj.color=prompt('Cor HEX para o objeto alvo:','#22d3ee')||'#22d3ee';}
+   if(obj.kind==='alpha'){obj.alpha=Number(prompt('Transparência (0 a 1):','0.5'));if(!Number.isFinite(obj.alpha))obj.alpha=.5;}
+   if(obj.kind==='move'){obj.dx=Number(prompt('Mover X (unidades):','100'))||100;obj.dy=Number(prompt('Mover Y (unidades):','0'))||0;}
+   if(obj.kind==='scale'){obj.factor=Number(prompt('Escala (ex.: 1.5):','1.5'))||1.5;}
+   if(obj.kind==='rotate'){obj.degrees=Number(prompt('Rotação em graus:','90'))||90;}
+  }
+  editorDraft.triggers.push(obj);return;
+ }
+ oldPlaceTriggerAssets(x,y);
+};
+const oldCheckEditorTrigger=checkTriggerActivation;
+checkTriggerActivation=function(p,trig,sx){
+ if(trig.triggered)return;
+ if(p.x+p.size>=sx&&trig.kind==='speed_custom'){
+  trig.triggered=true;currentGameSpeed=BASE_GAME_SPEED*(trig.multiplier||1);return;
+ }
+ if(p.x+p.size>=sx&&['move','scale','rotate','color','alpha'].includes(trig.kind)){
+  trig.triggered=true;
+  const pools=[activePlatforms,activePillars,activeSaws,activePads,activeOrbs,activeCoins];
+  let target=null,dist=Infinity;
+  pools.forEach(arr=>arr.forEach(o=>{const d=Math.abs((o.x||0)-trig.x);if(d<dist&&d<=300){dist=d;target=o;}}));
+  if(target){
+   if(trig.kind==='move'){target.x+=trig.dx||0;if(target.y!==undefined)target.y+=trig.dy||0;}
+   if(trig.kind==='scale')target.scale=(target.scale||1)*(trig.factor||1.5);
+   if(trig.kind==='rotate')target.rotation=(target.rotation||0)+(trig.degrees||90)*Math.PI/180;
+   if(trig.kind==='color')target.color=trig.color||'#22d3ee';
+   if(trig.kind==='alpha')target.alpha=trig.alpha===undefined?.5:trig.alpha;
+  }
+  return;
+ }
+ oldCheckEditorTrigger(p,trig,sx);
+};
+const oldDrawEditorTriggerMarker=drawTriggerMarker;
+drawTriggerMarker=function(trig,screenX){
+ if(trig.kind==='speed_custom'){
+  const old=trig.kind;trig.kind='speed_fast';oldDrawEditorTriggerMarker(trig,screenX);trig.kind=old;
+  ctx.save();ctx.fillStyle='#fff';ctx.font='900 11px Orbitron';ctx.textAlign='center';ctx.fillText(trig.label||((trig.multiplier||1)+'x'),screenX+14,GROUND_Y-140);ctx.restore();return;
+ }
+ oldDrawEditorTriggerMarker(trig,screenX);
+};
 
 })();
