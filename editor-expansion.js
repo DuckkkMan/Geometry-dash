@@ -357,7 +357,7 @@ function addAssetAtWorld(x,y) {
 const oldPlace = placeSelectedAtWorldCoord;
 placeSelectedAtWorldCoord = function(x,y) {
   if(ASSET_BY_ID[selectedAssetId] && !['spike','mini_spike','ceil_spike','platform','block','pad_yellow','pad_pink','orb_yellow','orb_pink','saw','pillar','coin','portal_ship','portal_cube','trig_speed_fast','trig_speed_norm','trig_bg_purple','trig_shake','trig_low_grav','trig_norm_grav'].includes(selectedAssetId)){
-    addAssetAtWorld(x,y);return;
+    recordHistory();addAssetAtWorld(x,y);return;
   }
   if(ASSET_BY_ID[selectedAssetId] && ['orb_blue','orb_red','orb_green','orb_black','orb_purple','orb_cyan','orb_dash','pad_red','pad_blue','pad_green','pad_black'].includes(selectedAssetId)){
     addAssetAtWorld(x,y);return;
@@ -707,7 +707,7 @@ function allRuntimeObjects() {
 }
 const oldLoop=loop;
 loop=function() {
-  const now=performance.now(),dt=lastFrameAt?Math.min(.05,(now-lastFrameAt)/1000):1/60;lastFrameAt=now;
+  const now=performance.now(),dt=gameState==='PLAYING'&&lastFrameAt?Math.min(.05,(now-lastFrameAt)/1000):0;lastFrameAt=now;
   runtimeEffects=runtimeEffects.filter(effect=>{
     effect.elapsed+=dt;effect.remaining-=dt;
     const progress=Math.min(1,effect.elapsed/Math.max(.001,effect.duration||1));
