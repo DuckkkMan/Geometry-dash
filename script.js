@@ -1924,7 +1924,8 @@ function drawEditorCanvas() {
             eCtx.lineTo(gx, groundY);
             eCtx.stroke();
         }
-        for (let gy = 0; gy <= groundY; gy += EDITOR_GRID) {
+        // A grade vertical nasce no chão: cada célula de 44px sobe a partir da linha de piso.
+        for (let gy = groundY; gy >= 0; gy -= EDITOR_GRID) {
             eCtx.beginPath();
             eCtx.moveTo(0, gy);
             eCtx.lineTo(w, gy);
