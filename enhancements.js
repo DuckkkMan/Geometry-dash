@@ -677,50 +677,49 @@ document.querySelectorAll('#skin-models, .color-section').forEach(el => { el.sty
 renderModeGarage();
 renderSkinUI();
 
-// === JANELA REDIMENSIONÁVEL + CANVAS DO EDITOR RESPONSIVO ===
+// === JANELA 900x500: TAMANHO ORIGINAL COMO MÍNIMO ===
 (() => {
   const container = document.getElementById('game-container');
   const handle = document.getElementById('game-resize-handle');
-  const editorArea = document.querySelector('#level-editor .editor-main-area');
   const editorCanvas = document.getElementById('editorCanvas');
   const SIZE_KEY = 'gd-web-window-size-v1';
   const ASPECT = 900 / 500;
   if (!container) return;
 
+  // O jogo nunca fica menor que o tamanho lógico original.
   const bounds = () => ({
-    maxW: Math.max(320, window.innerWidth - 16),
-    maxH: Math.max(220, window.innerHeight - 16),
-    minW: Math.min(560, Math.max(320, window.innerWidth - 16))
+    maxW: Math.max(900, window.innerWidth - 16),
+    maxH: Math.max(500, window.innerHeight - 16)
   });
 
-  function applySize(width, height, persist = false) {
+  function applySize(width, persist = false) {
     const b = bounds();
-    let w = Math.max(b.minW, Math.min(b.maxW, width));
+    let w = Math.max(900, Math.min(b.maxW, Number(width) || 900));
     let h = w / ASPECT;
     if (h > b.maxH) {
       h = b.maxH;
-      w = h * ASPECT;
+      w = Math.max(900, h * ASPECT);
     }
     container.style.width = Math.round(w) + 'px';
-    container.style.height = Math.round(h) + 'px';
+    container.style.height = Math.round(w / ASPECT) + 'px';
     if (persist) {
-      try {
-        localStorage.setItem(SIZE_KEY, JSON.stringify({ width: Math.round(w), height: Math.round(h) }));
-      } catch (_) {}
+      try { localStorage.setItem(SIZE_KEY, JSON.stringify({ width: Math.round(w), height: Math.round(w / ASPECT) })); } catch (_) {}
     }
   }
 
+  if (editorCanvas) {
+    editorCanvas.width = 900;
+    editorCanvas.height = 500;
+  }
   try {
     const saved = JSON.parse(localStorage.getItem(SIZE_KEY) || 'null');
-    if (saved && Number.isFinite(saved.width) && Number.isFinite(saved.height)) {
-      applySize(saved.width, saved.height);
-    }
-  } catch (_) {}
+    if (saved && Number.isFinite(saved.width)) applySize(Math.max(900, saved.width));
+    else applySize(900);
+  } catch (_) { applySize(900); }
 
   if (handle) {
     let drag = null;
     handle.addEventListener('pointerdown', event => {
-      if (window.matchMedia('(max-width: 700px)').matches) return;
       event.preventDefault();
       const rect = container.getBoundingClientRect();
       drag = { pointerId: event.pointerId, x: event.clientX, width: rect.width };
@@ -729,42 +728,16 @@ renderSkinUI();
     });
     handle.addEventListener('pointermove', event => {
       if (!drag || drag.pointerId !== event.pointerId) return;
-      applySize(drag.width + event.clientX - drag.x, 0);
+      applySize(drag.width + event.clientX - drag.x);
     });
-    const stopResize = event => {
-      if (!drag || (event && drag.pointerId !== event.pointerId)) return;
+    const stop = event => {
+      if (!drag || (event && event.pointerId !== drag.pointerId)) return;
       drag = null;
       handle.classList.remove('resizing');
-      const rect = container.getBoundingClientRect();
-      applySize(rect.width, rect.height, true);
+      applySize(container.getBoundingClientRect().width, true);
     };
-    handle.addEventListener('pointerup', stopResize);
-    handle.addEventListener('pointercancel', stopResize);
-    window.addEventListener('resize', () => {
-      const rect = container.getBoundingClientRect();
-      applySize(rect.width, rect.height, true);
-    });
-  }
-
-  if (editorArea && editorCanvas && 'ResizeObserver' in window) {
-    let lastWidth = 0;
-    let lastHeight = 0;
-    const observer = new ResizeObserver(entries => {
-      const rect = entries[0] && entries[0].contentRect;
-      if (!rect || rect.width < 1 || rect.height < 1) return;
-      const width = Math.max(1, Math.round(rect.width));
-      const height = Math.max(1, Math.round(rect.height));
-      if (width === lastWidth && height === lastHeight) return;
-      lastWidth = width;
-      lastHeight = height;
-      if (editorCanvas.width !== width) editorCanvas.width = width;
-      if (editorCanvas.height !== height) editorCanvas.height = height;
-      if (typeof drawEditorCanvas === 'function' && typeof editorDraft !== 'undefined' && editorDraft) {
-        drawEditorCanvas();
-      }
-    });
-    observer.observe(editorArea);
+    handle.addEventListener('pointerup', stop);
+    handle.addEventListener('pointercancel', stop);
   }
 })();
-
 })();
