@@ -1807,8 +1807,8 @@ canvas {
   outline:none;
 }
 #level-editor .editor-asset-search:focus { border-color:#ffe600; box-shadow:0 0 0 2px #ffe60033; }
-#level-editor .editor-asset-grid { grid-template-columns:repeat(auto-fill,minmax(68px,1fr)); overflow-x:hidden; overflow-y:auto; }
-#level-editor .editor-asset-card { min-width:0; min-height:58px; height:68px; padding:3px; }
+#level-editor .editor-asset-grid { display:flex; flex-flow:row nowrap; gap:7px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x proximity; scrollbar-width:thin; }
+#level-editor .editor-asset-card { flex:0 0 70px; min-width:70px; min-height:58px; height:68px; padding:3px; scroll-snap-align:start; }
 #level-editor .editor-asset-card canvas { width:42px; height:42px; flex:0 0 42px; }
 #level-editor .editor-asset-card span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:8px; }
 @media (max-width:700px) {
