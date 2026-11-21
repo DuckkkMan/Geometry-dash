@@ -126,6 +126,7 @@ function addCategoryPanel() {
   const oldTriggers = $('editor-panel-triggers');
   if (oldAssets) oldAssets.classList.add('hidden');
   if (oldTriggers) oldTriggers.classList.add('hidden');
+  tabBar.querySelectorAll('.editor-tab').forEach(t=>t.classList.remove('active'));
   const tab = document.createElement('button');
   tab.type='button';tab.className='editor-tab active';tab.dataset.tab='library';tab.textContent='ASSET LIBRARY';
   tabBar.insertBefore(tab,tabBar.firstChild);
@@ -207,7 +208,7 @@ function addEditorCommandBar() {
   const top=editorRoot.querySelector('.editor-topbar');
   if(!top||$('editor-command-bar'))return;
   const bar=document.createElement('div');bar.id='editor-command-bar';bar.className='editor-command-bar';
-  bar.innerHTML='<div class="editor-command-tools"><button data-tool="place" class="editor-command-btn active">PLACE</button><button data-tool="select" class="editor-command-btn">MOVE / SELECT</button><button data-tool="erase" class="editor-command-btn">DELETE</button><button data-tool="pan" class="editor-command-btn">HAND</button></div><div class="editor-command-actions"><button id="editor-duplicate-btn">DUPLICATE</button><button id="editor-mirror-x-btn">FLIP X</button><button id="editor-mirror-y-btn">FLIP Y</button><button id="editor-group-btn">GROUP</button><button id="editor-ungroup-btn">UNGROUP</button></div>';
+  bar.innerHTML='<div class="editor-command-tools"><button data-tool="place" class="editor-command-btn active">PLACE</button><button data-tool="select" class="editor-command-btn">MOVE / SELECT</button><button data-tool="erase" class="editor-command-btn">DELETE</button><button data-tool="pan" class="editor-command-btn">HAND</button></div><div class="editor-command-actions"><button id="editor-duplicate-btn">DUPLICATE</button><button id="editor-mirror-x-btn">FLIP X</button><button id="editor-mirror-y-btn">FLIP Y</button><button id="editor-group-btn">GROUP</button><button id="editor-ungroup-btn">UNGROUP</button><button id="editor-select-group-btn">SELECT GROUP</button><button id="editor-copy-props-btn">COPY PROPS</button><button id="editor-paste-props-btn">PASTE PROPS</button></div>';
   top.insertAdjacentElement('afterend',bar);
   bar.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{
     editorToolMode=b.dataset.tool;syncEditorToolButtons();bar.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));
@@ -217,6 +218,10 @@ function addEditorCommandBar() {
   $('editor-mirror-y-btn').addEventListener('click',()=>transformSelection(o=>{o.flipY=!o.flipY;}));
   $('editor-group-btn').addEventListener('click',()=>transformSelection(o=>assignGroups(o, '1')));
   $('editor-ungroup-btn').addEventListener('click',()=>transformSelection(o=>{o.groups=[];delete o.group;}));
+  $('editor-select-group-btn').addEventListener('click',()=>{const first=getSelectionRecords()[0];if(!first)return;const ids=objectGroupList(first.obj);setSelection(allEditorArrays(editorDraft).flatMap(g=>g.items.map(obj=>({key:g.key,obj}))).filter(s=>objectGroupList(s.obj).some(id=>ids.includes(id))));});
+  let propertyClipboard=null;
+  $('editor-copy-props-btn').addEventListener('click',()=>{const s=getSelectionRecords()[0];if(s)propertyClipboard={rotation:s.obj.rotation||0,scale:s.obj.scale||1,color:s.obj.color||null,groups:objectGroupList(s.obj)};});
+  $('editor-paste-props-btn').addEventListener('click',()=>{if(!propertyClipboard)return;transformSelection(o=>{o.rotation=propertyClipboard.rotation;o.scale=propertyClipboard.scale;if(propertyClipboard.color)o.color=propertyClipboard.color;assignGroups(o,propertyClipboard.groups.join(', '));});});
 }
 function addInspector() {
   const bottom=editorRoot.querySelector('.editor-bottom-panel');
@@ -508,8 +513,8 @@ function configureSelectedTrigger() {
 const oldSetSelection=setSelection;
 setSelection=function(records){oldSetSelection(records);const rec=getSelectionRecords().find(s=>s.key==='triggers');if(rec)configureSelectedTrigger();else if($('trigger-config-panel'))$('trigger-config-panel').classList.add('hidden');};
 function installSelectionInput() {
-  editorCanvas.addEventListener('pointerdown',e=>{
-    if(gameState!=='EDITOR'||editorToolMode!=='select')return;
+  document.addEventListener('pointerdown',e=>{
+    if(e.target!==editorCanvas||gameState!=='EDITOR'||editorToolMode!=='select')return;
     e.preventDefault();e.stopImmediatePropagation();
     const p=getEditorWorldCoords(e),found=findObjectAt(p),multi=e.shiftKey||e.ctrlKey||e.metaKey;
     if(!found){if(!multi)setSelection([]);return;}
@@ -526,7 +531,7 @@ function installSelectionInput() {
     if(!dragState||dragState.pointerId!==e.pointerId)return;
     const p=getEditorWorldCoords(e),dx=p.x-dragState.lastX,dy=p.y-dragState.lastY;
     dragState.items.forEach(s=>{s.obj.x=(s.obj.x||0)+dx;if(s.obj.y!==undefined)s.obj.y+=dy;});
-    dragState.lastX=p.x;dragState.lastY=p.y;refreshInspector();
+    dragState.lastX=p.x;dragState.lastY=p.y;refreshInspector();drawEditorCanvas();
   },true);
   const end=()=>{dragState=null;};
   editorCanvas.addEventListener('pointerup',end,true);editorCanvas.addEventListener('pointercancel',end,true);
@@ -535,10 +540,6 @@ function addKeyboardEditorShortcuts() {
   window.addEventListener('keydown',e=>{
     if(gameState!=='EDITOR'||/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
     if((e.ctrlKey||e.metaKey)&&e.code==='KeyD'){e.preventDefault();duplicateSelection();}
-    if((e.ctrlKey||e.metaKey)&&e.code==='KeyC'){clipboardObjects=getSelectionRecords().map(s=>({key:s.key,obj:deepClone(s.obj)}));}
-    if((e.ctrlKey||e.metaKey)&&e.code==='KeyV'&&clipboardObjects.length){
-      e.preventDefault();recordHistory();const next=clipboardObjects.map(s=>{const o=deepClone(s.obj);o.id=makeId();o.x=(o.x||0)+gridUnit;editorDraft[s.key].push(o);return {key:s.key,obj:o};});setSelection(next);
-    }
     if(e.key==='Delete'&&getSelectionRecords().length){recordHistory();getSelectionRecords().forEach(s=>{const a=editorDraft[s.key],i=a.indexOf(s.obj);if(i>=0)a.splice(i,1);});setSelection([]);}
     if(e.key==='Escape')setSelection([]);
     if(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='ArrowUp'||e.key==='ArrowDown'){
