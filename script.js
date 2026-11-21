@@ -617,7 +617,7 @@ function checkOrbTrigger(p, orb, screenX) {
     const pcy = p.y + p.size / 2;
     const dx = pcx - screenX;
     const dy = pcy - orb.y;
-    const hitDist = p.size * 0.65 + 18;
+    const hitDist = p.size * 0.65 + 18 * (orb.scale || 1);
 
     if (dx * dx + dy * dy <= hitDist * hitDist) {
         orb.used = true;
@@ -644,14 +644,18 @@ function drawPlatform(plat, screenX) {
 }
 
 function handlePlatformCollision(p, plat, screenX) {
+    const scale=plat.scale||1;
+    const width=plat.w*scale,height=plat.h*scale;
+    const left=screenX+plat.w/2-width/2;
+    const top=plat.y+plat.h/2-height/2;
     const prevBottom = p.prevY + p.size;
     const currBottom = p.y + p.size;
-    const horizOverlap = p.x + p.size - 5 > screenX && p.x + 5 < screenX + plat.w;
+    const horizOverlap = p.x + p.size - 5 > left && p.x + 5 < left + width;
 
     if (!horizOverlap) return false;
 
-    if (p.dy >= 0 && prevBottom <= plat.y + 10 && currBottom >= plat.y) {
-        p.y = plat.y - p.size;
+    if (p.dy >= 0 && prevBottom <= top + 10 && currBottom >= top) {
+        p.y = top - p.size;
         p.dy = 0;
         p.grounded = true;
         if (playerMode === 'cube') {
@@ -660,8 +664,8 @@ function handlePlatformCollision(p, plat, screenX) {
         return false;
     }
 
-    const vertOverlap = p.y + p.size - 6 > plat.y && p.y + 6 < plat.y + plat.h;
-    if (vertOverlap && p.x + p.size > screenX + 4 && p.x < screenX + plat.w - 4) {
+    const vertOverlap = p.y + p.size - 6 > top && p.y + 6 < top + height;
+    if (vertOverlap && p.x + p.size > left + 4 && p.x < left + width - 4) {
         triggerDeath();
         return true;
     }
@@ -671,15 +675,16 @@ function handlePlatformCollision(p, plat, screenX) {
 
 // === ASSETS EXTRA v0.7: SERRAS, PILARES DECORATIVOS, MOEDAS E TRIGGERS ===
 function drawSaw(saw, screenX) {
-    const r = saw.r || 22;
+    const r = (saw.r || 22) * (saw.scale || 1);
     if (screenX + r * 2 < -50 || screenX - r * 2 > canvas.width + 50) return;
 
     ctx.save();
+    ctx.globalAlpha=saw.alpha===undefined?1:saw.alpha;
     ctx.translate(screenX, saw.y);
-    ctx.rotate(saw.angle || 0);
+    ctx.rotate((saw.angle || 0)+(saw.rotation||0));
 
     const teeth = 10;
-    ctx.fillStyle = '#334155';
+    ctx.fillStyle = saw.color || '#334155';
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -706,7 +711,7 @@ function drawSaw(saw, screenX) {
 }
 
 function checkSawCollision(p, saw, screenX) {
-    const r = (saw.r || 22) * 0.72;
+    const r = (saw.r || 22) * (saw.scale || 1) * 0.72;
     const pcx = p.x + p.size / 2;
     const pcy = p.y + p.size / 2;
     const dx = pcx - screenX;
@@ -764,7 +769,7 @@ function checkCoinTrigger(p, coin, screenX) {
     const pcy = p.y + p.size / 2;
     const dx = pcx - screenX;
     const dy = pcy - coin.y;
-    const hitDist = p.size * 0.55 + 14;
+    const hitDist = p.size * 0.55 + 14 * (coin.scale || 1);
     if (dx * dx + dy * dy <= hitDist * hitDist) {
         coin.collected = true;
         if (coin.secret) {
