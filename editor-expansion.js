@@ -80,6 +80,7 @@ let inspectorLock = false;
 let dragState = null;
 let snapEnabled = true;
 let gridUnit = 38;
+let editorZoom = 1;
 let stageSettingsOpen = false;
 let extraRuntimeObjects = [];
 let runtimeEffects = [];
@@ -208,7 +209,7 @@ function addEditorCommandBar() {
   const top=editorRoot.querySelector('.editor-topbar');
   if(!top||$('editor-command-bar'))return;
   const bar=document.createElement('div');bar.id='editor-command-bar';bar.className='editor-command-bar';
-  bar.innerHTML='<div class="editor-command-tools"><button data-tool="place" class="editor-command-btn active">PLACE</button><button data-tool="select" class="editor-command-btn">MOVE / SELECT</button><button data-tool="erase" class="editor-command-btn">DELETE</button><button data-tool="pan" class="editor-command-btn">HAND</button></div><div class="editor-command-actions"><button id="editor-duplicate-btn">DUPLICATE</button><button id="editor-mirror-x-btn">FLIP X</button><button id="editor-mirror-y-btn">FLIP Y</button><button id="editor-group-btn">GROUP</button><button id="editor-ungroup-btn">UNGROUP</button><button id="editor-select-group-btn">SELECT GROUP</button><button id="editor-copy-props-btn">COPY PROPS</button><button id="editor-paste-props-btn">PASTE PROPS</button></div>';
+  bar.innerHTML='<div class="editor-command-tools"><button data-tool="place" class="editor-command-btn active">PLACE</button><button data-tool="select" class="editor-command-btn">MOVE / SELECT</button><button data-tool="erase" class="editor-command-btn">DELETE</button><button data-tool="pan" class="editor-command-btn">HAND</button></div><div class="editor-command-actions"><button id="editor-duplicate-btn">DUPLICATE</button><button id="editor-mirror-x-btn">FLIP X</button><button id="editor-mirror-y-btn">FLIP Y</button><button id="editor-group-btn">GROUP</button><button id="editor-ungroup-btn">UNGROUP</button><button id="editor-select-group-btn">SELECT GROUP</button><button id="editor-copy-props-btn">COPY PROPS</button><button id="editor-paste-props-btn">PASTE PROPS</button><label class="editor-zoom-control">ZOOM <input id="editor-zoom-range" type="range" min="0.55" max="1.8" step="0.05" value="1"><span id="editor-zoom-label">100%</span></label></div>';
   top.insertAdjacentElement('afterend',bar);
   bar.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{
     editorToolMode=b.dataset.tool;syncEditorToolButtons();bar.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));
@@ -222,6 +223,7 @@ function addEditorCommandBar() {
   let propertyClipboard=null;
   $('editor-copy-props-btn').addEventListener('click',()=>{const s=getSelectionRecords()[0];if(s)propertyClipboard={rotation:s.obj.rotation||0,scale:s.obj.scale||1,color:s.obj.color||null,groups:objectGroupList(s.obj)};});
   $('editor-paste-props-btn').addEventListener('click',()=>{if(!propertyClipboard)return;transformSelection(o=>{o.rotation=propertyClipboard.rotation;o.scale=propertyClipboard.scale;if(propertyClipboard.color)o.color=propertyClipboard.color;assignGroups(o,propertyClipboard.groups.join(', '));});});
+  $('editor-zoom-range').addEventListener('input',()=>{editorZoom=Number($('editor-zoom-range').value)||1;$('editor-zoom-label').textContent=Math.round(editorZoom*100)+'%';drawEditorCanvas();});
 }
 function addInspector() {
   const bottom=editorRoot.querySelector('.editor-bottom-panel');
@@ -346,19 +348,23 @@ eraseAtWorldCoord = function(x,y) {
   oldErase(x,y);
   ['decorations','structures'].forEach(key=>{editorDraft[key]=(editorDraft[key]||[]).filter(o=>Math.hypot((o.x||0)-x,(o.y||0)-y)>Math.max(24,(o.scale||1)*28));});
 };
-const oldGetCoords = getEditorWorldCoords;
 getEditorWorldCoords = function(e) {
-  const was=editorShowGrid;editorShowGrid=false;
-  const p=oldGetCoords(e);editorShowGrid=was;
-  if(snapEnabled){p.x=Math.round(p.x/gridUnit)*gridUnit;p.y=Math.round(p.y/gridUnit)*gridUnit;}
-  return p;
+  const rect=editorCanvas.getBoundingClientRect();
+  const sx=editorCanvas.width/Math.max(1,rect.width),sy=editorCanvas.height/Math.max(1,rect.height);
+  const rawX=(e.clientX-rect.left)*sx,rawY=(e.clientY-rect.top)*sy;
+  const logicalX=(rawX-80*(1-editorZoom))/editorZoom,logicalY=rawY/editorZoom;
+  let x=logicalX+editorScrollX-80,y=logicalY/EDITOR_SCALE_Y;
+  if(snapEnabled){x=Math.round(x/gridUnit)*gridUnit;y=Math.round(y/gridUnit)*gridUnit;}
+  return {x,y};
 };
 const oldDrawEditor = drawEditorCanvas;
 drawEditorCanvas = function() {
+  if(gameState!=='EDITOR'){oldDrawEditor();return;}
+  eCtx.setTransform(1,0,0,1,0,0);eCtx.clearRect(0,0,editorCanvas.width,editorCanvas.height);
+  eCtx.save();eCtx.translate(80*(1-editorZoom),0);eCtx.scale(editorZoom,editorZoom);
   const show=editorShowGrid;editorShowGrid=false;
   oldDrawEditor();
   editorShowGrid=show;
-  if(gameState!=='EDITOR')return;
   eCtx.save();
   if(show){
     for(let x=Math.ceil((editorScrollX-80)/gridUnit)*gridUnit;x<editorScrollX+editorCanvas.width-80;x+=gridUnit){
@@ -376,9 +382,9 @@ drawEditorCanvas = function() {
   (editorDraft.triggers||[]).filter(t=>['move','pulse','scale','color','speed'].includes(t.kind)).forEach(t=>drawExtraEditorObject(t,'trigger'));
   getSelectionRecords().forEach(s=>{
     const o=s.obj,x=o.x-editorScrollX+80,y=(o.y===undefined?GROUND_Y-40:o.y)*EDITOR_SCALE_Y,scale=o.scale||1;
-    eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);eCtx.strokeStyle='#fff';eCtx.lineWidth=2;eCtx.setLineDash([5,4]);eCtx.strokeRect(-24*scale,-24*scale,48*scale,48*scale);eCtx.restore();
+    eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);eCtx.scale(o.flipX?-1:1,o.flipY?-1:1);eCtx.strokeStyle='#fff';eCtx.lineWidth=2;eCtx.setLineDash([5,4]);eCtx.strokeRect(-24*scale,-24*scale,48*scale,48*scale);eCtx.restore();
   });
-  eCtx.restore();
+  eCtx.restore();eCtx.restore();
 };
 function drawExtraEditorObject(o,kind) {
   const x=(o.x||0)-editorScrollX+80,y=(o.y===undefined?GROUND_Y-45:o.y)*EDITOR_SCALE_Y,s=(o.scale||1)*24;
@@ -410,7 +416,7 @@ function drawRuntimeExtraObjects() {
   extraRuntimeObjects.forEach(o=>{
     const x=o.x-levelDistance+160,y=o.y===undefined?GROUND_Y-40:o.y;
     if(x<-100||x>canvas.width+100)return;
-    ctx.save();ctx.translate(x,y);ctx.rotate(o.rotation||0);
+    ctx.save();ctx.translate(x,y);ctx.rotate(o.rotation||0);ctx.scale(o.flipX?-1:1,o.flipY?-1:1);
     const s=24*(o.scale||1);ctx.fillStyle=o.color||'#67e8f9';ctx.strokeStyle='#050b16';ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(0,-s);ctx.lineTo(s*.8,0);ctx.lineTo(0,s);ctx.lineTo(-s*.8,0);ctx.closePath();ctx.fill();ctx.stroke();
     if(o.kind==='gear'||o.kind==='chain'){ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(0,0,s*.5,0,Math.PI*2);ctx.stroke();}
