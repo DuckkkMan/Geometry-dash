@@ -222,7 +222,18 @@ function drawDecorGraphic(targetCtx, kind, color, r) {
     targetCtx.fill();
     targetCtx.stroke();
   };
-  if (family === 'star') {
+  if (kind === 'half_block') {
+    polygon([[-0.82,0.05],[0.82,0.05],[0.82,0.82],[-0.82,0.82]]);
+  } else if (kind === 'slope') {
+    polygon([[-0.86,0.78],[0.86,0.78],[0.86,-0.78]]);
+  } else if (kind === 'double_block') {
+    polygon([[-0.92,-0.72],[-0.08,-0.72],[-0.08,0.72],[-0.92,0.72]]);
+    polygon([[0.08,-0.72],[0.92,-0.72],[0.92,0.72],[0.08,0.72]]);
+  } else if (kind === 'outlined_block') {
+    targetCtx.shadowBlur = 0;
+    targetCtx.strokeRect(-r*0.78,-r*0.78,r*1.56,r*1.56);
+    targetCtx.strokeRect(-r*0.48,-r*0.48,r*0.96,r*0.96);
+  } else if (family === 'star') {
     const points = [];
     const count = 5 + (variant % 4);
     for (let i = 0; i < count * 2; i++) {
