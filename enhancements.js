@@ -695,4 +695,106 @@ renderSkinUI();
 // Refresh card and garage after expansion.
 updateLevelCard();
 renderModeGarage();
+
+
+// === PAINEL DE ASSETS ORGANIZADO POR CATEGORIAS ===
+// Usa objetos que já são reconhecidos pelo motor atual do jogo.
+let activeAssetCategory = 'all';
+const ASSET_CATEGORIES = [
+  {id:'all',label:'TODOS',title:'TODOS OS OBJETOS'},
+  {id:'blocks',label:'BLOCOS',title:'BLOCOS E PLATAFORMAS'},
+  {id:'spikes',label:'ESPINHOS',title:'ESPINHOS'},
+  {id:'pads',label:'PADS',title:'PADS DE IMPULSO'},
+  {id:'orbs',label:'ORBS',title:'ORBS'},
+  {id:'portals',label:'PORTAIS',title:'PORTAIS DE MODO'},
+  {id:'decor',label:'DECORAÇÃO',title:'OBSTÁCULOS E DECORAÇÃO'}
+];
+function getAssetCategory(item) {
+  const id=item.id;
+  if(id==='block'||id==='platform')return 'blocks';
+  if(id==='spike'||id==='mini_spike'||id==='ceil_spike')return 'spikes';
+  if(id==='pad_yellow'||id==='pad_pink')return 'pads';
+  if(id==='orb_yellow'||id==='orb_pink')return 'orbs';
+  if(id.indexOf('portal_')===0)return 'portals';
+  return 'decor';
+}
+function assetGlyph(item) {
+  const id=item.id;
+  if(id.indexOf('portal_')===0)return '◉';
+  if(id.indexOf('spike')>=0)return '▲';
+  if(id.indexOf('pad_')===0)return '⌑';
+  if(id.indexOf('orb_')===0)return '●';
+  if(id==='saw')return '✹';
+  if(id==='pillar')return '▥';
+  if(id==='coin')return '◆';
+  if(id==='platform')return '▰';
+  return '▦';
+}
+renderEditorPalettes = function() {
+  const assetsDiv=document.getElementById('editor-palette');
+  const trigDiv=document.getElementById('editor-triggers-palette');
+  const categoriesDiv=document.getElementById('asset-categories');
+  if(!assetsDiv||!trigDiv)return;
+  assetsDiv.innerHTML='';
+  trigDiv.innerHTML='';
+  if(categoriesDiv) {
+    categoriesDiv.innerHTML='';
+    ASSET_CATEGORIES.forEach(category=>{
+      const count=category.id==='all'?ASSET_PALETTE.length:ASSET_PALETTE.filter(item=>getAssetCategory(item)===category.id).length;
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='asset-category-btn'+(activeAssetCategory===category.id?' active':'');
+      btn.textContent=category.label+'  '+count;
+      btn.setAttribute('aria-pressed',String(activeAssetCategory===category.id));
+      btn.addEventListener('click',()=>{
+        activeAssetCategory=category.id;
+        renderEditorPalettes();
+      });
+      categoriesDiv.appendChild(btn);
+    });
+  }
+  const category=ASSET_CATEGORIES.find(c=>c.id===activeAssetCategory)||ASSET_CATEGORIES[0];
+  const title=document.getElementById('asset-category-title');
+  const countLabel=document.getElementById('asset-category-count');
+  if(title)title.textContent=category.title;
+  const visible=activeAssetCategory==='all'?ASSET_PALETTE:ASSET_PALETTE.filter(item=>getAssetCategory(item)===activeAssetCategory);
+  if(countLabel)countLabel.textContent=visible.length+' objetos disponíveis';
+  visible.forEach(item=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='asset-card'+(editorSelectedItem===item.id?' selected':'');
+    btn.title=item.label+' — clique para selecionar';
+    btn.setAttribute('aria-label',item.label);
+    const preview=document.createElement('span');
+    preview.className='asset-preview';
+    preview.style.background='linear-gradient(145deg,#ffffff55,'+item.color+')';
+    preview.style.borderColor=item.color;
+    preview.textContent=assetGlyph(item);
+    const label=document.createElement('span');
+    label.textContent=item.label;
+    btn.append(preview,label);
+    btn.addEventListener('click',()=>{
+      editorSelectedItem=item.id;
+      editorToolMode='place';
+      syncEditorToolButtons();
+      renderEditorPalettes();
+    });
+    assetsDiv.appendChild(btn);
+  });
+  TRIGGER_PALETTE.forEach(item=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='palette-item'+(editorSelectedItem===item.id?' selected':'');
+    btn.innerHTML='<span class="palette-dot" style="background:'+item.color+'"></span><span>'+item.label+'</span>';
+    btn.addEventListener('click',()=>{
+      editorSelectedItem=item.id;
+      editorToolMode='place';
+      syncEditorToolButtons();
+      renderEditorPalettes();
+    });
+    trigDiv.appendChild(btn);
+  });
+};
+renderEditorPalettes();
+
 })();
