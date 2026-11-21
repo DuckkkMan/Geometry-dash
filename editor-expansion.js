@@ -1,0 +1,562 @@
+/* Geometry Dash Web — Editor Expansion 2.0
+ * Additive editor layer: categorized asset library, inspector, transforms,
+ * groups, stage settings, precise grid and configurable runtime triggers.
+ */
+(function () {
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const editorRoot = $('level-editor');
+if (!editorRoot || typeof editorDraft === 'undefined') return;
+
+const EXTRA_CATEGORIES = [
+  { id:'blocks', name:'Blocks', icon:'▦', items:[
+    ['block','Block','block','#4cc9f0'],['platform','Platform','platform','#00e5ff'],
+    ['half_block','Half Block','decoration','#38bdf8'],['slope','Slope','decoration','#60a5fa'],
+    ['double_block','Double Block','decoration','#2563eb'],['outlined_block','Outlined Block','decoration','#93c5fd']
+  ]},
+  { id:'spikes', name:'Spikes', icon:'▲', items:[
+    ['spike','Spike','spike','#ff595e'],['mini_spike','Mini Spike','mini_spike','#ff924c'],
+    ['ceil_spike','Ceiling Spike','ceil_spike','#d62828'],['double_spike','Double Spike','decoration','#fb7185'],
+    ['wide_spike','Wide Spike','decoration','#e11d48'],['saw_spike','Saw Spike','decoration','#be123c']
+  ]},
+  { id:'orbs', name:'Orbs', icon:'◉', items:[
+    ['orb_yellow','Yellow Orb','orb_yellow','#ffd60a'],['orb_pink','Pink Orb','orb_pink','#f72585'],
+    ['orb_blue','Blue Orb','orb_blue','#38bdf8'],['orb_red','Red Orb','orb_red','#ef4444'],
+    ['orb_green','Green Orb','orb_green','#22c55e'],['orb_black','Black Orb','orb_black','#334155'],
+    ['orb_purple','Purple Orb','orb_purple','#a855f7'],['orb_cyan','Cyan Orb','orb_cyan','#06b6d4'],
+    ['orb_dash','Dash Orb','orb_dash','#f97316']
+  ]},
+  { id:'pads', name:'Pads', icon:'⌁', items:[
+    ['pad_yellow','Yellow Pad','pad_yellow','#ffe600'],['pad_pink','Pink Pad','pad_pink','#ff4fd8'],
+    ['pad_red','Red Pad','pad_red','#ef4444'],['pad_blue','Blue Pad','pad_blue','#38bdf8'],
+    ['pad_green','Green Pad','pad_green','#22c55e'],['pad_black','Black Pad','pad_black','#334155']
+  ]},
+  { id:'portals', name:'Portals', icon:'◌', items:[
+    ['portal_cube','Cube Portal','portal_cube','#80ed99'],['portal_ship','Ship Portal','portal_ship','#38bdf8'],
+    ['portal_ball','Ball Portal','portal_extra','#f59e0b'],['portal_ufo','UFO Portal','portal_extra','#a78bfa'],
+    ['portal_wave','Wave Portal','portal_extra','#22d3ee'],['portal_robot','Robot Portal','portal_extra','#fb923c'],
+    ['portal_spider','Spider Portal','portal_extra','#f472b6'],['portal_gravity','Gravity Portal','portal_extra','#c084fc'],
+    ['portal_mirror','Mirror Portal','portal_extra','#e2e8f0']
+  ]},
+  { id:'decorations', name:'Decorations', icon:'✦', items:[
+    ['deco_star','Star','decoration','#fde68a'],['deco_crystal','Crystal','decoration','#67e8f9'],
+    ['deco_ring','Ring','decoration','#c4b5fd'],['deco_arrow','Arrow','decoration','#fca5a5'],
+    ['deco_spark','Spark','decoration','#fef08a'],['deco_triangle','Triangle','decoration','#fb7185'],
+    ['deco_window','Window','decoration','#93c5fd'],['deco_chain','Chain','decoration','#cbd5e1'],
+    ['deco_gear','Gear','decoration','#94a3b8'],['deco_flower','Flower','decoration','#f9a8d4']
+  ]},
+  { id:'effects', name:'Effects', icon:'✧', items:[
+    ['effect_glow','Glow','decoration','#a5f3fc'],['effect_burst','Burst','decoration','#fef08a'],
+    ['effect_flame','Flame','decoration','#fb923c'],['effect_portal_fx','Portal Effect','decoration','#c4b5fd'],
+    ['effect_wave','Wave Effect','decoration','#67e8f9'],['effect_sparkle','Sparkle','decoration','#fff7ae']
+  ]},
+  { id:'structures', name:'Structures', icon:'▤', items:[
+    ['saw','Saw','saw','#94a3b8'],['pillar','Pillar','pillar','#e2e8f0'],
+    ['structure_wall','Wall','structure','#64748b'],['structure_column','Column','structure','#cbd5e1'],
+    ['structure_arch','Arch','structure','#94a3b8'],['structure_chain','Chain','structure','#a1a1aa'],
+    ['structure_gear','Gear','structure','#9ca3af'],['structure_spikeball','Spike Ball','saw','#64748b']
+  ]},
+  { id:'triggers', name:'Triggers', icon:'⚡', items:[
+    ['trigger_move','Move Trigger','trigger','#38bdf8'],['trigger_pulse','Pulse Trigger','trigger','#f472b6'],
+    ['trigger_scale','Scale Trigger','trigger','#a78bfa'],['trigger_color','Color Trigger','trigger','#22c55e'],
+    ['trigger_speed','Speed Trigger','trigger','#facc15'],['trig_bg_purple','BG Color Trigger','legacy_trigger','#9b5de5'],
+    ['trig_shake','Shake Trigger','legacy_trigger','#f15bb5'],['trig_low_grav','Low Gravity','legacy_trigger','#fee440'],
+    ['trig_norm_grav','Normal Gravity','legacy_trigger','#9dff00']
+  ]},
+  { id:'other', name:'Other', icon:'◇', items:[
+    ['coin','Coin','coin','#ffb703'],['checkpoint','Checkpoint','decoration','#4ade80'],
+    ['finish_marker','Finish Marker','decoration','#34d399'],['text_sign','Text Sign','decoration','#e2e8f0']
+  ]}
+];
+const ASSET_BY_ID = {};
+EXTRA_CATEGORIES.forEach(cat => cat.items.forEach(item => ASSET_BY_ID[item[0]] = {id:item[0],label:item[1],type:item[2],color:item[3],category:cat.id}));
+
+let activeCategory = 'blocks';
+let selectedAssetId = editorSelectedItem || 'spike';
+let selectedObjects = [];
+let clipboardObjects = [];
+let inspectorLock = false;
+let dragState = null;
+let snapEnabled = true;
+let gridUnit = 38;
+let stageSettingsOpen = false;
+let extraRuntimeObjects = [];
+let runtimeEffects = [];
+let lastFrameAt = 0;
+
+function ensureDraftSchema(draft) {
+  draft.decorations = Array.isArray(draft.decorations) ? draft.decorations : [];
+  draft.structures = Array.isArray(draft.structures) ? draft.structures : [];
+  draft.initialMode = draft.initialMode || 'cube';
+  draft.initialSpeed = Number.isFinite(Number(draft.initialSpeed)) ? Number(draft.initialSpeed) : 1;
+  draft.groups = Array.isArray(draft.groups) ? draft.groups : [];
+  draft.triggers = Array.isArray(draft.triggers) ? draft.triggers : [];
+  draft.decorations.forEach(o => { if (!o.id) o.id = makeId(); });
+  draft.structures.forEach(o => { if (!o.id) o.id = makeId(); });
+  draft.triggers.forEach(o => { if (!o.id) o.id = makeId(); });
+  return draft;
+}
+function makeId() { return 'obj_' + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
+function deepClone(v) { return JSON.parse(JSON.stringify(v)); }
+function allEditorArrays(draft) {
+  return ['spikes','platforms','blocks','pads','orbs','saws','pillars','coins','portals','triggers','decorations','structures']
+    .map(key => ({key,items:Array.isArray(draft[key])?draft[key]:[]}));
+}
+function objectCenter(obj) {
+  return {x:Number(obj.x)||0,y:Number(obj.y===undefined?GROUND_Y-45:obj.y)};
+}
+function objectGroupList(obj) {
+  if (Array.isArray(obj.groups)) return obj.groups.map(String);
+  if (obj.group !== undefined && obj.group !== null && String(obj.group).trim()) return [String(obj.group)];
+  return [];
+}
+function assignGroups(obj, value) {
+  obj.groups = String(value||'').split(',').map(s=>s.trim()).filter(Boolean).slice(0,10);
+  delete obj.group;
+}
+function recordHistory() {
+  if (typeof snapshotEditor === 'function') snapshotEditor();
+}
+function addCategoryPanel() {
+  const bottom = editorRoot.querySelector('.editor-bottom-panel');
+  if (!bottom || $('editor-library')) return;
+  const tabBar = bottom.querySelector('.editor-tabs');
+  const oldAssets = $('editor-panel-assets');
+  const oldTriggers = $('editor-panel-triggers');
+  if (oldAssets) oldAssets.classList.add('hidden');
+  if (oldTriggers) oldTriggers.classList.add('hidden');
+  const tab = document.createElement('button');
+  tab.type='button';tab.className='editor-tab active';tab.dataset.tab='library';tab.textContent='ASSET LIBRARY';
+  tabBar.insertBefore(tab,tabBar.firstChild);
+  const panel=document.createElement('div');panel.id='editor-library';panel.className='editor-tab-content';
+  panel.innerHTML='<div class="editor-library-layout"><nav class="editor-category-list" aria-label="Asset categories"></nav><div class="editor-library-main"><div class="editor-library-head"><strong id="editor-category-title">Blocks</strong><span id="editor-asset-count"></span><span id="editor-selected-name">Select an asset</span></div><div class="editor-asset-grid"></div></div></div>';
+  bottom.insertBefore(panel,oldAssets);
+  tab.addEventListener('click',()=>activateEditorPanel('library',tab));
+  tabBar.querySelectorAll('.editor-tab').forEach(t=>t.addEventListener('click',()=>activateEditorPanel(t.dataset.tab,t)));
+  renderAssetLibrary();
+}
+function activateEditorPanel(target,clicked) {
+  editorRoot.querySelectorAll('.editor-tabs .editor-tab').forEach(t=>t.classList.toggle('active',t===clicked));
+  ['library','assets','triggers','style'].forEach(key=>{
+    const el=key==='library'?$('editor-library'):$('editor-panel-'+key);
+    if(el)el.classList.toggle('hidden',key!==target);
+  });
+}
+function drawAssetThumb(ctx,item,size) {
+  const c=item.color||'#38bdf8';ctx.save();ctx.translate(size/2,size/2);
+  ctx.lineWidth=Math.max(1.5,size*.055);ctx.strokeStyle='#06101e';ctx.fillStyle=c;
+  const type=item.type;
+  if(type==='spike'||type==='mini_spike'||item.id.indexOf('spike')>=0){
+    ctx.beginPath();ctx.moveTo(-size*.38,size*.32);ctx.lineTo(0,-size*.4);ctx.lineTo(size*.38,size*.32);ctx.closePath();ctx.fill();ctx.stroke();
+  } else if(type==='orb_yellow'||type.indexOf('orb_')===0){
+    ctx.beginPath();ctx.arc(0,0,size*.31,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,size*.19,0,Math.PI*2);ctx.stroke();
+  } else if(type.indexOf('pad_')===0){
+    ctx.fillRect(-size*.38,size*.15,size*.76,size*.2);ctx.strokeRect(-size*.38,size*.15,size*.76,size*.2);
+    ctx.beginPath();ctx.moveTo(-size*.28,size*.1);ctx.lineTo(0,-size*.2);ctx.lineTo(size*.28,size*.1);ctx.stroke();
+  } else if(type.indexOf('portal')===0){
+    ctx.beginPath();ctx.ellipse(0,0,size*.25,size*.42,0,0,Math.PI*2);ctx.strokeStyle=c;ctx.lineWidth=size*.13;ctx.stroke();
+    ctx.beginPath();ctx.ellipse(0,0,size*.14,size*.32,0,0,Math.PI*2);ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+  } else if(type==='saw'||item.id.indexOf('gear')>=0||item.id.indexOf('chain')>=0){
+    ctx.rotate(Math.PI/8);ctx.beginPath();for(let i=0;i<16;i++){const a=i*Math.PI/8,r=i%2?size*.25:size*.39;const x=Math.cos(a)*r,y=Math.sin(a)*r;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.arc(0,0,size*.1,0,Math.PI*2);ctx.fillStyle='#0b1728';ctx.fill();
+  } else if(type==='trigger'||type==='legacy_trigger'){
+    ctx.fillRect(-size*.25,-size*.35,size*.5,size*.7);ctx.strokeRect(-size*.25,-size*.35,size*.5,size*.7);
+    ctx.fillStyle='#fff';ctx.font='bold '+(size*.3)+'px sans-serif';ctx.textAlign='center';ctx.fillText('T',0,size*.1);
+  } else if(type==='block'||type==='platform'||type==='structure'){
+    ctx.fillRect(-size*.36,-size*.36,size*.72,size*.72);ctx.strokeRect(-size*.36,-size*.36,size*.72,size*.72);
+    ctx.strokeStyle='rgba(255,255,255,.65)';ctx.strokeRect(-size*.23,-size*.23,size*.46,size*.46);
+  } else if(type==='coin'){
+    ctx.beginPath();ctx.ellipse(0,0,size*.2,size*.34,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  } else {
+    ctx.beginPath();ctx.moveTo(0,-size*.38);ctx.lineTo(size*.34,0);ctx.lineTo(0,size*.38);ctx.lineTo(-size*.34,0);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.7)';ctx.beginPath();ctx.moveTo(-size*.2,0);ctx.lineTo(size*.2,0);ctx.stroke();
+  }
+  ctx.restore();
+}
+function renderAssetLibrary() {
+  const nav=editorRoot.querySelector('.editor-category-list'),grid=editorRoot.querySelector('.editor-asset-grid');
+  if(!nav||!grid)return;
+  nav.replaceChildren();grid.replaceChildren();
+  EXTRA_CATEGORIES.forEach(cat=>{
+    const b=document.createElement('button');b.type='button';b.className='editor-category-btn'+(activeCategory===cat.id?' active':'');
+    b.innerHTML='<span class="editor-category-icon">'+cat.icon+'</span><span>'+cat.name+'</span><small>'+cat.items.length+'</small>';
+    b.addEventListener('click',()=>{activeCategory=cat.id;renderAssetLibrary();});nav.appendChild(b);
+  });
+  const cat=EXTRA_CATEGORIES.find(c=>c.id===activeCategory)||EXTRA_CATEGORIES[0];
+  $('editor-category-title').textContent=cat.name;
+  $('editor-asset-count').textContent=cat.items.length+' ASSETS';
+  cat.items.forEach(raw=>{
+    const item=ASSET_BY_ID[raw[0]],b=document.createElement('button');b.type='button';
+    b.className='editor-asset-card'+(selectedAssetId===item.id?' selected':'');
+    const cv=document.createElement('canvas');cv.width=64;cv.height=64;drawAssetThumb(cv.getContext('2d'),item,56);
+    const name=document.createElement('span');name.textContent=item.label;
+    b.append(cv,name);
+    b.addEventListener('click',()=>{
+      selectedAssetId=item.id;editorSelectedItem=item.id;editorToolMode='place';
+      $('editor-selected-name').textContent=item.label;
+      if(item.type==='trigger'||item.type==='legacy_trigger')activateEditorPanel('library',editorRoot.querySelector('[data-tab="library"]'));
+      syncEditorToolButtons();renderAssetLibrary();
+    });
+    grid.appendChild(b);
+  });
+  $('editor-selected-name').textContent=(ASSET_BY_ID[selectedAssetId]||{label:'Select an asset'}).label;
+}
+function addEditorCommandBar() {
+  const top=editorRoot.querySelector('.editor-topbar');
+  if(!top||$('editor-command-bar'))return;
+  const bar=document.createElement('div');bar.id='editor-command-bar';bar.className='editor-command-bar';
+  bar.innerHTML='<div class="editor-command-tools"><button data-tool="place" class="editor-command-btn active">PLACE</button><button data-tool="select" class="editor-command-btn">MOVE / SELECT</button><button data-tool="erase" class="editor-command-btn">DELETE</button><button data-tool="pan" class="editor-command-btn">HAND</button></div><div class="editor-command-actions"><button id="editor-duplicate-btn">DUPLICATE</button><button id="editor-mirror-x-btn">FLIP X</button><button id="editor-mirror-y-btn">FLIP Y</button><button id="editor-group-btn">GROUP</button><button id="editor-ungroup-btn">UNGROUP</button></div>';
+  top.insertAdjacentElement('afterend',bar);
+  bar.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{
+    editorToolMode=b.dataset.tool;syncEditorToolButtons();bar.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));
+  }));
+  $('editor-duplicate-btn').addEventListener('click',duplicateSelection);
+  $('editor-mirror-x-btn').addEventListener('click',()=>transformSelection(o=>{o.flipX=!o.flipX;}));
+  $('editor-mirror-y-btn').addEventListener('click',()=>transformSelection(o=>{o.flipY=!o.flipY;}));
+  $('editor-group-btn').addEventListener('click',()=>transformSelection(o=>assignGroups(o, '1')));
+  $('editor-ungroup-btn').addEventListener('click',()=>transformSelection(o=>{o.groups=[];delete o.group;}));
+}
+function addInspector() {
+  const bottom=editorRoot.querySelector('.editor-bottom-panel');
+  if(!bottom||$('editor-inspector'))return;
+  const panel=document.createElement('aside');panel.id='editor-inspector';panel.innerHTML='<div class="editor-inspector-title">OBJECT INSPECTOR <span id="editor-selection-count">0 selected</span></div><div class="editor-inspector-fields"><label>X<input id="inspect-x" type="number" step="1"></label><label>Y<input id="inspect-y" type="number" step="1"></label><label>ROTATION<input id="inspect-rotation" type="number" step="1" value="0"></label><label>SCALE %<input id="inspect-scale" type="number" min="10" max="500" step="5" value="100"></label><label class="group-field">GROUPS<input id="inspect-groups" type="text" placeholder="Ex.: 1, 2, 10"></label><button id="inspect-apply-btn" type="button">APPLY</button></div>';
+  bottom.insertAdjacentElement('beforebegin',panel);
+  $('inspect-apply-btn').addEventListener('click',applyInspector);
+  ['inspect-x','inspect-y','inspect-rotation','inspect-scale','inspect-groups'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')applyInspector();}));
+}
+function getSelectionRecords() {
+  return selectedObjects.map(sel=>({key:sel.key,obj:sel.obj})).filter(s=>(editorDraft[s.key]||[]).includes(s.obj));
+}
+function setSelection(records) {
+  selectedObjects=records.slice();selectedEditorObject=selectedObjects.length?selectedObjects[selectedObjects.length-1]:null;
+  refreshInspector();drawEditorCanvas();
+}
+function refreshInspector() {
+  const records=getSelectionRecords(),first=records[0];
+  $('editor-selection-count').textContent=records.length+' selected';
+  ['inspect-x','inspect-y','inspect-rotation','inspect-scale','inspect-groups'].forEach(id=>$(id).disabled=!first);
+  if(!first)return;
+  inspectorLock=true;
+  $('inspect-x').value=Math.round(first.obj.x||0);
+  $('inspect-y').value=Math.round(first.obj.y===undefined?GROUND_Y-45:first.obj.y);
+  $('inspect-rotation').value=Math.round(first.obj.rotation||0);
+  $('inspect-scale').value=Math.round((first.obj.scale||1)*100);
+  $('inspect-groups').value=objectGroupList(first.obj).join(', ');
+  inspectorLock=false;
+}
+function applyInspector() {
+  const records=getSelectionRecords();if(!records.length)return;
+  recordHistory();
+  const x=Number($('inspect-x').value),y=Number($('inspect-y').value);
+  const rot=Number($('inspect-rotation').value),scale=Number($('inspect-scale').value)/100;
+  records.forEach((s,index)=>{
+    if(Number.isFinite(x))s.obj.x=x+(index?0:0);
+    if(Number.isFinite(y))s.obj.y=y;
+    if(Number.isFinite(rot))s.obj.rotation=rot*Math.PI/180;
+    if(Number.isFinite(scale))s.obj.scale=Math.max(.1,Math.min(5,scale));
+    assignGroups(s.obj,$('inspect-groups').value);
+  });
+  drawEditorCanvas();
+}
+function transformSelection(fn) {
+  const records=getSelectionRecords();if(!records.length)return;
+  recordHistory();records.forEach(s=>fn(s.obj));drawEditorCanvas();refreshInspector();
+}
+function duplicateSelection() {
+  const records=getSelectionRecords();if(!records.length)return;
+  recordHistory();const next=[];
+  records.forEach(s=>{
+    const clone=deepClone(s.obj);clone.id=makeId();clone.x=(clone.x||0)+gridUnit;clone.y=(clone.y===undefined?GROUND_Y-45:clone.y)+0;
+    editorDraft[s.key].push(clone);next.push({key:s.key,obj:clone});
+  });setSelection(next);
+}
+function findObjectAt(point) {
+  let found=null,best=Infinity;
+  allEditorArrays(editorDraft).forEach(group=>group.items.forEach(obj=>{
+    const p=objectCenter(obj),dist=Math.hypot(point.x-p.x,point.y-p.y);
+    const radius=Math.max(30,(obj.w||obj.r||40)*(obj.scale||1)*.65);
+    if(dist<radius&&dist<best){best=dist;found={key:group.key,obj};}
+  }));
+  return found;
+}
+function addAssetAtWorld(x,y) {
+  const item=ASSET_BY_ID[selectedAssetId];if(!item)return false;
+  const base={id:makeId(),x:Math.max(240,Math.min(editorDraft.finishX-80,x)),y:y,rotation:0,scale:1,groups:[]};
+  const color=selectedAssetId.replace(/^orb_|^pad_/,'');
+  if(item.type==='spike'||item.type==='mini_spike'||item.type==='ceil_spike'){
+    editorDraft.spikes.push({x:base.x,y:item.type==='ceil_spike'?CEILING_Y:GROUND_Y,sizeType:item.type==='mini_spike'?'mini':'normal',inverted:item.type==='ceil_spike',groups:[]});
+  } else if(item.type==='block') {
+    if(selectedAssetId==='platform')editorDraft.platforms.push({x:base.x,y:Math.min(GROUND_Y-36,y),w:EDITOR_GRID,h:26,groups:[]});
+    else editorDraft.blocks.push({x:base.x,y:Math.min(GROUND_Y-BLOCK_SIZE,Math.max(CEILING_Y,y-BLOCK_SIZE/2)),w:BLOCK_SIZE,h:BLOCK_SIZE,groups:[]});
+  } else if(item.type.indexOf('orb_')===0) {
+    editorDraft.orbs.push({x:base.x,y:Math.min(GROUND_Y-30,y),color:color,used:false,groups:[]});
+  } else if(item.type.indexOf('pad_')===0) {
+    editorDraft.pads.push({x:base.x,color:color,cooldown:0,groups:[]});
+  } else if(item.type==='portal_cube'||item.type==='portal_ship') {
+    editorDraft.portals.push({x:base.x,type:item.type==='portal_cube'?'cube':'ship',triggered:false,groups:[]});
+  } else if(item.type==='portal_extra') {
+    editorDraft.decorations.push(Object.assign(base,{kind:'portal',variant:selectedAssetId,color:item.color,gameplay:false}));
+  } else if(item.type==='saw') {
+    editorDraft.saws.push({x:base.x,y:Math.min(GROUND_Y-30,y),r:22,angle:0,groups:[]});
+  } else if(item.type==='pillar') {
+    editorDraft.pillars.push({x:base.x,h:90,w:34,groups:[]});
+  } else if(item.type==='coin') {
+    editorDraft.coins.push({x:base.x,y:Math.min(GROUND_Y-30,y),collected:false,groups:[]});
+  } else if(item.type==='trigger'||item.type==='legacy_trigger') {
+    const kind={trigger_move:'move',trigger_pulse:'pulse',trigger_scale:'scale',trigger_color:'color',trigger_speed:'speed'}[selectedAssetId];
+    if(kind)editorDraft.triggers.push({id:makeId(),x:base.x,y:Math.min(GROUND_Y-20,Math.max(CEILING_Y,y)),kind:kind,group:'1',duration:1,intensity:1,distance:120,scale:1.5,color:'#00e5ff',speedMultiplier:1,customSpeed:1,triggered:false});
+    else return false;
+  } else if(item.type==='structure') {
+    editorDraft.structures.push(Object.assign(base,{kind:selectedAssetId.replace('structure_',''),color:item.color,gameplay:false}));
+  } else {
+    editorDraft.decorations.push(Object.assign(base,{kind:selectedAssetId,color:item.color,gameplay:false}));
+  }
+  return true;
+}
+const oldPlace = placeSelectedAtWorldCoord;
+placeSelectedAtWorldCoord = function(x,y) {
+  if(ASSET_BY_ID[selectedAssetId] && !['spike','mini_spike','ceil_spike','platform','block','pad_yellow','pad_pink','orb_yellow','orb_pink','saw','pillar','coin','portal_ship','portal_cube','trig_speed_fast','trig_speed_norm','trig_bg_purple','trig_shake','trig_low_grav','trig_norm_grav'].includes(selectedAssetId)){
+    addAssetAtWorld(x,y);return;
+  }
+  if(ASSET_BY_ID[selectedAssetId] && ['orb_blue','orb_red','orb_green','orb_black','orb_purple','orb_cyan','orb_dash','pad_red','pad_blue','pad_green','pad_black'].includes(selectedAssetId)){
+    addAssetAtWorld(x,y);return;
+  }
+  oldPlace.call(this,x,y);
+};
+const oldErase = eraseAtWorldCoord;
+eraseAtWorldCoord = function(x,y) {
+  oldErase(x,y);
+  ['decorations','structures'].forEach(key=>{editorDraft[key]=(editorDraft[key]||[]).filter(o=>Math.hypot((o.x||0)-x,(o.y||0)-y)>Math.max(24,(o.scale||1)*28));});
+};
+const oldGetCoords = getEditorWorldCoords;
+getEditorWorldCoords = function(e) {
+  const was=editorShowGrid;editorShowGrid=false;
+  const p=oldGetCoords(e);editorShowGrid=was;
+  if(snapEnabled){p.x=Math.round(p.x/gridUnit)*gridUnit;p.y=Math.round(p.y/gridUnit)*gridUnit;}
+  return p;
+};
+const oldDrawEditor = drawEditorCanvas;
+drawEditorCanvas = function() {
+  const show=editorShowGrid;editorShowGrid=false;
+  oldDrawEditor();
+  editorShowGrid=show;
+  if(gameState!=='EDITOR')return;
+  eCtx.save();
+  if(show){
+    for(let x=Math.ceil((editorScrollX-80)/gridUnit)*gridUnit;x<editorScrollX+editorCanvas.width-80;x+=gridUnit){
+      const sx=x-editorScrollX+80;eCtx.strokeStyle=(Math.round(x/gridUnit)%4===0)?'rgba(255,255,255,.22)':'rgba(255,255,255,.09)';
+      eCtx.lineWidth=(Math.round(x/gridUnit)%4===0)?1.4:1;eCtx.beginPath();eCtx.moveTo(sx,0);eCtx.lineTo(sx,EDITOR_GROUND_Y);eCtx.stroke();
+    }
+    const stepY=gridUnit*EDITOR_SCALE_Y;
+    for(let y=0;y<=EDITOR_GROUND_Y;y+=stepY){
+      eCtx.strokeStyle=(Math.round(y/stepY)%4===0)?'rgba(255,255,255,.2)':'rgba(255,255,255,.08)';
+      eCtx.lineWidth=(Math.round(y/stepY)%4===0)?1.4:1;eCtx.beginPath();eCtx.moveTo(0,y);eCtx.lineTo(editorCanvas.width,y);eCtx.stroke();
+    }
+  }
+  (editorDraft.decorations||[]).forEach(o=>drawExtraEditorObject(o,'decoration'));
+  (editorDraft.structures||[]).forEach(o=>drawExtraEditorObject(o,'structure'));
+  (editorDraft.triggers||[]).filter(t=>['move','pulse','scale','color','speed'].includes(t.kind)).forEach(t=>drawExtraEditorObject(t,'trigger'));
+  getSelectionRecords().forEach(s=>{
+    const o=s.obj,x=o.x-editorScrollX+80,y=(o.y===undefined?GROUND_Y-40:o.y)*EDITOR_SCALE_Y,scale=o.scale||1;
+    eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);eCtx.strokeStyle='#fff';eCtx.lineWidth=2;eCtx.setLineDash([5,4]);eCtx.strokeRect(-24*scale,-24*scale,48*scale,48*scale);eCtx.restore();
+  });
+  eCtx.restore();
+};
+function drawExtraEditorObject(o,kind) {
+  const x=(o.x||0)-editorScrollX+80,y=(o.y===undefined?GROUND_Y-45:o.y)*EDITOR_SCALE_Y,s=(o.scale||1)*24;
+  if(x<-80||x>editorCanvas.width+80)return;
+  eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);
+  if(kind==='trigger'){
+    eCtx.fillStyle='rgba(5,15,35,.8)';eCtx.strokeStyle=o.color||'#38bdf8';eCtx.lineWidth=3;
+    eCtx.fillRect(-12,-30,24,60);eCtx.strokeRect(-12,-30,24,60);
+    eCtx.fillStyle='#fff';eCtx.font='bold 10px sans-serif';eCtx.textAlign='center';eCtx.fillText(String(o.kind||'TRG').toUpperCase().slice(0,5),0,4);
+    eCtx.fillStyle='#facc15';eCtx.beginPath();eCtx.arc(0,-34,4,0,Math.PI*2);eCtx.fill();
+  } else if(o.kind==='portal') {
+    eCtx.strokeStyle=o.color||'#a78bfa';eCtx.lineWidth=6;eCtx.beginPath();eCtx.ellipse(0,0,s*.55,s*1.25,0,0,Math.PI*2);eCtx.stroke();
+    eCtx.strokeStyle='#fff';eCtx.lineWidth=1.5;eCtx.beginPath();eCtx.ellipse(0,0,s*.38,s,0,0,Math.PI*2);eCtx.stroke();
+  } else if(o.kind==='gear'||o.kind==='chain') {
+    eCtx.strokeStyle=o.color||'#94a3b8';eCtx.lineWidth=5;eCtx.beginPath();eCtx.arc(0,0,s,0,Math.PI*2);eCtx.stroke();
+    eCtx.beginPath();eCtx.arc(0,0,s*.35,0,Math.PI*2);eCtx.stroke();
+    for(let i=0;i<8;i++){const a=i*Math.PI/4;eCtx.beginPath();eCtx.moveTo(Math.cos(a)*s*.75,Math.sin(a)*s*.75);eCtx.lineTo(Math.cos(a)*s*1.25,Math.sin(a)*s*1.25);eCtx.stroke();}
+  } else if(o.kind==='column'||o.kind==='wall'||o.kind==='arch') {
+    eCtx.fillStyle=o.color||'#64748b';eCtx.strokeStyle='#06101e';eCtx.lineWidth=2;eCtx.fillRect(-s*.55,-s*1.4,s*1.1,s*2.8);eCtx.strokeRect(-s*.55,-s*1.4,s*1.1,s*2.8);
+    eCtx.strokeStyle='rgba(255,255,255,.5)';eCtx.strokeRect(-s*.35,-s*1.2,s*.7,s*2.4);
+  } else {
+    eCtx.fillStyle=o.color||'#67e8f9';eCtx.strokeStyle='#071426';eCtx.lineWidth=2;
+    eCtx.beginPath();eCtx.moveTo(0,-s);eCtx.lineTo(s*.8,0);eCtx.lineTo(0,s);eCtx.lineTo(-s*.8,0);eCtx.closePath();eCtx.fill();eCtx.stroke();
+    eCtx.fillStyle='rgba(255,255,255,.65)';eCtx.beginPath();eCtx.arc(-s*.22,-s*.25,s*.18,0,Math.PI*2);eCtx.fill();
+  }
+  eCtx.restore();
+}
+function drawRuntimeExtraObjects() {
+  extraRuntimeObjects.forEach(o=>{
+    const x=o.x-levelDistance+160,y=o.y===undefined?GROUND_Y-40:o.y;
+    if(x<-100||x>canvas.width+100)return;
+    ctx.save();ctx.translate(x,y);ctx.rotate(o.rotation||0);
+    const s=24*(o.scale||1);ctx.fillStyle=o.color||'#67e8f9';ctx.strokeStyle='#050b16';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(0,-s);ctx.lineTo(s*.8,0);ctx.lineTo(0,s);ctx.lineTo(-s*.8,0);ctx.closePath();ctx.fill();ctx.stroke();
+    if(o.kind==='gear'||o.kind==='chain'){ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(0,0,s*.5,0,Math.PI*2);ctx.stroke();}
+    ctx.restore();
+  });
+}
+const oldStartAttempt=startAttempt;
+startAttempt=function(countNewAttempt) {
+  ensureDraftSchema(activePlayableLevel);
+  oldStartAttempt(countNewAttempt);
+  extraRuntimeObjects=deepClone(activePlayableLevel.decorations||[]).concat(deepClone(activePlayableLevel.structures||[]));
+  runtimeEffects=[];
+  if(activePlayableLevel.initialMode)playerMode=activePlayableLevel.initialMode;
+  const multiplier=Number(activePlayableLevel.initialSpeed)||1;
+  currentGameSpeed=BASE_GAME_SPEED*multiplier;
+};
+const oldDrawElements=drawLevelElementsInWorld;
+drawLevelElementsInWorld=function(){oldDrawElements();drawRuntimeExtraObjects();};
+const oldTriggerCheck=checkTriggerActivation;
+checkTriggerActivation=function(p,trig,screenX) {
+  const was=trig.triggered;oldTriggerCheck(p,trig,screenX);
+  if(was||!trig.triggered||!['move','pulse','scale','color','speed'].includes(trig.kind))return;
+  const targets=allRuntimeObjects().filter(o=>objectGroupList(o).includes(String(trig.group||'1')));
+  const duration=Math.max(.05,Number(trig.duration)||1);
+  targets.forEach(o=>{
+    if(trig.kind==='move'){o.x=(o.x||0)+(Number(trig.distance)||0);if(o.y!==undefined)o.y+=Number(trig.verticalDistance)||0;}
+    if(trig.kind==='scale'){o.scale=Math.max(.1,Math.min(5,Number(trig.scale)||1.5));}
+    if(trig.kind==='color'){o.color=trig.color||'#00e5ff';}
+    if(trig.kind==='pulse'){runtimeEffects.push({object:o,remaining:duration,elapsed:0,baseScale:o.scale||1,intensity:Math.max(.05,Number(trig.intensity)||1)});}
+  });
+  if(trig.kind==='speed'){
+    const multiplier=Number(trig.speedMultiplier);
+    const custom=Number(trig.customSpeed);
+    currentGameSpeed=BASE_GAME_SPEED*(multiplier===99?(Number.isFinite(custom)?custom:1):(Number.isFinite(multiplier)?multiplier:1));
+  }
+};
+function allRuntimeObjects() {
+  const arrays=[activePlatforms,activeSpikes,activePads,activeOrbs,activeSaws,activePillars,activeCoins,activePortals,extraRuntimeObjects];
+  return arrays.flatMap(a=>Array.isArray(a)?a:[]);
+}
+const oldLoop=loop;
+loop=function() {
+  const now=performance.now(),dt=lastFrameAt?Math.min(.05,(now-lastFrameAt)/1000):1/60;lastFrameAt=now;
+  runtimeEffects=runtimeEffects.filter(effect=>{
+    effect.elapsed+=dt;effect.remaining-=dt;
+    const pulse=1+Math.sin(effect.elapsed*Math.PI*4)*.12*effect.intensity;
+    effect.object.scale=effect.baseScale*pulse;
+    if(effect.remaining<=0){effect.object.scale=effect.baseScale;return false;}return true;
+  });
+  if(gameState==='PLAYING'&&currentGameSpeed<0&&levelDistance<=0)currentGameSpeed=0;
+  oldLoop();
+};
+
+function openStageSettings() {
+  let panel=$('stage-settings-panel');
+  if(!panel){
+    panel=document.createElement('section');panel.id='stage-settings-panel';panel.className='stage-settings-panel';
+    panel.innerHTML='<div class="stage-settings-head"><strong>LEVEL SETTINGS</strong><button id="stage-settings-close" type="button">×</button></div><div class="stage-settings-grid"><label>START MODE<select id="stage-start-mode"><option value="cube">Cube</option><option value="ship">Ship</option><option value="ball">Ball</option><option value="ufo">UFO</option><option value="wave">Wave</option><option value="robot">Robot</option><option value="spider">Spider</option></select></label><label>START SPEED<select id="stage-start-speed"><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1">1x</option><option value="1.5">1.5x</option><option value="2">2x</option><option value="3">3x</option><option value="4">4x</option><option value="5">5x</option></select></label><label>BACKGROUND TOP<input id="stage-bg-top" type="color"></label><label>BACKGROUND BOTTOM<input id="stage-bg-bottom" type="color"></label><label>GROUND<input id="stage-ground" type="color"></label><label>GROUND GRID<input id="stage-ground-grid" type="color"></label></div><p>Changes are saved with the level.</p>';
+    editorRoot.appendChild(panel);
+    $('stage-settings-close').addEventListener('click',()=>panel.classList.add('hidden'));
+    ['stage-start-mode','stage-start-speed','stage-bg-top','stage-bg-bottom','stage-ground','stage-ground-grid'].forEach(id=>$(id).addEventListener('input',syncStageSettings));
+  }
+  panel.classList.remove('hidden');
+  $('stage-start-mode').value=editorDraft.initialMode||'cube';$('stage-start-speed').value=String(editorDraft.initialSpeed||1);
+  $('stage-bg-top').value=editorDraft.bgTop;$('stage-bg-bottom').value=editorDraft.bgBottom;
+  $('stage-ground').value=editorDraft.groundFill;$('stage-ground-grid').value=editorDraft.groundGrid;
+}
+function syncStageSettings() {
+  editorDraft.initialMode=$('stage-start-mode').value;editorDraft.initialSpeed=Number($('stage-start-speed').value)||1;
+  editorDraft.bgTop=$('stage-bg-top').value;editorDraft.bgBottom=$('stage-bg-bottom').value;
+  editorDraft.groundFill=$('stage-ground').value;editorDraft.groundGrid=$('stage-ground-grid').value;
+  $('style-bg-top').value=editorDraft.bgTop;$('style-bg-bottom').value=editorDraft.bgBottom;
+  $('style-ground-fill').value=editorDraft.groundFill;$('style-ground-grid').value=editorDraft.groundGrid;
+  drawEditorCanvas();
+}
+function addAdvancedTriggerEditor() {
+  const tabBar=editorRoot.querySelector('.editor-tabs');
+  const styleTab=tabBar&&tabBar.querySelector('[data-tab="style"]');
+  if(styleTab&&!$('stage-settings-btn')){
+    const b=document.createElement('button');b.id='stage-settings-btn';b.type='button';b.className='editor-tab';b.textContent='LEVEL SETTINGS';
+    b.addEventListener('click',openStageSettings);tabBar.appendChild(b);
+  }
+  const cat=EXTRA_CATEGORIES.find(c=>c.id==='triggers');
+  cat.items.forEach(it=>{
+    const existing=TRIGGER_PALETTE.find(t=>t.id===it[0]);if(!existing)TRIGGER_PALETTE.push({id:it[0],label:it[1],color:it[3]});
+  });
+}
+function configureSelectedTrigger() {
+  const rec=getSelectionRecords().find(s=>s.key==='triggers');if(!rec)return;
+  const t=rec.obj;
+  let panel=$('trigger-config-panel');
+  if(!panel){
+    panel=document.createElement('div');panel.id='trigger-config-panel';panel.className='trigger-config-panel';
+    panel.innerHTML='<strong>TRIGGER SETTINGS</strong><label>GROUP<input id="trigger-group" type="text" value="1"></label><label>DURATION<input id="trigger-duration" type="number" min="0.05" step="0.1" value="1"></label><label>INTENSITY<input id="trigger-intensity" type="number" min="0.05" step="0.1" value="1"></label><label>DISTANCE X<input id="trigger-distance" type="number" step="1" value="120"></label><label>DISTANCE Y<input id="trigger-distance-y" type="number" step="1" value="0"></label><label>SCALE<input id="trigger-scale" type="number" min="0.1" max="5" step="0.1" value="1.5"></label><label>COLOR<input id="trigger-color" type="color" value="#00e5ff"></label><label>SPEED<select id="trigger-speed"><option value="-1">-1x</option><option value="1">1x</option><option value="2">2x</option><option value="3">3x</option><option value="4">4x</option><option value="5">5x</option><option value="99">Custom</option></select></label><label>CUSTOM SPEED<input id="trigger-custom-speed" type="number" min="0.1" max="10" step="0.1" value="1"></label><button id="trigger-apply" type="button">APPLY TRIGGER</button>';
+    editorRoot.appendChild(panel);
+    $('trigger-apply').addEventListener('click',()=>{
+      const s=getSelectionRecords().find(x=>x.key==='triggers');if(!s)return;recordHistory();
+      const o=s.obj;o.group=$('trigger-group').value||'1';o.duration=Math.max(.05,Number($('trigger-duration').value)||1);
+      o.intensity=Math.max(.05,Number($('trigger-intensity').value)||1);o.distance=Number($('trigger-distance').value)||0;
+      o.verticalDistance=Number($('trigger-distance-y').value)||0;o.scale=Math.max(.1,Math.min(5,Number($('trigger-scale').value)||1));
+      o.color=$('trigger-color').value;o.speedMultiplier=Number($('trigger-speed').value);
+      o.customSpeed=Math.max(.1,Math.min(10,Number($('trigger-custom-speed').value)||1));drawEditorCanvas();
+    });
+  }
+  panel.classList.remove('hidden');
+  $('trigger-group').value=t.group||'1';$('trigger-duration').value=t.duration||1;$('trigger-intensity').value=t.intensity||1;
+  $('trigger-distance').value=t.distance||120;$('trigger-distance-y').value=t.verticalDistance||0;
+  $('trigger-scale').value=t.scale||1.5;$('trigger-color').value=t.color||'#00e5ff';
+  $('trigger-speed').value=String(t.speedMultiplier===undefined?1:t.speedMultiplier);$('trigger-custom-speed').value=t.customSpeed||1;
+}
+const oldSetSelection=setSelection;
+setSelection=function(records){oldSetSelection(records);const rec=getSelectionRecords().find(s=>s.key==='triggers');if(rec)configureSelectedTrigger();else if($('trigger-config-panel'))$('trigger-config-panel').classList.add('hidden');};
+function installSelectionInput() {
+  editorCanvas.addEventListener('pointerdown',e=>{
+    if(gameState!=='EDITOR'||editorToolMode!=='select')return;
+    e.preventDefault();e.stopImmediatePropagation();
+    const p=getEditorWorldCoords(e),found=findObjectAt(p),multi=e.shiftKey||e.ctrlKey||e.metaKey;
+    if(!found){if(!multi)setSelection([]);return;}
+    let next=getSelectionRecords();
+    if(multi&&next.some(s=>s.obj===found.obj))next=next.filter(s=>s.obj!==found.obj);
+    else if(multi)next.push(found);else next=[found];
+    setSelection(next);
+    if(next.some(s=>s.obj===found.obj)){
+      recordHistory();dragState={pointerId:e.pointerId,lastX:p.x,lastY:p.y,items:next.map(s=>({key:s.key,obj:s.obj}))};
+      editorCanvas.setPointerCapture(e.pointerId);
+    }
+  },true);
+  editorCanvas.addEventListener('pointermove',e=>{
+    if(!dragState||dragState.pointerId!==e.pointerId)return;
+    const p=getEditorWorldCoords(e),dx=p.x-dragState.lastX,dy=p.y-dragState.lastY;
+    dragState.items.forEach(s=>{s.obj.x=(s.obj.x||0)+dx;if(s.obj.y!==undefined)s.obj.y+=dy;});
+    dragState.lastX=p.x;dragState.lastY=p.y;refreshInspector();
+  },true);
+  const end=()=>{dragState=null;};
+  editorCanvas.addEventListener('pointerup',end,true);editorCanvas.addEventListener('pointercancel',end,true);
+}
+function addKeyboardEditorShortcuts() {
+  window.addEventListener('keydown',e=>{
+    if(gameState!=='EDITOR'||/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+    if((e.ctrlKey||e.metaKey)&&e.code==='KeyD'){e.preventDefault();duplicateSelection();}
+    if((e.ctrlKey||e.metaKey)&&e.code==='KeyC'){clipboardObjects=getSelectionRecords().map(s=>({key:s.key,obj:deepClone(s.obj)}));}
+    if((e.ctrlKey||e.metaKey)&&e.code==='KeyV'&&clipboardObjects.length){
+      e.preventDefault();recordHistory();const next=clipboardObjects.map(s=>{const o=deepClone(s.obj);o.id=makeId();o.x=(o.x||0)+gridUnit;editorDraft[s.key].push(o);return {key:s.key,obj:o};});setSelection(next);
+    }
+    if(e.key==='Delete'&&getSelectionRecords().length){recordHistory();getSelectionRecords().forEach(s=>{const a=editorDraft[s.key],i=a.indexOf(s.obj);if(i>=0)a.splice(i,1);});setSelection([]);}
+    if(e.key==='Escape')setSelection([]);
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='ArrowUp'||e.key==='ArrowDown'){
+      const delta=e.shiftKey?1:gridUnit;if(!getSelectionRecords().length)return;e.preventDefault();recordHistory();
+      getSelectionRecords().forEach(s=>{if(e.key==='ArrowLeft')s.obj.x-=delta;if(e.key==='ArrowRight')s.obj.x+=delta;if(e.key==='ArrowUp')s.obj.y=(s.obj.y||0)-delta;if(e.key==='ArrowDown')s.obj.y=(s.obj.y||0)+delta;});drawEditorCanvas();refreshInspector();
+    }
+  });
+}
+const oldSave=saveEditorDraftToCreations;
+saveEditorDraftToCreations=function(){ensureDraftSchema(editorDraft);syncStageSettingsIfPresent();oldSave();};
+function syncStageSettingsIfPresent(){if($('stage-start-mode'))syncStageSettings();}
+const oldOpen=openEditorWithLevel;
+openEditorWithLevel=function(level){oldOpen(level);ensureDraftSchema(editorDraft);selectedObjects=[];selectedEditorObject=null;refreshInspector();};
+const oldRenderPalettes=renderEditorPalettes;
+renderEditorPalettes=function(){oldRenderPalettes();renderAssetLibrary();};
+const oldSyncTools=syncEditorToolButtons;
+syncEditorToolButtons=function(){oldSyncTools();const bar=$('editor-command-bar');if(bar)bar.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===editorToolMode));};
+addCategoryPanel();addEditorCommandBar();addInspector();addAdvancedTriggerEditor();installSelectionInput();addKeyboardEditorShortcuts();
+ensureDraftSchema(editorDraft);
+renderAssetLibrary();
+})();
