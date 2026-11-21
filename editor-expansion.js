@@ -934,7 +934,7 @@ function installGameWindowResize(){
   });
   handle.addEventListener('pointermove',e=>{
     if(!active)return;
-    const maxWidth=Math.max(480,Math.min(window.innerWidth-18,(window.innerHeight*.94*1.8)*1.8));
+    const maxWidth=Math.max(480,Math.min(window.innerWidth-18,window.innerHeight*.94*1.8));
     const width=Math.max(480,Math.min(maxWidth,startWidth+e.clientX-startX));
     container.style.width=width+'px';
     container.style.height=(width*5/9)+'px';
