@@ -1810,7 +1810,11 @@ function getEditorWorldCoords(e, fineEdit = false) {
     const step = fineEdit ? EDITOR_GRID / 2 : EDITOR_GRID;
     const rawX = canvasX + editorScrollX - 80;
     const x = Math.max(0, Math.round(rawX / step) * step);
-    const y = Math.round(canvasY / step) * step;
+
+    // A grade horizontal é ancorada no piso do jogo (GROUND_Y), não no topo.
+    // Assim, o clique, o encaixe e as linhas visuais usam exatamente a mesma célula.
+    const floorY = Math.min(editorCanvas.height - 44, GROUND_Y);
+    const y = floorY - Math.round((floorY - canvasY) / step) * step;
     return { x, y, rawX, canvasX, canvasY };
 }
 
@@ -2187,6 +2191,9 @@ function bindEvents() {
         if (gameState !== 'EDITOR') return;
         isPointerEditing = true;
         lastEditorDragPoint = null;
+        if (editorCanvas.setPointerCapture && e.pointerId !== undefined) {
+            try { editorCanvas.setPointerCapture(e.pointerId); } catch (_) {}
+        }
         if (editorToolMode === 'pan' || e.button === 1) {
             panDragState = { startX: e.clientX, startScrollX: editorScrollX };
             return;
