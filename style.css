@@ -1487,3 +1487,20 @@ canvas {
 #level-editor .editor-command-bar{order:0;flex:0 0 auto}
 #level-editor .editor-tabs{order:1;flex:0 0 auto}
 #level-editor #editor-library,#level-editor #editor-panel-assets,#level-editor #editor-panel-triggers,#level-editor #editor-panel-style{order:2;min-height:0;overflow:hidden}
+
+/* Final sizing pass: the library shares the fixed bottom dock instead of pushing over the canvas. */
+#level-editor .editor-bottom-panel{height:126px;min-height:0;overflow:hidden;flex:0 0 126px}
+#level-editor #editor-library{height:auto;min-height:0;flex:1 1 auto;overflow:hidden}
+#level-editor .editor-library-layout{height:100%;min-height:0}
+#level-editor .editor-category-list{max-height:none;min-height:0}
+#level-editor .editor-asset-grid{max-height:none;min-height:0}
+#level-editor .editor-command-bar{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+#level-editor .editor-command-tools,#level-editor .editor-command-actions{flex-wrap:nowrap;flex:0 0 auto}
+#level-editor .editor-command-bar button{flex:0 0 auto}
+@media(max-width:700px){
+ #level-editor .editor-bottom-panel{height:142px;flex-basis:142px}
+ #level-editor .editor-command-bar{min-height:42px;padding:4px;gap:4px}
+ #level-editor .editor-command-bar button{padding:7px 5px;font-size:7px}
+ #level-editor .editor-library-head{gap:5px;font-size:8px}
+ #level-editor #editor-selected-name{max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
