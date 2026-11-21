@@ -21,14 +21,14 @@ const skinGarage = document.getElementById('skin-garage');
 const pauseScreen = document.getElementById('pause-screen');
 const winScreen = document.getElementById('win-screen');
 
-// Estados: 'MENU', 'EDITOR_HUB', 'CREATIONS', 'EDITOR', 'SETTINGS', 'LEVEL_SELECT', 'SKINS', 'PLAYING', 'DEAD', 'PAUSED', 'ENDING_ANIM', 'WIN'
+// Estados do jogo
 let gameState = 'MENU';
 let stateBeforePause = 'PLAYING';
 let isTestingFromEditor = false;
 let deadRemainingMs = 0;
 let deadStartedAt = 0;
 
-// Modo do jogador ('cube' | 'ship')
+// Modo do jogador ('cube' | 'ship' | ...)
 let playerMode = 'cube';
 
 // Modo Prática e Checkpoints
@@ -87,7 +87,19 @@ let runtimeBgBottom = null;
 let runtimeGroundFill = null;
 let runtimeGroundGrid = null;
 
-// === ÁUDIO SINTÉTICO (Web Audio API - zero assets externos necessários) ===
+// Entidades ativas da fase em execução
+let activeSpikes = [];
+let activePlatforms = [];
+let activeBlocks = [];
+let activePads = [];
+let activeOrbs = [];
+let activeSaws = [];
+let activePillars = [];
+let activeCoins = [];
+let activeTriggers = [];
+let activePortals = [];
+
+// === ÁUDIO SINTÉTICO ===
 let audioCtx = null;
 function playSfx(type) {
     try {
@@ -131,7 +143,7 @@ function playSfx(type) {
         } else if (type === 'coin') {
             osc.type = 'sine';
             osc.frequency.setValueAtTime(980, now);
-            osc.frequency.setValueAtTime(1320, now + 0.06);
+            osc.frequency.exponentialRampToValueAtTime(1320, now + 0.06);
             gain.gain.setValueAtTime(0.07, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
             osc.start(now);
@@ -145,16 +157,16 @@ function playSfx(type) {
             osc.start(now);
             osc.stop(now + 0.25);
         }
-    } catch (e) {}
+    } catch (_) {}
 }
 
-// === ROSTOS DE DIFICULDADE (Assets/) ===
+// === ROSTOS DE DIFICULDADE ===
 const DIFFICULTY_FACES = {
     azul: 'Assets/cara_azul.png',
     verde: 'Assets/cara_verde.png'
 };
 
-// === IMAGENS DOS PORTAIS (Assets/) ===
+// === IMAGENS DOS PORTAIS ===
 const PORTAL_IMAGES = {
     cube: new Image(),
     ship: new Image()
@@ -162,7 +174,7 @@ const PORTAL_IMAGES = {
 PORTAL_IMAGES.cube.src = 'Assets/Portal Cubo.png';
 PORTAL_IMAGES.ship.src = 'Assets/Portal Ship.png';
 
-// === SISTEMA DE SALVAMENTO LOCAL (localStorage) ===
+// === SAVE LOCAL ===
 const STORAGE_KEY = 'gd_web_save_v07';
 
 function loadSaveData() {
@@ -205,7 +217,7 @@ let customLevels = Array.isArray(savedData.customLevels) ? savedData.customLevel
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
 
-// Fases oficiais do jogo
+// Fases oficiais
 const LEVELS = [
     {
         name: 'Spike Rush',
@@ -230,6 +242,7 @@ const LEVELS = [
             { x: 1260, y: GROUND_Y - 56, w: 132, h: 28 },
             { x: 2140, y: GROUND_Y - 72, w: 150, h: 28 }
         ],
+        blocks: [],
         pads: [
             { x: 960, color: 'yellow', cooldown: 0 },
             { x: 2700, color: 'pink', cooldown: 0 }
@@ -270,6 +283,7 @@ const LEVELS = [
             { x: 1890, y: GROUND_Y - 140, w: 140, h: 28 },
             { x: 2950, y: GROUND_Y - 64, w: 140, h: 28 }
         ],
+        blocks: [],
         pads: [
             { x: 1260, color: 'yellow', cooldown: 0 },
             { x: 2560, color: 'pink', cooldown: 0 }
@@ -299,7 +313,11 @@ let currentLevelIndex = 0;
 function applyPlatformSettingsUI() {
     lowPerformanceMode = controlPlatform === 'mobile';
     const lowHint = document.getElementById('low-performance-status');
-    if (lowHint) lowHint.textContent = lowPerformanceMode ? 'ATIVADO — efeitos reduzidos para melhorar o desempenho.' : 'Desativado no modo PC.';
+    if (lowHint) {
+        lowHint.textContent = lowPerformanceMode
+            ? 'ATIVADO — efeitos reduzidos para melhorar o desempenho.'
+            : 'Desativado no modo PC.';
+    }
     const pcBtn = document.getElementById('mode-pc-btn');
     const mobileBtn = document.getElementById('mode-mobile-btn');
     const hint = document.getElementById('platform-hint');
@@ -327,7 +345,6 @@ function setPlatformMode(mode) {
     writeSaveData();
 }
 
-// === ARRASTAR UI APENAS NO MODO CELULAR ===
 function setupMobileUiDrag() {
     const scrollableSelectors = '.overlay, .creations-list, .editor-topbar, .editor-tab-content';
 
@@ -375,6 +392,23 @@ function updatePracticeUI() {
     practiceToggleBtn.textContent = isPracticeMode ? 'PRÁTICA: ON' : 'PRÁTICA: OFF';
     practiceToggleBtn.classList.toggle('active', isPracticeMode);
     checkpointBtn.classList.toggle('hidden', !isPracticeMode);
+}
+
+function spawnEndParticles(x, y, count = 16, soft = false) {
+    const maxParticles = lowPerformanceMode ? Math.min(count, 6) : count;
+    for (let i = 0; i < maxParticles; i++) {
+        const angle = (Math.PI * 2 * i) / maxParticles + Math.random() * 0.4;
+        const speed = (soft ? 1.8 : 3.2) + Math.random() * 4.5;
+        particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1.5,
+            size: 4 + Math.random() * 5,
+            alpha: 1,
+            color: i % 2 === 0 ? playerSkin.primary : playerSkin.secondary
+        });
+    }
 }
 
 function saveCheckpointAtCurrentState() {
@@ -471,7 +505,7 @@ function resetAttemptsForLevel(levelName) {
     writeSaveData();
 }
 
-// === PORTAIS (Assets/Portal Cubo.png e Assets/Portal Ship.png) ===
+// === PORTAIS ===
 function drawPortal(portal, screenX) {
     if (screenX + PORTAL_WIDTH < -70 || screenX > canvas.width + 70) return;
 
@@ -525,7 +559,7 @@ function checkPortalTrigger(p, portal, portalScreenX) {
     }
 }
 
-// === PADS DE PULO (AMARELO E ROSA) ===
+// === PADS DE PULO ===
 function drawPad(pad, screenX) {
     const w = 36;
     const h = 11;
@@ -575,7 +609,7 @@ function checkPadCollision(p, pad, screenX) {
     }
 }
 
-// === ORBS DE PULO (AMARELO E ROSA) ===
+// === ORBS DE PULO ===
 function drawOrb(orb, screenX) {
     const radius = 17;
     if (screenX + radius * 2 < -40 || screenX - radius * 2 > canvas.width + 40) return;
@@ -629,32 +663,39 @@ function checkOrbTrigger(p, orb, screenX) {
     }
 }
 
-// === PLATAFORMAS (BLOCOS SÓLIDOS) ===
+// === PLATAFORMAS E BLOCOS ===
 function drawPlatform(plat, screenX) {
-    if (screenX + plat.w < -60 || screenX > canvas.width + 60) return;
+    const w = plat.w || BLOCK_SIZE;
+    const h = plat.h || 28;
+    const y = plat.y !== undefined ? plat.y : GROUND_Y - BLOCK_SIZE;
+    if (screenX + w < -60 || screenX > canvas.width + 60) return;
 
     ctx.save();
     ctx.fillStyle = '#18376b';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 3;
-    ctx.fillRect(screenX, plat.y, plat.w, plat.h);
-    ctx.strokeRect(screenX, plat.y, plat.w, plat.h);
+    ctx.fillRect(screenX, y, w, h);
+    ctx.strokeRect(screenX, y, w, h);
 
     ctx.strokeStyle = '#00e5ff';
     ctx.lineWidth = 2;
-    ctx.strokeRect(screenX + 3, plat.y + 3, plat.w - 6, plat.h - 6);
+    ctx.strokeRect(screenX + 3, y + 3, Math.max(0, w - 6), Math.max(0, h - 6));
     ctx.restore();
 }
 
 function handlePlatformCollision(p, plat, screenX) {
+    const w = plat.w || BLOCK_SIZE;
+    const h = plat.h || 28;
+    const y = plat.y !== undefined ? plat.y : GROUND_Y - BLOCK_SIZE;
+
     const prevBottom = p.prevY + p.size;
     const currBottom = p.y + p.size;
-    const horizOverlap = p.x + p.size - 5 > screenX && p.x + 5 < screenX + plat.w;
+    const horizOverlap = p.x + p.size - 5 > screenX && p.x + 5 < screenX + w;
 
     if (!horizOverlap) return false;
 
-    if (p.dy >= 0 && prevBottom <= plat.y + 10 && currBottom >= plat.y) {
-        p.y = plat.y - p.size;
+    if (p.dy >= 0 && prevBottom <= y + 10 && currBottom >= y) {
+        p.y = y - p.size;
         p.dy = 0;
         p.grounded = true;
         if (playerMode === 'cube') {
@@ -663,8 +704,8 @@ function handlePlatformCollision(p, plat, screenX) {
         return false;
     }
 
-    const vertOverlap = p.y + p.size - 6 > plat.y && p.y + 6 < plat.y + plat.h;
-    if (vertOverlap && p.x + p.size > screenX + 4 && p.x < screenX + plat.w - 4) {
+    const vertOverlap = p.y + p.size - 6 > y && p.y + 6 < y + h;
+    if (vertOverlap && p.x + p.size > screenX + 4 && p.x < screenX + w - 4) {
         triggerDeath();
         return true;
     }
@@ -672,7 +713,47 @@ function handlePlatformCollision(p, plat, screenX) {
     return false;
 }
 
-// === ASSETS EXTRA v0.7: SERRAS, PILARES DECORATIVOS, MOEDAS E TRIGGERS ===
+// === ESPINHOS, SERRAS, PILARES, MOEDAS E TRIGGERS ===
+function drawSpike(spike, screenX) {
+    const isMini = spike.sizeType === 'mini';
+    const w = isMini ? MINI_SPIKE_W : BLOCK_SIZE;
+    const h = isMini ? MINI_SPIKE_H : BLOCK_SIZE;
+    if (screenX + w < -50 || screenX > canvas.width + 50) return;
+
+    const inverted = Boolean(spike.inverted);
+    const baseY = inverted ? (spike.y || CEILING_Y) : (spike.y || GROUND_Y);
+    const tipY = inverted ? baseY + h : baseY - h;
+
+    ctx.save();
+    ctx.fillStyle = '#ff3b5c';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(screenX + 3, baseY);
+    ctx.lineTo(screenX + w / 2, tipY);
+    ctx.lineTo(screenX + w - 3, baseY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+}
+
+function checkSpikeCollision(p, spike, screenX) {
+    const isMini = spike.sizeType === 'mini';
+    const w = isMini ? MINI_SPIKE_W : BLOCK_SIZE;
+    const h = isMini ? MINI_SPIKE_H : BLOCK_SIZE;
+    const inverted = Boolean(spike.inverted);
+    const baseY = inverted ? (spike.y || CEILING_Y) : (spike.y || GROUND_Y);
+    const tipY = inverted ? baseY + h : baseY - h;
+
+    const left = screenX + 9;
+    const right = screenX + w - 9;
+    const top = Math.min(baseY, tipY) + 7;
+    const bottom = Math.max(baseY, tipY) - 4;
+
+    return p.x + p.size - 6 > left && p.x + 6 < right && p.y + p.size - 5 > top && p.y + 5 < bottom;
+}
+
 function drawSaw(saw, screenX) {
     const r = saw.r || 22;
     if (screenX + r * 2 < -50 || screenX - r * 2 > canvas.width + 50) return;
@@ -812,7 +893,7 @@ function checkTriggerActivation(p, trig, screenX) {
     }
 }
 
-// Desenha o cubo em qualquer canvas
+// Cubo base
 function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
     targetCtx.save();
     targetCtx.translate(x + size / 2, y + size / 2);
@@ -830,119 +911,12 @@ function drawCubeSkin(targetCtx, x, y, size, rotation, skin) {
     targetCtx.fillStyle = skin.secondary;
     targetCtx.strokeStyle = '#000';
     targetCtx.lineWidth = 2;
-
-    if (skin.model === 0) {
-        targetCtx.fillRect(-13, -12, 9, 9);
-        targetCtx.strokeRect(-13, -12, 9, 9);
-        targetCtx.fillRect(4, -12, 9, 9);
-        targetCtx.strokeRect(4, -12, 9, 9);
-        targetCtx.fillRect(-13, 4, 26, 8);
-        targetCtx.strokeRect(-13, 4, 26, 8);
-    } else if (skin.model === 1) {
-        targetCtx.fillRect(-12, -11, 8, 8);
-        targetCtx.strokeRect(-12, -11, 8, 8);
-        targetCtx.fillRect(4, -11, 8, 8);
-        targetCtx.strokeRect(4, -11, 8, 8);
-        targetCtx.fillRect(-6, -2, 12, 14);
-        targetCtx.strokeRect(-6, -2, 12, 14);
-    } else if (skin.model === 2) {
-        targetCtx.beginPath();
-        targetCtx.moveTo(0, -14);
-        targetCtx.lineTo(14, 0);
-        targetCtx.lineTo(0, 14);
-        targetCtx.lineTo(-14, 0);
-        targetCtx.closePath();
-        targetCtx.fill();
-        targetCtx.stroke();
-    } else {
-        targetCtx.fillRect(-15, -9, 30, 10);
-        targetCtx.strokeRect(-15, -9, 30, 10);
-        targetCtx.fillRect(-8, 6, 16, 5);
-        targetCtx.strokeRect(-8, 6, 16, 5);
-    }
-
-    targetCtx.restore();
-}
-
-// Hoverboard estilizado usando apenas as cores da skin e o cubo encaixado
-function drawShipPlayer(targetCtx, x, y, size, dy, skin) {
-    const cx = x + size / 2;
-    const cy = y + size / 2 + 4;
-    const tilt = Math.max(-0.45, Math.min(0.45, dy * 0.048));
-
-    targetCtx.save();
-    targetCtx.translate(cx, cy);
-    targetCtx.rotate(tilt);
-
-    if (isHoldingJump && gameState === 'PLAYING') {
-        const flameLen = 14 + Math.random() * 10;
-        targetCtx.fillStyle = '#ff6a00';
-        targetCtx.strokeStyle = '#000';
-        targetCtx.lineWidth = 2;
-        targetCtx.beginPath();
-        targetCtx.moveTo(-26, 4);
-        targetCtx.lineTo(-26 - flameLen, 9);
-        targetCtx.lineTo(-26, 14);
-        targetCtx.closePath();
-        targetCtx.fill();
-        targetCtx.stroke();
-
-        targetCtx.fillStyle = '#ffe600';
-        targetCtx.beginPath();
-        targetCtx.moveTo(-26, 6);
-        targetCtx.lineTo(-26 - flameLen * 0.6, 9);
-        targetCtx.lineTo(-26, 12);
-        targetCtx.closePath();
-        targetCtx.fill();
-    }
-
-    const cubeSize = 28;
-    drawCubeSkin(targetCtx, -cubeSize / 2 + 1, -24, cubeSize, 0, skin);
-
-    targetCtx.lineJoin = 'round';
-    targetCtx.lineCap = 'round';
-
-    targetCtx.fillStyle = skin.secondary;
-    targetCtx.strokeStyle = '#000';
-    targetCtx.lineWidth = 3.2;
-    targetCtx.beginPath();
-    targetCtx.moveTo(-30, -2);
-    targetCtx.lineTo(-10, 4);
-    targetCtx.lineTo(14, 2);
-    targetCtx.lineTo(34, 9);
-    targetCtx.lineTo(22, 18);
-    targetCtx.lineTo(-22, 18);
-    targetCtx.lineTo(-32, 9);
-    targetCtx.closePath();
-    targetCtx.fill();
-    targetCtx.stroke();
-
-    targetCtx.fillStyle = skin.primary;
-    targetCtx.lineWidth = 2.4;
-    targetCtx.beginPath();
-    targetCtx.moveTo(-20, 6);
-    targetCtx.lineTo(16, 6);
-    targetCtx.lineTo(22, 11);
-    targetCtx.lineTo(-18, 11);
-    targetCtx.closePath();
-    targetCtx.fill();
-    targetCtx.stroke();
-
-    targetCtx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-    targetCtx.beginPath();
-    targetCtx.moveTo(-12, -2);
-    targetCtx.lineTo(12, -2);
-    targetCtx.lineTo(16, 3);
-    targetCtx.lineTo(-10, 3);
-    targetCtx.closePath();
-    targetCtx.fill();
-
-    targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-    targetCtx.lineWidth = 2;
-    targetCtx.beginPath();
-    targetCtx.moveTo(14, 4);
-    targetCtx.lineTo(29, 8.5);
-    targetCtx.stroke();
+    targetCtx.fillRect(-13, -12, 9, 9);
+    targetCtx.strokeRect(-13, -12, 9, 9);
+    targetCtx.fillRect(4, -12, 9, 9);
+    targetCtx.strokeRect(4, -12, 9, 9);
+    targetCtx.fillRect(-13, 4, 26, 8);
+    targetCtx.strokeRect(-13, 4, 26, 8);
 
     targetCtx.restore();
 }
@@ -1019,128 +993,72 @@ const player = {
             this.dy = JUMP_FORCE;
             this.grounded = false;
             playSfx('jump');
+            spawnEndParticles(this.x + this.size / 2, this.y + this.size, 6, true);
         }
     },
 
     draw() {
-        if (playerMode === 'ship') {
-            drawShipPlayer(ctx, this.x, this.y, this.size, this.dy, playerSkin);
-        } else {
-            drawCubeSkin(ctx, this.x, this.y, this.size, this.rotation, playerSkin);
-        }
-    }
-};
-
-// Cubo Bot da Tela Inicial
-const bgBot = {
-    x: 180,
-    y: GROUND_Y - BLOCK_SIZE,
-    size: BLOCK_SIZE,
-    dy: 0,
-    grounded: true,
-    rotation: 0,
-    spikes: [600, 950, 1320],
-
-    update() {
-        for (let i = 0; i < this.spikes.length; i++) {
-            this.spikes[i] -= BASE_GAME_SPEED;
-            if (this.spikes[i] < -60) {
-                const maxSpike = Math.max(...this.spikes);
-                this.spikes[i] = maxSpike + 320 + Math.random() * 140;
-            }
-
-            const distToSpike = this.spikes[i] - (this.x + this.size);
-            if (distToSpike > 0 && distToSpike < 105 && this.grounded) {
-                this.dy = JUMP_FORCE;
-                this.grounded = false;
-            }
-        }
-
-        this.dy += GRAVITY;
-        this.y += this.dy;
-
-        if (this.y + this.size >= GROUND_Y) {
-            this.y = GROUND_Y - this.size;
-            this.dy = 0;
-            this.grounded = true;
-            this.rotation = Math.round(this.rotation / (Math.PI / 2)) * (Math.PI / 2);
-        } else {
-            this.grounded = false;
-            this.rotation += 0.105;
-        }
-    },
-
-    draw() {
-        for (let sx of this.spikes) {
-            drawSpike(sx, GROUND_Y, BLOCK_SIZE, BLOCK_SIZE);
-        }
         drawCubeSkin(ctx, this.x, this.y, this.size, this.rotation, playerSkin);
     }
 };
 
-// Variáveis da fase ativa
-let activeSpikes = [];
-let activePlatforms = [];
-let activePads = [];
-let activeOrbs = [];
-let activeSaws = [];
-let activePillars = [];
-let activeCoins = [];
-let activeTriggers = [];
-let activePortals = [];
-let activeFinishX = 3400;
-let lockedFinishScreenX = 0;
-let currentRunPercent = 0;
-let activeAttemptNumber = 1;
+// === CONTROLE DE TELAS E FLUXO DE JOGO ===
+function hideAllOverlays() {
+    [
+        mainMenu, editorHub, creationsScreen, levelEditor,
+        settingsScreen, levelSelect, skinGarage, pauseScreen, winScreen
+    ].forEach(el => el && el.classList.add('hidden'));
+}
+
+function showOverlay(overlayEl, nextState) {
+    clearHoldPauseTimer();
+    hideAllOverlays();
+    hud.classList.add('hidden');
+    if (overlayEl) overlayEl.classList.remove('hidden');
+    if (nextState) gameState = nextState;
+}
+
+function cloneLevelEntities(lvl) {
+    activeSpikes = (lvl.spikes || []).map(o => ({ ...o }));
+    activePlatforms = (lvl.platforms || []).map(o => ({ ...o }));
+    activeBlocks = (lvl.blocks || []).map(o => ({ ...o }));
+    activePads = (lvl.pads || []).map(o => ({ ...o, cooldown: 0 }));
+    activeOrbs = (lvl.orbs || []).map(o => ({ ...o, used: false }));
+    activeSaws = (lvl.saws || []).map(o => ({ ...o, angle: o.angle || 0 }));
+    activePillars = (lvl.pillars || []).map(o => ({ ...o }));
+    activeCoins = (lvl.coins || []).map(o => ({ ...o, collected: false }));
+    activeTriggers = (lvl.triggers || []).map(o => ({ ...o, triggered: false }));
+    activePortals = (lvl.portals || []).map(o => ({ ...o, triggered: false }));
+}
+
+function startLevel(lvl, fromEditor = false) {
+    clearRespawnTimer();
+    clearHoldPauseTimer();
+    hideAllOverlays();
+    hud.classList.remove('hidden');
+    isTestingFromEditor = Boolean(fromEditor);
+    activePlayableLevel = lvl || LEVELS[0];
+    cloneLevelEntities(activePlayableLevel);
+    updatePracticeUI();
+    startAttempt(true);
+}
 
 function startAttempt(countNewAttempt = true) {
     clearRespawnTimer();
-    clearHoldPauseTimer();
-    applyPlatformSettingsUI();
-    updatePracticeUI();
-    const lvl = activePlayableLevel;
-
-    if (countNewAttempt) {
-        activeAttemptNumber = incrementAttempt(lvl.name);
-        activeCheckpoint = null;
-        checkpoints = [];
-        lastAutoCheckpointDist = -9999;
-    } else if (!isPracticeMode || !activeCheckpoint) {
-        activeAttemptNumber = incrementAttempt(lvl.name);
-    }
-
     particles = [];
     winFlashAlpha = 0;
     screenShake = 0;
-    currentGameSpeed = BASE_GAME_SPEED;
+    currentGameSpeed = BASE_GAME_SPEED * (activePlayableLevel.initialSpeed || 1);
     gravityMultiplier = 1;
-    runtimeBgTop = lvl.bgTop;
-    runtimeBgBottom = lvl.bgBottom;
-    runtimeGroundFill = lvl.groundFill;
-    runtimeGroundGrid = lvl.groundGrid;
+    runtimeBgTop = null;
+    runtimeBgBottom = null;
+    runtimeGroundFill = null;
+    runtimeGroundGrid = null;
 
-    activeFinishX = lvl.finishX || 3400;
-    activeSpikes = (lvl.spikes || []).map(sp => {
-        const isMini = sp.sizeType === 'mini';
-        return {
-            x: sp.x,
-            y: sp.y || GROUND_Y,
-            inverted: Boolean(sp.inverted),
-            width: isMini ? MINI_SPIKE_W : BLOCK_SIZE,
-            height: isMini ? MINI_SPIKE_H : BLOCK_SIZE
-        };
-    });
-    activePlatforms = [
-        ...(lvl.platforms || []).map(pl => ({ ...pl })),
-        ...(lvl.blocks || []).map(block => ({ ...block, isBlock: true }))
-    ];
-    activePads = (lvl.pads || []).map(pd => ({ ...pd, cooldown: 0 }));
-    activeOrbs = (lvl.orbs || []).map(ob => ({ ...ob, used: false }));
-    activeSaws = (lvl.saws || []).map(sw => ({ ...sw, angle: 0 }));
-    activePillars = (lvl.pillars || []).map(pi => ({ ...pi }));
-    activeCoins = (lvl.coins || []).map(co => ({ ...co, collected: false }));
-    activeTriggers = (lvl.triggers || []).map(tr => ({ ...tr, triggered: false }));
-    activePortals = (lvl.portals || []).map(pt => ({ ...pt, triggered: false }));
+    if (countNewAttempt) {
+        incrementAttempt(activePlayableLevel.name);
+        renderLevelSelect();
+    }
 
     if (isPracticeMode && activeCheckpoint) {
         levelDistance = activeCheckpoint.levelDistance;
@@ -1150,586 +1068,485 @@ function startAttempt(countNewAttempt = true) {
         player.dy = activeCheckpoint.playerDy;
         player.rotation = activeCheckpoint.playerRotation;
         player.grounded = activeCheckpoint.playerGrounded;
-        playerMode = activeCheckpoint.playerMode;
+        playerMode = activeCheckpoint.playerMode || activePlayableLevel.initialMode || 'cube';
         currentGameSpeed = activeCheckpoint.currentGameSpeed || BASE_GAME_SPEED;
         gravityMultiplier = activeCheckpoint.gravityMultiplier || 1;
-        runtimeBgTop = activeCheckpoint.runtimeBgTop || lvl.bgTop;
-        runtimeBgBottom = activeCheckpoint.runtimeBgBottom || lvl.bgBottom;
-        runtimeGroundFill = activeCheckpoint.runtimeGroundFill || lvl.groundFill;
-        runtimeGroundGrid = activeCheckpoint.runtimeGroundGrid || lvl.groundGrid;
-        activePortals.forEach((pt, idx) => { pt.triggered = Boolean(activeCheckpoint.portalsTriggered[idx]); });
-        activeOrbs.forEach((ob, idx) => { ob.used = Boolean(activeCheckpoint.orbsUsed[idx]); });
-        activeCoins.forEach((co, idx) => { co.collected = Boolean(activeCheckpoint.coinsCollected[idx]); });
-        activeTriggers.forEach((tr, idx) => { tr.triggered = Boolean(activeCheckpoint.triggersFired[idx]); });
+        runtimeBgTop = activeCheckpoint.runtimeBgTop || null;
+        runtimeBgBottom = activeCheckpoint.runtimeBgBottom || null;
+        runtimeGroundFill = activeCheckpoint.runtimeGroundFill || null;
+        runtimeGroundGrid = activeCheckpoint.runtimeGroundGrid || null;
+
+        activePortals.forEach((pt, i) => { pt.triggered = Boolean(activeCheckpoint.portalsTriggered?.[i]); });
+        activeOrbs.forEach((o, i) => { o.used = Boolean(activeCheckpoint.orbsUsed?.[i]); });
+        activeCoins.forEach((c, i) => { c.collected = Boolean(activeCheckpoint.coinsCollected?.[i]); });
+        activeTriggers.forEach((t, i) => { t.triggered = Boolean(activeCheckpoint.triggersFired?.[i]); });
     } else {
-        playerMode = 'cube';
         levelDistance = 0;
+        lastAutoCheckpointDist = -9999;
+        playerMode = activePlayableLevel.initialMode || 'cube';
         player.reset();
+        cloneLevelEntities(activePlayableLevel);
     }
 
-    const cameraStopDistance = (activeFinishX + 160) - (canvas.width - 120);
-    updateProgressUI((levelDistance / cameraStopDistance) * 97);
     gameState = 'PLAYING';
 }
 
 function triggerDeath() {
     if (gameState !== 'PLAYING') return;
-
-    playSfx('death');
-    screenShake = 10;
-    recordBestProgress(activePlayableLevel.name, currentRunPercent);
     gameState = 'DEAD';
     isHoldingJump = false;
-    jumpJustPressed = false;
+    clearHoldPauseTimer();
+    screenShake = 10;
+    playSfx('death');
+    spawnEndParticles(player.x + player.size / 2, player.y + player.size / 2, 22, false);
 
-    const cx = player.x + player.size / 2;
-    const cy = player.y + player.size / 2;
-    for (let i = 0; i < 36; i++) {
-        const angle = (Math.PI * 2 * i) / 36 + (Math.random() - 0.5) * 0.35;
-        const speed = 2.5 + Math.random() * 9.5;
-        particles.push({
-            x: cx,
-            y: cy,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed - 2,
-            size: 6 + Math.random() * 9,
-            color: i % 3 === 0 ? playerSkin.primary : (i % 3 === 1 ? playerSkin.secondary : '#ffffff'),
-            alpha: 1,
-            decay: 0.014,
-            gravity: 0.25,
-            rot: Math.random() * Math.PI,
-            vRot: (Math.random() - 0.5) * 0.25
-        });
-    }
+    const finishX = activePlayableLevel.finishX || 3400;
+    const pct = (levelDistance / Math.max(1, finishX)) * 100;
+    recordBestProgress(activePlayableLevel.name, pct);
 
     scheduleRespawn(RESPAWN_DELAY_MS);
 }
 
-function pauseCurrentGame() {
-    const pausableStates = ['PLAYING', 'DEAD', 'ENDING_ANIM'];
-    if (!pausableStates.includes(gameState)) return;
-
-    clearHoldPauseTimer();
+function triggerWin() {
+    if (gameState !== 'PLAYING') return;
+    gameState = 'WIN';
     isHoldingJump = false;
-    jumpJustPressed = false;
-    stateBeforePause = gameState;
+    clearHoldPauseTimer();
+    winFlashAlpha = 0.85;
+    recordBestProgress(activePlayableLevel.name, 100);
+    spawnEndParticles(player.x + player.size / 2, player.y + player.size / 2, 30, false);
+    document.getElementById('win-level-name').textContent = `${activePlayableLevel.name} • 100%`;
+    winScreen.classList.remove('hidden');
+}
 
+function pauseCurrentGame() {
+    if (gameState !== 'PLAYING' && gameState !== 'DEAD') return;
+    stateBeforePause = gameState;
     if (gameState === 'DEAD' && respawnTimer) {
         clearTimeout(respawnTimer);
         respawnTimer = null;
-        deadRemainingMs = Math.max(100, deadRemainingMs - (Date.now() - deadStartedAt));
+        deadRemainingMs = Math.max(150, RESPAWN_DELAY_MS - (Date.now() - deadStartedAt));
     }
-
     gameState = 'PAUSED';
-    document.getElementById('pause-level-name').textContent = `${activePlayableLevel.name} • ${currentRunPercent}%`;
+    isHoldingJump = false;
+    clearHoldPauseTimer();
+    document.getElementById('pause-level-name').textContent = activePlayableLevel.name;
     pauseScreen.classList.remove('hidden');
 }
 
 function resumeCurrentGame() {
     if (gameState !== 'PAUSED') return;
-
     pauseScreen.classList.add('hidden');
-    gameState = stateBeforePause;
-
-    if (gameState === 'DEAD') {
+    if (stateBeforePause === 'DEAD') {
+        gameState = 'DEAD';
         scheduleRespawn(deadRemainingMs || RESPAWN_DELAY_MS);
+    } else {
+        gameState = 'PLAYING';
     }
 }
 
-function updateProgressUI(percent) {
-    const clamped = Math.min(100, Math.max(0, Math.floor(percent)));
-    currentRunPercent = clamped;
-    progressFill.style.width = clamped + '%';
-    progressText.textContent = clamped + '%';
-}
+// === RENDERIZAÇÃO DO MUNDO DO JOGO ===
+function drawBackgroundAndGround() {
+    const bgTop = runtimeBgTop || activePlayableLevel.bgTop || '#0038a8';
+    const bgBottom = runtimeBgBottom || activePlayableLevel.bgBottom || '#0066ff';
+    const groundFill = runtimeGroundFill || activePlayableLevel.groundFill || '#001d5c';
+    const groundGrid = runtimeGroundGrid || activePlayableLevel.groundGrid || '#0044cc';
 
-function drawAttemptLabel() {
-    const attemptX = 280 - levelDistance + 160;
-    if (attemptX < -220 || attemptX > canvas.width + 220) return;
+    const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+    grad.addColorStop(0, bgTop);
+    grad.addColorStop(1, bgBottom);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, GROUND_Y);
+
+    // Linhas decorativas no fundo
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 2;
+    const stepBg = 120;
+    const offsetBg = -(bgScroll % stepBg);
+    for (let x = offsetBg; x < canvas.width; x += stepBg) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, GROUND_Y);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // Teto sutil no modo ship / aéreo
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.fillRect(0, 0, canvas.width, CEILING_Y);
+
+    // Chão
+    ctx.fillStyle = groundFill;
+    ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
 
     ctx.save();
-    ctx.font = '900 28px Orbitron, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = '#000';
-    ctx.fillStyle = '#ffffff';
-    const label = isPracticeMode ? 'Practice' : `Attempt ${activeAttemptNumber}`;
-    ctx.strokeText(label, attemptX, GROUND_Y - 125);
-    ctx.fillText(label, attemptX, GROUND_Y - 125);
+    ctx.strokeStyle = groundGrid;
+    ctx.lineWidth = 2;
+    const offsetG = -(groundScroll % BLOCK_SIZE);
+    for (let x = offsetG; x < canvas.width; x += BLOCK_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND_Y);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+    for (let y = GROUND_Y; y < canvas.height; y += BLOCK_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
     ctx.restore();
+
+    ctx.fillStyle = '#00e5ff';
+    ctx.fillRect(0, GROUND_Y - 2, canvas.width, 4);
 }
 
-function drawCheckpoints() {
-    if (!isPracticeMode || checkpoints.length === 0) return;
-    for (let ck of checkpoints) {
-        const sx = ck.levelDistance - levelDistance + 160 + player.size / 2;
-        if (sx < -30 || sx > canvas.width + 30) continue;
+function drawLevelElementsInWorld() {
+    const camOffset = levelDistance - player.x;
+
+    activePillars.forEach(pil => drawPillar(pil, pil.x - camOffset));
+    activePlatforms.forEach(plat => drawPlatform(plat, plat.x - camOffset));
+    activeBlocks.forEach(blk => drawPlatform(blk, blk.x - camOffset));
+    activePads.forEach(pad => drawPad(pad, pad.x - camOffset));
+    activeOrbs.forEach(orb => drawOrb(orb, orb.x - camOffset));
+    activeSpikes.forEach(spk => drawSpike(spk, spk.x - camOffset));
+    activeSaws.forEach(saw => drawSaw(saw, saw.x - camOffset));
+    activeCoins.forEach(coin => drawCoin(coin, coin.x - camOffset));
+    activePortals.forEach(pt => drawPortal(pt, pt.x - camOffset));
+    if (gameState !== 'PLAYING') {
+        activeTriggers.forEach(trg => drawTriggerMarker(trg, trg.x - camOffset));
+    }
+
+    // Linha de chegada
+    const finishScreenX = (activePlayableLevel.finishX || 3400) - camOffset;
+    if (finishScreenX >= -40 && finishScreenX <= canvas.width + 40) {
         ctx.save();
-        ctx.strokeStyle = '#00e5ff';
-        ctx.fillStyle = '#00e5ff';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#9dff00';
+        ctx.lineWidth = 5;
+        ctx.setLineDash([10, 8]);
         ctx.beginPath();
-        ctx.moveTo(sx, GROUND_Y);
-        ctx.lineTo(sx, GROUND_Y - 26);
+        ctx.moveTo(finishScreenX, CEILING_Y);
+        ctx.lineTo(finishScreenX, GROUND_Y);
         ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(sx, GROUND_Y - 28, 5, 0, Math.PI * 2);
-        ctx.fill();
         ctx.restore();
     }
 }
 
-function drawBackground() {
-    const isInLevel = ['PLAYING', 'DEAD', 'PAUSED', 'ENDING_ANIM', 'WIN'].includes(gameState);
-    const lvl = activePlayableLevel;
-
-    const topColor = isInLevel ? (runtimeBgTop || lvl.bgTop) : '#0038a8';
-    const bottomColor = isInLevel ? (runtimeBgBottom || lvl.bgBottom) : '#0066ff';
-
-    const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-    grad.addColorStop(0, topColor);
-    grad.addColorStop(1, bottomColor);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, GROUND_Y);
-
-    if (lowPerformanceMode) return;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.lineWidth = 2;
-    const tileSize = 90;
-    const offsetX = -(bgScroll % tileSize);
-
-    for (let x = offsetX; x < canvas.width; x += tileSize) {
-        for (let y = 0; y < GROUND_Y; y += tileSize) {
-            ctx.strokeRect(x + 8, y + 8, tileSize - 16, tileSize - 16);
-        }
-    }
-}
-
-function drawGround() {
-    const isInLevel = ['PLAYING', 'DEAD', 'PAUSED', 'ENDING_ANIM', 'WIN'].includes(gameState);
-    const lvl = activePlayableLevel;
-
-    ctx.fillStyle = isInLevel ? (runtimeGroundFill || lvl.groundFill) : '#001d5c';
-    ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
-
-    ctx.strokeStyle = isInLevel ? (runtimeGroundGrid || lvl.groundGrid) : '#0044cc';
-    ctx.lineWidth = 2;
-    const tile = BLOCK_SIZE;
-    let offset = 160 - (groundScroll % tile);
-    while (offset > 0) offset -= tile;
-
-    for (let x = offset; x < canvas.width; x += tile) {
-        ctx.strokeRect(x, GROUND_Y, tile, tile);
-        ctx.strokeRect(x, GROUND_Y + tile, tile, tile);
-    }
-
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, GROUND_Y);
-    ctx.lineTo(canvas.width, GROUND_Y);
-    ctx.stroke();
-}
-
-function drawSpike(x, y, w, h, inverted = false) {
-    ctx.save();
-    ctx.beginPath();
-    if (inverted) {
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + w / 2, y + h);
-        ctx.lineTo(x + w, y);
-    } else {
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + w / 2, y - h);
-        ctx.lineTo(x + w, y);
-    }
-    ctx.closePath();
-
-    const grad = ctx.createLinearGradient(x, y - h, x, y + h);
-    grad.addColorStop(0, '#222');
-    grad.addColorStop(1, '#000');
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = '#ffffff';
-    ctx.stroke();
-    ctx.restore();
-}
-
-function drawFinishWall(screenX) {
-    if (screenX > canvas.width + 50) return;
-
-    const wallWidth = Math.max(120, canvas.width - screenX + 50);
-    const grad = ctx.createLinearGradient(screenX, 0, screenX + 90, 0);
-    grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(0.25, '#00ffaa');
-    grad.addColorStop(1, '#004433');
-    ctx.fillStyle = grad;
-    ctx.fillRect(screenX, 0, wallWidth, GROUND_Y);
-
-    const aura = ctx.createLinearGradient(screenX - 50, 0, screenX, 0);
-    aura.addColorStop(0, 'rgba(0, 255, 170, 0)');
-    aura.addColorStop(1, 'rgba(0, 255, 170, 0.55)');
-    ctx.fillStyle = aura;
-    ctx.fillRect(screenX - 50, 0, 50, GROUND_Y);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(screenX, 0, 6, GROUND_Y);
-}
-
-function spawnEndParticles(x, y, count = 4, burst = false) {
-    if (lowPerformanceMode) return;
-    for (let i = 0; i < count; i++) {
-        particles.push({
-            x: x + Math.random() * 30,
-            y: y + Math.random() * 40,
-            vx: burst ? (Math.random() - 0.5) * 12 : -2 - Math.random() * 4,
-            vy: burst ? (Math.random() - 0.5) * 12 : (Math.random() - 0.5) * 6,
-            size: 5 + Math.random() * 6,
-            color: Math.random() > 0.5 ? '#7fff00' : '#ffe600',
-            alpha: 1,
-            decay: 0.025,
-            gravity: 0,
-            rot: 0,
-            vRot: 0
-        });
-    }
-}
-
-function updateParticlesOnly() {
-    if (lowPerformanceMode) { particles.length = 0; return; }
+function updateAndDrawParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         const pt = particles[i];
         pt.x += pt.vx;
         pt.y += pt.vy;
-        if (pt.gravity) pt.vy += pt.gravity;
-        if (pt.vRot) pt.rot += pt.vRot;
-        pt.alpha -= pt.decay || 0.025;
-        if (pt.alpha <= 0) particles.splice(i, 1);
-    }
-}
-
-function drawParticlesOnly() {
-    if (lowPerformanceMode) return;
-    for (let pt of particles) {
+        pt.vy += 0.25;
+        pt.alpha -= 0.03;
+        if (pt.alpha <= 0) {
+            particles.splice(i, 1);
+            continue;
+        }
         ctx.save();
         ctx.globalAlpha = Math.max(0, pt.alpha);
-        ctx.translate(pt.x, pt.y);
-        ctx.rotate(pt.rot || 0);
         ctx.fillStyle = pt.color;
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1.5;
-        ctx.fillRect(-pt.size / 2, -pt.size / 2, pt.size, pt.size);
-        ctx.strokeRect(-pt.size / 2, -pt.size / 2, pt.size, pt.size);
+        ctx.fillRect(pt.x, pt.y, pt.size, pt.size);
         ctx.restore();
     }
 }
 
-function checkSpikeCollision(p, spikeScreenX, spikeW, spikeH, spikeY = GROUND_Y, inverted = false) {
-    const spikeCenterX = spikeScreenX + spikeW / 2;
-    const hitW = spikeW * 0.28;
-    const hitH = spikeH * 0.65;
+function updateGameplay() {
+    if (gameState !== 'PLAYING') return;
 
-    const horizHit = p.x + 6 < spikeCenterX + hitW / 2 && p.x + p.size - 6 > spikeCenterX - hitW / 2;
-    if (!horizHit) return false;
+    levelDistance += currentGameSpeed;
+    bgScroll += currentGameSpeed * 0.35;
+    groundScroll += currentGameSpeed;
 
-    if (inverted) {
-        return p.y + 4 < spikeY + hitH && p.y + p.size > spikeY;
-    }
-    return p.y + p.size - 4 > spikeY - hitH && p.y < spikeY;
-}
-
-function drawLevelElementsInWorld() {
-    drawCheckpoints();
-
-    for (let pi of activePillars) {
-        const screenX = pi.x - levelDistance + 160;
-        drawPillar(pi, screenX);
+    if (isPracticeMode && levelDistance - lastAutoCheckpointDist >= AUTO_CHECKPOINT_STEP) {
+        lastAutoCheckpointDist = levelDistance;
+        saveCheckpointAtCurrentState();
     }
 
-    for (let tr of activeTriggers) {
-        const screenX = tr.x - levelDistance + 160;
-        drawTriggerMarker(tr, screenX);
+    player.update();
+
+    const camOffset = levelDistance - player.x;
+
+    // Triggers
+    for (const trg of activeTriggers) {
+        checkTriggerActivation(player, trg, trg.x - camOffset);
     }
 
-    for (let pl of activePlatforms) {
-        const screenX = pl.x - levelDistance + 160;
-        drawPlatform(pl, screenX);
+    // Portais
+    for (const pt of activePortals) {
+        checkPortalTrigger(player, pt, pt.x - camOffset);
     }
 
-    for (let pd of activePads) {
-        const screenX = pd.x - levelDistance + 160;
-        drawPad(pd, screenX);
+    // Pads
+    for (const pad of activePads) {
+        checkPadCollision(player, pad, pad.x - camOffset);
     }
 
-    for (let ob of activeOrbs) {
-        const screenX = ob.x - levelDistance + 160;
-        drawOrb(ob, screenX);
+    // Orbs
+    for (const orb of activeOrbs) {
+        checkOrbTrigger(player, orb, orb.x - camOffset);
     }
 
-    for (let co of activeCoins) {
-        const screenX = co.x - levelDistance + 160;
-        drawCoin(co, screenX);
+    // Moedas
+    for (const coin of activeCoins) {
+        checkCoinTrigger(player, coin, coin.x - camOffset);
     }
 
-    for (let sw of activeSaws) {
-        const screenX = sw.x - levelDistance + 160;
-        drawSaw(sw, screenX);
+    // Plataformas e blocos sólidos
+    for (const plat of activePlatforms) {
+        if (handlePlatformCollision(player, plat, plat.x - camOffset)) return;
+    }
+    for (const blk of activeBlocks) {
+        if (handlePlatformCollision(player, blk, blk.x - camOffset)) return;
     }
 
-    for (let pt of activePortals) {
-        const screenX = pt.x - levelDistance + 160;
-        drawPortal(pt, screenX);
-    }
-
-    for (let s of activeSpikes) {
-        const screenX = s.x - levelDistance + 160;
-        if (screenX + s.width > -50 && screenX < canvas.width + 50) {
-            drawSpike(screenX, s.y || GROUND_Y, s.width, s.height, s.inverted);
+    // Espinhos
+    for (const spk of activeSpikes) {
+        if (checkSpikeCollision(player, spk, spk.x - camOffset)) {
+            triggerDeath();
+            return;
         }
     }
+
+    // Serras
+    for (const saw of activeSaws) {
+        saw.angle = (saw.angle || 0) + 0.16;
+        if (checkSawCollision(player, saw, saw.x - camOffset)) {
+            triggerDeath();
+            return;
+        }
+    }
+
+    // Progresso HUD
+    const finishX = activePlayableLevel.finishX || 3400;
+    const pct = Math.min(100, Math.max(0, Math.floor((levelDistance / Math.max(1, finishX)) * 100)));
+    progressFill.style.width = `${pct}%`;
+    progressText.textContent = `${pct}%`;
+    recordBestProgress(activePlayableLevel.name, pct);
+
+    if (levelDistance >= finishX) {
+        triggerWin();
+    }
 }
 
-// Loop Principal
 function loop() {
     ctx.save();
     if (screenShake > 0) {
-        const dx = (Math.random() - 0.5) * screenShake;
-        const dy = (Math.random() - 0.5) * screenShake;
-        ctx.translate(dx, dy);
-        screenShake = Math.max(0, screenShake - 0.8);
+        const sx = (Math.random() - 0.5) * screenShake;
+        const sy = (Math.random() - 0.5) * screenShake;
+        ctx.translate(sx, sy);
+        screenShake = Math.max(0, screenShake - 0.9);
     }
-    ctx.clearRect(-20, -20, canvas.width + 40, canvas.height + 40);
 
-    if (gameState === 'MENU' || gameState === 'EDITOR_HUB' || gameState === 'CREATIONS' || gameState === 'SETTINGS' || gameState === 'LEVEL_SELECT' || gameState === 'SKINS') {
-        bgScroll += BASE_GAME_SPEED * 0.25;
-        groundScroll += BASE_GAME_SPEED;
-        drawBackground();
-        drawGround();
+    drawBackgroundAndGround();
 
-        bgBot.update();
-        bgBot.draw();
-    } 
-    else if (gameState === 'PLAYING') {
-        bgScroll += currentGameSpeed * 0.25;
-        groundScroll += currentGameSpeed;
-        levelDistance += currentGameSpeed;
-
-        if (isPracticeMode && levelDistance - lastAutoCheckpointDist >= AUTO_CHECKPOINT_STEP) {
-            lastAutoCheckpointDist = levelDistance;
-            saveCheckpointAtCurrentState();
-        }
-
-        drawBackground();
-        drawGround();
-        drawAttemptLabel();
+    if (gameState === 'PLAYING' || gameState === 'DEAD' || gameState === 'PAUSED' || gameState === 'WIN') {
+        updateGameplay();
         drawLevelElementsInWorld();
-
-        const cameraStopDistance = (activeFinishX + 160) - (canvas.width - 120);
-        const progress = (levelDistance / cameraStopDistance) * 97;
-        updateProgressUI(progress);
-
-        for (let tr of activeTriggers) {
-            const screenX = tr.x - levelDistance + 160;
-            checkTriggerActivation(player, tr, screenX);
-        }
-
-        for (let pt of activePortals) {
-            const screenX = pt.x - levelDistance + 160;
-            checkPortalTrigger(player, pt, screenX);
-        }
-
-        for (let pd of activePads) {
-            const screenX = pd.x - levelDistance + 160;
-            checkPadCollision(player, pd, screenX);
-        }
-
-        for (let ob of activeOrbs) {
-            const screenX = ob.x - levelDistance + 160;
-            checkOrbTrigger(player, ob, screenX);
-        }
-
-        for (let co of activeCoins) {
-            const screenX = co.x - levelDistance + 160;
-            checkCoinTrigger(player, co, screenX);
-        }
-
-        for (let sw of activeSaws) {
-            sw.angle = (sw.angle || 0) + 0.18;
-            const screenX = sw.x - levelDistance + 160;
-            if (checkSawCollision(player, sw, screenX)) {
-                triggerDeath();
-                break;
-            }
-        }
-
-        if (gameState === 'PLAYING') {
-            for (let s of activeSpikes) {
-                const screenX = s.x - levelDistance + 160;
-                if (screenX + s.width > -50 && screenX < canvas.width + 50) {
-                    if (checkSpikeCollision(player, screenX, s.width, s.height, s.y || GROUND_Y, s.inverted)) {
-                        triggerDeath();
-                        break;
-                    }
-                }
-            }
-        }
-
-        const finishScreenX = activeFinishX - levelDistance + 160;
-        drawFinishWall(finishScreenX);
-
-        if (gameState === 'PLAYING') {
-            player.update();
-
-            for (let pl of activePlatforms) {
-                const screenX = pl.x - levelDistance + 160;
-                if (handlePlatformCollision(player, pl, screenX)) break;
-            }
-
-            if (gameState === 'PLAYING') {
-                player.draw();
-                jumpJustPressed = false;
-            }
-
-            if (levelDistance >= cameraStopDistance) {
-                lockedFinishScreenX = finishScreenX;
-                clearHoldPauseTimer();
-                gameState = 'ENDING_ANIM';
-                isHoldingJump = false;
-                jumpJustPressed = false;
-            }
-        }
-    }
-    else if (gameState === 'DEAD') {
-        drawBackground();
-        drawGround();
-        drawAttemptLabel();
-        drawLevelElementsInWorld();
-
-        const finishScreenX = activeFinishX - levelDistance + 160;
-        drawFinishWall(finishScreenX);
-
-        updateParticlesOnly();
-        drawParticlesOnly();
-    }
-    else if (gameState === 'PAUSED') {
-        drawBackground();
-        drawGround();
-        drawAttemptLabel();
-        drawLevelElementsInWorld();
-
-        const finishScreenX = activeFinishX - levelDistance + 160;
-        drawFinishWall(finishScreenX);
-
-        if (stateBeforePause === 'DEAD') {
-            drawParticlesOnly();
-        } else {
+        if (gameState !== 'DEAD') {
             player.draw();
         }
+        updateAndDrawParticles();
+    } else {
+        // Fundo animado no menu
+        bgScroll += 1.2;
+        groundScroll += 2.4;
     }
-    else if (gameState === 'ENDING_ANIM') {
-        drawBackground();
-        drawGround();
-        drawLevelElementsInWorld();
-        drawFinishWall(lockedFinishScreenX);
 
-        player.x += 8.5;
-        player.y += (GROUND_Y / 2 - player.y) * 0.08;
-        player.rotation += 0.22;
-
-        spawnEndParticles(player.x, player.y, 4, false);
-        updateParticlesOnly();
-        drawParticlesOnly();
-        player.draw();
-
-        const travelDone = Math.max(0, player.x - 160);
-        const totalTravel = Math.max(1, (lockedFinishScreenX - player.size / 2) - 160);
-        const finalPercent = 97 + (travelDone / totalTravel) * 3;
-        updateProgressUI(finalPercent);
-
-        if (player.x + player.size / 2 >= lockedFinishScreenX) {
-            const completedLevelName = activePlayableLevel.name;
-            updateProgressUI(100);
-            recordBestProgress(completedLevelName, 100);
-            if (!isPracticeMode) {
-                resetAttemptsForLevel(completedLevelName);
-            }
-
-            spawnEndParticles(lockedFinishScreenX - 10, player.y, 28, true);
-            winFlashAlpha = 0.75;
-
-            gameState = 'WIN';
-            hud.classList.add('hidden');
-            document.getElementById('win-level-name').textContent = isPracticeMode
-                ? `${completedLevelName} • 100% (PRÁTICA)`
-                : `${completedLevelName} • 100% • ATTEMPTS ZERADOS`;
-            winScreen.classList.remove('hidden');
-        }
-    }
-    else if (gameState === 'WIN') {
-        drawBackground();
-        drawGround();
-        drawFinishWall(lockedFinishScreenX);
-        updateParticlesOnly();
-        drawParticlesOnly();
-
-        if (winFlashAlpha > 0) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${winFlashAlpha})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            winFlashAlpha = Math.max(0, winFlashAlpha - 0.04);
-        }
+    if (winFlashAlpha > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${winFlashAlpha})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        winFlashAlpha = Math.max(0, winFlashAlpha - 0.04);
     }
 
     ctx.restore();
     requestAnimationFrame(loop);
 }
 
-// === EDITOR DE FASES (GRID + ASSETS + TRIGGERS + BG/GROUND + CRIAÇÕES) ===
-const EDITOR_GRID = 44;
-const EDITOR_GROUND_Y = 264;
-const EDITOR_SCALE_Y = EDITOR_GROUND_Y / GROUND_Y;
+// === SELEÇÃO DE FASES, GARAGEM E CRIAÇÕES ===
+function getAllSelectableLevels() {
+    return [...LEVELS, ...customLevels];
+}
 
-let editorToolMode = 'place'; // 'place' | 'erase' | 'pan'
-let editorShowGrid = true;
-let editorSelectedItem = 'spike';
-let editorPlatformDrag = null;
-let editorPanLastX = null;
+function renderLevelSelect() {
+    const list = getAllSelectableLevels();
+    if (!list.length) return;
+    currentLevelIndex = ((currentLevelIndex % list.length) + list.length) % list.length;
+    const lvl = list[currentLevelIndex];
+
+    document.getElementById('level-name').textContent = lvl.name;
+    const best = levelProgress[lvl.name] || 0;
+    const att = levelAttempts[lvl.name] || 0;
+    document.getElementById('level-diff-text').textContent = `${lvl.difficulty || 'NORMAL'} • RECORDE: ${best}% • ATT: ${att}`;
+    document.getElementById('level-stars').textContent = `☆ ${lvl.stars || 1}`;
+
+    const faceEl = document.getElementById('level-diff-face');
+    const faceSrc = DIFFICULTY_FACES[lvl.faceKey] || DIFFICULTY_FACES.azul;
+    faceEl.innerHTML = `<img src="${faceSrc}" alt="${lvl.difficulty || 'Dificuldade'}">`;
+}
+
+function renderSkinUI() {
+    const icon = document.getElementById('skin-btn-icon');
+    if (icon) {
+        const ic = icon.getContext('2d');
+        ic.clearRect(0, 0, icon.width, icon.height);
+        drawCubeSkin(ic, 4, 4, 36, 0, playerSkin);
+    }
+    const preview = document.getElementById('skin-preview');
+    if (preview) {
+        const pc = preview.getContext('2d');
+        pc.clearRect(0, 0, preview.width, preview.height);
+        drawCubeSkin(pc, 14, 14, 52, 0, playerSkin);
+    }
+}
+
+function setupGarage() {
+    const modelsRow = document.getElementById('skin-models');
+    const priRow = document.getElementById('primary-colors');
+    const secRow = document.getElementById('secondary-colors');
+    if (!modelsRow || !priRow || !secRow) return;
+
+    modelsRow.innerHTML = '';
+    for (let m = 0; m < 4; m++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'skin-option' + (playerSkin.model === m ? ' selected' : '');
+        const cv = document.createElement('canvas');
+        cv.width = 40;
+        cv.height = 40;
+        drawCubeSkin(cv.getContext('2d'), 4, 4, 32, 0, { ...playerSkin, model: m });
+        btn.appendChild(cv);
+        btn.addEventListener('click', () => {
+            playerSkin.model = m;
+            writeSaveData();
+            setupGarage();
+            renderSkinUI();
+        });
+        modelsRow.appendChild(btn);
+    }
+
+    const buildSwatches = (container, prop) => {
+        container.innerHTML = '';
+        COLORS.forEach(col => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'color-swatch' + (playerSkin[prop].toLowerCase() === col ? ' selected' : '');
+            b.style.background = col;
+            b.addEventListener('click', () => {
+                playerSkin[prop] = col;
+                writeSaveData();
+                setupGarage();
+                renderSkinUI();
+            });
+            container.appendChild(b);
+        });
+    };
+
+    buildSwatches(priRow, 'primary');
+    buildSwatches(secRow, 'secondary');
+    renderSkinUI();
+}
+
+function renderCreationsList() {
+    const container = document.getElementById('creations-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!customLevels.length) {
+        container.innerHTML = '<div class="empty-creations">Nenhuma fase criada ainda. Clique em "+ NOVA" para começar!</div>';
+        return;
+    }
+
+    customLevels.forEach((lvl, idx) => {
+        const item = document.createElement('div');
+        item.className = 'creation-item';
+
+        const meta = document.createElement('div');
+        meta.className = 'creation-meta';
+        meta.innerHTML = `
+            <span class="creation-name">${lvl.name || 'Sem Título'}</span>
+            <span class="creation-sub">${lvl.difficulty || 'NORMAL'} • Tamanho: ${lvl.finishX || 4400}</span>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'creation-actions';
+
+        const playBtn = document.createElement('button');
+        playBtn.type = 'button';
+        playBtn.className = 'tiny-btn green';
+        playBtn.textContent = 'JOGAR';
+        playBtn.addEventListener('click', () => startLevel(lvl, false));
+
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'tiny-btn blue';
+        editBtn.textContent = 'EDITAR';
+        editBtn.addEventListener('click', () => openEditorWithLevel(lvl));
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'tiny-btn red';
+        delBtn.textContent = 'APAGAR';
+        delBtn.addEventListener('click', () => {
+            customLevels.splice(idx, 1);
+            writeSaveData();
+            renderCreationsList();
+        });
+
+        actions.append(playBtn, editBtn, delBtn);
+        item.append(meta, actions);
+        container.appendChild(item);
+    });
+}
+
+// === EDITOR BASE (SEM CONFLITO DE ESCALA/GRID) ===
+const EDITOR_GRID = BLOCK_SIZE;
+const EDITOR_SCALE_Y = 1;
+const EDITOR_GROUND_Y = 260;
+
+let editorDraft = null;
 let editorScrollX = 0;
-let editorEditingId = null;
-let editorDraft = createEmptyEditorDraft();
+let editorSelectedItem = 'spike';
+let editorToolMode = 'place';
+let editorShowGrid = true;
+let isPointerEditing = false;
+let lastEditorDragPoint = null;
+let panDragState = null;
 
 const ASSET_PALETTE = [
-    { id: 'spike', label: 'ESPINHO', color: '#ff595e' },
+    { id: 'spike', label: 'SPIKE', color: '#ff3b5c' },
     { id: 'mini_spike', label: 'MINI SPIKE', color: '#ff924c' },
-    { id: 'ceil_spike', label: 'TETO SPIKE', color: '#d62828' },
-    { id: 'platform', label: 'PLATAFORMA', color: '#00e5ff' },
-    { id: 'block', label: 'BLOCO', color: '#4cc9f0' },
-    { id: 'pad_yellow', label: 'PAD AMAR.', color: '#ffe600' },
-    { id: 'pad_pink', label: 'PAD ROSA', color: '#ff4fd8' },
-    { id: 'orb_yellow', label: 'ORB AMAR.', color: '#ffd60a' },
-    { id: 'orb_pink', label: 'ORB ROSA', color: '#f72585' },
-    { id: 'saw', label: 'SERRA', color: '#94a3b8' },
-    { id: 'pillar', label: 'PILAR', color: '#e2e8f0' },
-    { id: 'coin', label: 'MOEDA', color: '#ffb703' },
-    { id: 'portal_ship', label: 'PORTAL SHIP', color: '#38bdf8' },
-    { id: 'portal_cube', label: 'PORTAL CUBO', color: '#80ed99' }
+    { id: 'ceil_spike', label: 'CEIL SPIKE', color: '#d62828' },
+    { id: 'platform', label: 'PLATFORM', color: '#00e5ff' },
+    { id: 'block', label: 'BLOCK', color: '#4cc9f0' },
+    { id: 'pad_yellow', label: 'PAD Y', color: '#ffe600' },
+    { id: 'pad_pink', label: 'PAD P', color: '#ff4fd8' },
+    { id: 'orb_yellow', label: 'ORB Y', color: '#ffd60a' },
+    { id: 'orb_pink', label: 'ORB P', color: '#f72585' },
+    { id: 'saw', label: 'SAW', color: '#94a3b8' },
+    { id: 'pillar', label: 'PILLAR', color: '#cbd5e1' },
+    { id: 'coin', label: 'COIN', color: '#ffb703' },
+    { id: 'portal_ship', label: 'PORTAL SHIP', color: '#00c8ff' },
+    { id: 'portal_cube', label: 'PORTAL CUBE', color: '#9dff00' }
 ];
 
 const TRIGGER_PALETTE = [
-    { id: 'trig_speed_fast', label: 'VEL 1.25x', color: '#00f5d4' },
-    { id: 'trig_speed_norm', label: 'VEL 1.0x', color: '#00bbf9' },
-    { id: 'trig_bg_purple', label: 'BG ROXO', color: '#9b5de5' },
+    { id: 'trig_speed_fast', label: 'SPEED 1.25x', color: '#00e5ff' },
+    { id: 'trig_speed_norm', label: 'SPEED 1.0x', color: '#38bdf8' },
+    { id: 'trig_bg_purple', label: 'BG PURPLE', color: '#9b5de5' },
     { id: 'trig_shake', label: 'SHAKE', color: '#f15bb5' },
-    { id: 'trig_low_grav', label: 'GRAV BAIXA', color: '#fee440' },
-    { id: 'trig_norm_grav', label: 'GRAV NORM', color: '#9dff00' }
+    { id: 'trig_low_grav', label: 'LOW GRAV', color: '#fee440' },
+    { id: 'trig_norm_grav', label: 'NORM GRAV', color: '#9dff00' }
 ];
 
 function createEmptyEditorDraft() {
     return {
-        id: 'lvl_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-        name: 'Fase Custom',
+        id: 'lvl_' + Date.now(),
+        name: 'Minha Fase',
         difficulty: 'NORMAL',
+        stars: 2,
+        faceKey: 'verde',
         bgTop: '#1e1b4b',
         bgBottom: '#4338ca',
         groundFill: '#110e2e',
@@ -1744,942 +1561,606 @@ function createEmptyEditorDraft() {
         pillars: [],
         coins: [],
         triggers: [],
-        portals: []
+        portals: [],
+        decorations: [],
+        structures: []
     };
 }
 
 function syncStyleInputsFromDraft() {
-    document.getElementById('editor-level-title').value = editorDraft.name;
-    document.getElementById('editor-level-diff').value = editorDraft.difficulty || 'NORMAL';
-    document.getElementById('style-bg-top').value = editorDraft.bgTop;
-    document.getElementById('style-bg-bottom').value = editorDraft.bgBottom;
-    document.getElementById('style-ground-fill').value = editorDraft.groundFill;
-    document.getElementById('style-ground-grid').value = editorDraft.groundGrid;
-    const finishInput = document.getElementById('style-finish-x');
-    finishInput.max = String(Math.max(Number(finishInput.max) || 7500, editorDraft.finishX + 100000));
-    finishInput.value = editorDraft.finishX;
-    document.getElementById('style-finish-label').textContent = editorDraft.finishX;
+    if (!editorDraft) return;
+    const titleEl = document.getElementById('editor-level-title');
+    const diffEl = document.getElementById('editor-level-diff');
+    const bgTopEl = document.getElementById('style-bg-top');
+    const bgBotEl = document.getElementById('style-bg-bottom');
+    const gFillEl = document.getElementById('style-ground-fill');
+    const gGridEl = document.getElementById('style-ground-grid');
+    const finEl = document.getElementById('style-finish-x');
+    const finLbl = document.getElementById('style-finish-label');
+
+    if (titleEl) titleEl.value = editorDraft.name || 'Minha Fase';
+    if (diffEl) diffEl.value = editorDraft.difficulty || 'NORMAL';
+    if (bgTopEl) bgTopEl.value = editorDraft.bgTop || '#1e1b4b';
+    if (bgBotEl) bgBotEl.value = editorDraft.bgBottom || '#4338ca';
+    if (gFillEl) gFillEl.value = editorDraft.groundFill || '#110e2e';
+    if (gGridEl) gGridEl.value = editorDraft.groundGrid || '#3730a3';
+    if (finEl) finEl.value = String(editorDraft.finishX || 4400);
+    if (finLbl) finLbl.textContent = String(editorDraft.finishX || 4400);
 }
 
-function openEditorWithLevel(existingLevel = null) {
-    if (existingLevel) {
-        editorEditingId = existingLevel.id;
-        editorDraft = JSON.parse(JSON.stringify(existingLevel));
-        editorDraft.blocks = editorDraft.blocks || [];
-    } else {
-        editorEditingId = null;
-        editorDraft = createEmptyEditorDraft();
+function syncEditorToolButtons() {
+    const placeBtn = document.getElementById('tool-place-btn');
+    const eraseBtn = document.getElementById('tool-erase-btn');
+    const panBtn = document.getElementById('tool-pan-btn');
+    const gridBtn = document.getElementById('editor-grid-btn');
+
+    if (placeBtn) placeBtn.classList.toggle('active', editorToolMode === 'place');
+    if (eraseBtn) eraseBtn.classList.toggle('active', editorToolMode === 'erase');
+    if (panBtn) panBtn.classList.toggle('active', editorToolMode === 'pan');
+    if (gridBtn) {
+        gridBtn.classList.toggle('active', editorShowGrid);
+        gridBtn.textContent = editorShowGrid ? 'GRID: ON' : 'GRID: OFF';
     }
+}
+
+function renderEditorPalettes() {
+    const assetPal = document.getElementById('editor-palette');
+    const trigPal = document.getElementById('editor-triggers-palette');
+
+    const buildItems = (container, items) => {
+        if (!container) return;
+        container.innerHTML = '';
+        items.forEach(item => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'palette-item' + (editorSelectedItem === item.id ? ' selected' : '');
+            btn.innerHTML = `<span class="palette-dot" style="background:${item.color}"></span><span>${item.label}</span>`;
+            btn.addEventListener('click', () => {
+                editorSelectedItem = item.id;
+                editorToolMode = 'place';
+                syncEditorToolButtons();
+                renderEditorPalettes();
+            });
+            container.appendChild(btn);
+        });
+    };
+
+    buildItems(assetPal, ASSET_PALETTE);
+    buildItems(trigPal, TRIGGER_PALETTE);
+}
+
+function openEditorWithLevel(lvl) {
+    editorDraft = JSON.parse(JSON.stringify(lvl || createEmptyEditorDraft()));
+    if (!editorDraft.id) editorDraft.id = 'lvl_' + Date.now();
     editorScrollX = 0;
     syncStyleInputsFromDraft();
+    syncEditorToolButtons();
     renderEditorPalettes();
-    gameState = 'EDITOR';
+    showOverlay(levelEditor, 'EDITOR');
     drawEditorCanvas();
 }
 
-function saveEditorDraftToCreations() {
-    editorDraft.name = (document.getElementById('editor-level-title').value || 'Sem Nome').trim().slice(0, 26);
-    editorDraft.difficulty = document.getElementById('editor-level-diff').value || 'NORMAL';
-    editorDraft.bgTop = document.getElementById('style-bg-top').value;
-    editorDraft.bgBottom = document.getElementById('style-bg-bottom').value;
-    editorDraft.groundFill = document.getElementById('style-ground-fill').value;
-    editorDraft.groundGrid = document.getElementById('style-ground-grid').value;
-    editorDraft.finishX = Number(document.getElementById('style-finish-x').value) || 4400;
+function saveEditorDraftToCustomLevels() {
+    if (!editorDraft) return;
+    const titleEl = document.getElementById('editor-level-title');
+    const diffEl = document.getElementById('editor-level-diff');
+    editorDraft.name = (titleEl && titleEl.value.trim()) || 'Minha Fase';
+    editorDraft.difficulty = (diffEl && diffEl.value) || 'NORMAL';
 
-    const existingIdx = customLevels.findIndex(item => item.id === editorDraft.id);
+    const existingIdx = customLevels.findIndex(l => l.id === editorDraft.id);
+    const copy = JSON.parse(JSON.stringify(editorDraft));
     if (existingIdx >= 0) {
-        customLevels[existingIdx] = JSON.parse(JSON.stringify(editorDraft));
+        customLevels[existingIdx] = copy;
     } else {
-        customLevels.push(JSON.parse(JSON.stringify(editorDraft)));
+        customLevels.push(copy);
     }
     writeSaveData();
 }
 
-function renderCreationsList() {
-    const listEl = document.getElementById('creations-list');
-    listEl.innerHTML = '';
-
-    if (customLevels.length === 0) {
-        listEl.innerHTML = '<div class="empty-creations">Nenhuma fase criada ainda. Clique em + NOVA ou em CRIAR!</div>';
-        return;
-    }
-
-    customLevels.forEach((lvl) => {
-        const item = document.createElement('div');
-        item.className = 'creation-item';
-
-        const meta = document.createElement('div');
-        meta.className = 'creation-meta';
-        meta.innerHTML = `
-            <span class="creation-name">${lvl.name}</span>
-            <span class="creation-sub">${lvl.difficulty} • TAMANHO: ${lvl.finishX}</span>
-        `;
-
-        const actions = document.createElement('div');
-        actions.className = 'creation-actions';
-
-        const playBtn = document.createElement('button');
-        playBtn.className = 'tiny-btn green';
-        playBtn.textContent = 'JOGAR';
-        playBtn.addEventListener('click', () => {
-            activePlayableLevel = lvl;
-            isTestingFromEditor = false;
-            creationsScreen.classList.add('hidden');
-            hud.classList.remove('hidden');
-            startAttempt(true);
-        });
-
-        const editBtn = document.createElement('button');
-        editBtn.className = 'tiny-btn blue';
-        editBtn.textContent = 'EDITAR';
-        editBtn.addEventListener('click', () => {
-            creationsScreen.classList.add('hidden');
-            levelEditor.classList.remove('hidden');
-            openEditorWithLevel(lvl);
-        });
-
-        const renameBtn = document.createElement('button');
-        renameBtn.className = 'tiny-btn yellow';
-        renameBtn.textContent = 'RENOMEAR';
-        renameBtn.addEventListener('click', () => {
-            const nextName = prompt('Novo nome da fase:', lvl.name);
-            if (nextName && nextName.trim()) {
-                lvl.name = nextName.trim().slice(0, 26);
-                writeSaveData();
-                renderCreationsList();
-            }
-        });
-
-        const diffSel = document.createElement('select');
-        diffSel.className = 'creation-diff-select';
-        ['EASY', 'NORMAL', 'HARD', 'INSANE'].forEach(d => {
-            const opt = document.createElement('option');
-            opt.value = d;
-            opt.textContent = d;
-            if (lvl.difficulty === d) opt.selected = true;
-            diffSel.appendChild(opt);
-        });
-        diffSel.addEventListener('change', () => {
-            lvl.difficulty = diffSel.value;
-            writeSaveData();
-            renderCreationsList();
-        });
-
-        const delBtn = document.createElement('button');
-        delBtn.className = 'tiny-btn red';
-        delBtn.textContent = 'APAGAR';
-        delBtn.addEventListener('click', () => {
-            customLevels = customLevels.filter(c => c.id !== lvl.id);
-            writeSaveData();
-            renderCreationsList();
-        });
-
-        actions.append(playBtn, editBtn, renameBtn, diffSel, delBtn);
-        item.append(meta, actions);
-        listEl.appendChild(item);
-    });
-}
-
-function renderEditorPalettes() {
-    const assetsDiv = document.getElementById('editor-palette');
-    const trigDiv = document.getElementById('editor-triggers-palette');
-    assetsDiv.innerHTML = '';
-    trigDiv.innerHTML = '';
-
-    ASSET_PALETTE.forEach(item => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'palette-item' + (editorSelectedItem === item.id ? ' selected' : '');
-        btn.innerHTML = `<span class="palette-dot" style="background:${item.color}"></span><span>${item.label}</span>`;
-        btn.addEventListener('click', () => {
-            editorSelectedItem = item.id;
-            editorToolMode = 'place';
-            syncEditorToolButtons();
-            renderEditorPalettes();
-        });
-        assetsDiv.appendChild(btn);
-    });
-
-    TRIGGER_PALETTE.forEach(item => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'palette-item' + (editorSelectedItem === item.id ? ' selected' : '');
-        btn.innerHTML = `<span class="palette-dot" style="background:${item.color}"></span><span>${item.label}</span>`;
-        btn.addEventListener('click', () => {
-            editorSelectedItem = item.id;
-            editorToolMode = 'place';
-            syncEditorToolButtons();
-            renderEditorPalettes();
-        });
-        trigDiv.appendChild(btn);
-    });
-}
-
-function syncEditorToolButtons() {
-    document.getElementById('tool-place-btn').classList.toggle('active', editorToolMode === 'place');
-    document.getElementById('tool-erase-btn').classList.toggle('active', editorToolMode === 'erase');
-    document.getElementById('tool-pan-btn').classList.toggle('active', editorToolMode === 'pan');
-    document.getElementById('editor-grid-btn').textContent = editorShowGrid ? 'GRID: ON' : 'GRID: OFF';
-    document.getElementById('editorCanvas').style.cursor = editorToolMode === 'pan' ? 'grab' : (editorToolMode === 'erase' ? 'not-allowed' : 'crosshair');
-}
-
-function eraseAtWorldCoord(worldX, worldY) {
-    const tolX = 36;
-    const tolY = 42;
-    const nearX = (x) => Math.abs(x - worldX) <= tolX;
-    const nearY = (y) => Math.abs(y - worldY) <= tolY;
-
-    editorDraft.spikes = editorDraft.spikes.filter(s => !(nearX(s.x) && nearY(s.y || GROUND_Y)));
-    editorDraft.platforms = editorDraft.platforms.filter(p => !(worldX >= p.x - 16 && worldX <= p.x + p.w + 16 && nearY(p.y)));
-    editorDraft.blocks = (editorDraft.blocks || []).filter(b => !(worldX >= b.x - 8 && worldX <= b.x + b.w + 8 && worldY >= b.y - 8 && worldY <= b.y + b.h + 8));
-    editorDraft.pads = editorDraft.pads.filter(p => !nearX(p.x));
-    editorDraft.orbs = editorDraft.orbs.filter(o => !(nearX(o.x) && nearY(o.y)));
-    editorDraft.saws = editorDraft.saws.filter(sw => !(nearX(sw.x) && nearY(sw.y)));
-    editorDraft.pillars = editorDraft.pillars.filter(pi => !nearX(pi.x));
-    editorDraft.coins = editorDraft.coins.filter(co => !(nearX(co.x) && nearY(co.y)));
-    editorDraft.triggers = editorDraft.triggers.filter(tr => !nearX(tr.x));
-    editorDraft.portals = editorDraft.portals.filter(pt => !nearX(pt.x));
-}
-
-function placeSelectedAtWorldCoord(worldX, worldY) {
-    const clampedX = Math.max(260, Math.min(editorDraft.finishX - 120, worldX));
-    const clampedY = Math.max(CEILING_Y + 20, Math.min(GROUND_Y, worldY));
-
-    switch (editorSelectedItem) {
-        case 'spike':
-            editorDraft.spikes.push({ x: clampedX, y: GROUND_Y, sizeType: 'normal', inverted: false });
-            break;
-        case 'mini_spike':
-            editorDraft.spikes.push({ x: clampedX, y: GROUND_Y, sizeType: 'mini', inverted: false });
-            break;
-        case 'ceil_spike':
-            editorDraft.spikes.push({ x: clampedX, y: CEILING_Y, sizeType: 'normal', inverted: true });
-            break;
-        case 'platform':
-            editorDraft.platforms.push({ x: clampedX, y: Math.min(GROUND_Y - 36, clampedY), w: EDITOR_GRID, h: 26 });
-            break;
-        case 'block':
-            editorDraft.blocks.push({ x: clampedX, y: Math.min(GROUND_Y - EDITOR_GRID, Math.max(CEILING_Y, clampedY)), w: EDITOR_GRID, h: EDITOR_GRID });
-            break;
-        case 'pad_yellow':
-            editorDraft.pads.push({ x: clampedX, color: 'yellow', cooldown: 0 });
-            break;
-        case 'pad_pink':
-            editorDraft.pads.push({ x: clampedX, color: 'pink', cooldown: 0 });
-            break;
-        case 'orb_yellow':
-            editorDraft.orbs.push({ x: clampedX, y: Math.min(GROUND_Y - 30, clampedY), color: 'yellow', used: false });
-            break;
-        case 'orb_pink':
-            editorDraft.orbs.push({ x: clampedX, y: Math.min(GROUND_Y - 30, clampedY), color: 'pink', used: false });
-            break;
-        case 'saw':
-            editorDraft.saws.push({ x: clampedX, y: Math.min(GROUND_Y - 30, clampedY), r: 22, angle: 0 });
-            break;
-        case 'pillar':
-            editorDraft.pillars.push({ x: clampedX, h: 90, w: 34 });
-            break;
-        case 'coin':
-            editorDraft.coins.push({ x: clampedX, y: Math.min(GROUND_Y - 30, clampedY), collected: false });
-            break;
-        case 'portal_ship':
-            editorDraft.portals.push({ x: clampedX, type: 'ship', triggered: false });
-            break;
-        case 'portal_cube':
-            editorDraft.portals.push({ x: clampedX, type: 'cube', triggered: false });
-            break;
-        case 'trig_speed_fast':
-            editorDraft.triggers.push({ x: clampedX, kind: 'speed_fast', triggered: false });
-            break;
-        case 'trig_speed_norm':
-            editorDraft.triggers.push({ x: clampedX, kind: 'speed_normal', triggered: false });
-            break;
-        case 'trig_bg_purple':
-            editorDraft.triggers.push({ x: clampedX, kind: 'bg', bgTop: '#240046', bgBottom: '#7b2cbf', triggered: false });
-            break;
-        case 'trig_shake':
-            editorDraft.triggers.push({ x: clampedX, kind: 'shake', triggered: false });
-            break;
-        case 'trig_low_grav':
-            editorDraft.triggers.push({ x: clampedX, kind: 'low_grav', triggered: false });
-            break;
-        case 'trig_norm_grav':
-            editorDraft.triggers.push({ x: clampedX, kind: 'norm_grav', triggered: false });
-            break;
-    }
-}
-
-function drawEditorCanvas() {
-    if (gameState !== 'EDITOR') return;
-
-    const bgTop = document.getElementById('style-bg-top').value;
-    const bgBottom = document.getElementById('style-bg-bottom').value;
-    const groundFill = document.getElementById('style-ground-fill').value;
-    const groundGrid = document.getElementById('style-ground-grid').value;
-    const finishX = Number(document.getElementById('style-finish-x').value) || 4400;
-
-    eCtx.clearRect(0, 0, editorCanvas.width, editorCanvas.height);
-
-    const grad = eCtx.createLinearGradient(0, 0, 0, EDITOR_GROUND_Y);
-    grad.addColorStop(0, bgTop);
-    grad.addColorStop(1, bgBottom);
-    eCtx.fillStyle = grad;
-    eCtx.fillRect(0, 0, editorCanvas.width, EDITOR_GROUND_Y);
-
-    eCtx.fillStyle = groundFill;
-    eCtx.fillRect(0, EDITOR_GROUND_Y, editorCanvas.width, editorCanvas.height - EDITOR_GROUND_Y);
-
-    if (editorShowGrid) {
-        eCtx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-        eCtx.lineWidth = 1;
-        const startGridX = -(editorScrollX % EDITOR_GRID);
-        for (let gx = startGridX; gx < editorCanvas.width; gx += EDITOR_GRID) {
-            eCtx.beginPath();
-            eCtx.moveTo(gx, 0);
-            eCtx.lineTo(gx, EDITOR_GROUND_Y);
-            eCtx.stroke();
-        }
-        for (let gy = 0; gy <= EDITOR_GROUND_Y; gy += EDITOR_GRID) {
-            eCtx.beginPath();
-            eCtx.moveTo(0, gy);
-            eCtx.lineTo(editorCanvas.width, gy);
-            eCtx.stroke();
-        }
-    }
-
-    eCtx.strokeStyle = groundGrid;
-    eCtx.lineWidth = 2;
-    eCtx.beginPath();
-    eCtx.moveTo(0, EDITOR_GROUND_Y);
-    eCtx.lineTo(editorCanvas.width, EDITOR_GROUND_Y);
-    eCtx.stroke();
-
-    const toSX = (wx) => wx - editorScrollX + 80;
-    const toSY = (wy) => wy * EDITOR_SCALE_Y;
-
-    editorDraft.pillars.forEach(pi => {
-        const sx = toSX(pi.x);
-        const h = (pi.h || 90);
-        eCtx.fillStyle = 'rgba(255,255,255,0.2)';
-        eCtx.fillRect(sx, EDITOR_GROUND_Y - h, 24, h);
-    });
-
-    editorDraft.platforms.forEach(pl => {
-        const sx = toSX(pl.x);
-        const sy = toSY(pl.y);
-        const width = Math.max(EDITOR_GRID, pl.w);
-        const height = Math.max(12, (pl.h || 26));
-        eCtx.fillStyle = '#00e5ff';
-        eCtx.strokeStyle = '#000';
-        eCtx.lineWidth = 2;
-        eCtx.fillRect(sx, sy, width, height);
-        eCtx.strokeRect(sx, sy, width, height);
-    });
-
-    (editorDraft.blocks || []).forEach(block => {
-        const sx = toSX(block.x);
-        const sy = toSY(block.y);
-        const width = (block.w || BLOCK_SIZE);
-        const height = (block.h || BLOCK_SIZE);
-        eCtx.fillStyle = '#2475bd';
-        eCtx.strokeStyle = '#ffffff';
-        eCtx.lineWidth = 2;
-        eCtx.fillRect(sx, sy, width, height);
-        eCtx.strokeRect(sx, sy, width, height);
-        eCtx.strokeStyle = 'rgba(255,255,255,0.35)';
-        eCtx.strokeRect(sx + 5, sy + 5, width - 10, Math.max(5, height - 10));
-    });
-
-    editorDraft.spikes.forEach(sp => {
-        const sx = toSX(sp.x);
-        const sy = sp.inverted ? toSY(CEILING_Y) : EDITOR_GROUND_Y;
-        const h = (sp.sizeType === 'mini' ? 18 : 30);
-        eCtx.fillStyle = '#ff595e';
-        eCtx.strokeStyle = '#fff';
-        eCtx.beginPath();
-        if (sp.inverted) {
-            eCtx.moveTo(sx, sy);
-            eCtx.lineTo(sx + 15, sy + h);
-            eCtx.lineTo(sx + 30, sy);
-        } else {
-            eCtx.moveTo(sx, sy);
-            eCtx.lineTo(sx + 15, sy - h);
-            eCtx.lineTo(sx + 30, sy);
-        }
-        eCtx.closePath();
-        eCtx.fill();
-        eCtx.stroke();
-    });
-
-    editorDraft.pads.forEach(pd => {
-        const sx = toSX(pd.x);
-        eCtx.fillStyle = pd.color === 'pink' ? '#ff4fd8' : '#ffe600';
-        eCtx.fillRect(sx, EDITOR_GROUND_Y - 8, 26, 8);
-    });
-
-    editorDraft.orbs.forEach(ob => {
-        const sx = toSX(ob.x);
-        const sy = toSY(ob.y);
-        eCtx.fillStyle = ob.color === 'pink' ? '#ff4fd8' : '#ffe600';
-        eCtx.beginPath();
-        eCtx.arc(sx, sy, 11, 0, Math.PI * 2);
-        eCtx.fill();
-    });
-
-    editorDraft.saws.forEach(sw => {
-        eCtx.fillStyle = '#94a3b8';
-        eCtx.beginPath();
-        eCtx.arc(toSX(sw.x), toSY(sw.y), 14, 0, Math.PI * 2);
-        eCtx.fill();
-    });
-
-    editorDraft.coins.forEach(co => {
-        eCtx.fillStyle = '#ffd60a';
-        eCtx.beginPath();
-        eCtx.arc(toSX(co.x), toSY(co.y), 9, 0, Math.PI * 2);
-        eCtx.fill();
-    });
-
-    editorDraft.portals.forEach(pt => {
-        const sx = toSX(pt.x);
-        eCtx.strokeStyle = pt.type === 'ship' ? '#38bdf8' : '#80ed99';
-        eCtx.lineWidth = 3;
-        eCtx.strokeRect(sx, EDITOR_GROUND_Y - 78, 32, 78);
-    });
-
-    editorDraft.triggers.forEach(tr => {
-        const sx = toSX(tr.x);
-        eCtx.strokeStyle = '#ffe600';
-        eCtx.strokeRect(sx, 30, 16, EDITOR_GROUND_Y - 30);
-    });
-
-    const finX = toSX(finishX);
-    eCtx.strokeStyle = '#00ffaa';
-    eCtx.lineWidth = 4;
-    eCtx.beginPath();
-    eCtx.moveTo(finX, 0);
-    eCtx.lineTo(finX, EDITOR_GROUND_Y);
-    eCtx.stroke();
-
-    eCtx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-    eCtx.fillRect(10, 10, 210, 22);
-    eCtx.fillStyle = '#ffe600';
-    eCtx.font = '800 10px Orbitron, sans-serif';
-    eCtx.fillText(`X: ${editorScrollX} | SETAS/A-D: ANDAR`, 16, 25);
-
-    requestAnimationFrame(drawEditorCanvas);
-}
-
-// Coordenadas corretas mesmo quando o canvas está reduzido no celular.
-function getEditorWorldCoords(pointerEvent) {
-    const rect = editorCanvas.getBoundingClientRect();
-    const scaleX = editorCanvas.width / Math.max(1, rect.width);
-    const scaleY = editorCanvas.height / Math.max(1, rect.height);
-    const canvasX = (pointerEvent.clientX - rect.left) * scaleX;
-    const canvasY = (pointerEvent.clientY - rect.top) * scaleY;
-
-    let worldX = canvasX + editorScrollX - 80;
-    let worldY = canvasY / EDITOR_SCALE_Y;
-
-    if (editorShowGrid) {
-        worldX = Math.round(worldX / EDITOR_GRID) * EDITOR_GRID;
-        worldY = Math.round(worldY / EDITOR_GRID) * EDITOR_GRID;
-    }
-
-    return { x: worldX, y: worldY };
-}
-
-// A fase cresce automaticamente quando o usuário continua arrastando.
 function expandEditorLevelIfNeeded(worldX) {
-    if (worldX < editorDraft.finishX - 240) return;
-
-    const nextFinish = Math.ceil((worldX + 700) / 100) * 100;
-    if (nextFinish <= editorDraft.finishX) return;
-
-    editorDraft.finishX = nextFinish;
-    const finishInput = document.getElementById('style-finish-x');
-    finishInput.max = String(Math.max(Number(finishInput.max) || 7500, nextFinish + 100000));
-    finishInput.value = String(nextFinish);
-    document.getElementById('style-finish-label').textContent = String(nextFinish);
+    if (!editorDraft) return;
+    if (worldX + 600 > (editorDraft.finishX || 4400)) {
+        editorDraft.finishX = Math.min(1000000, Math.ceil((worldX + 1200) / EDITOR_GRID) * EDITOR_GRID);
+        const inp = document.getElementById('style-finish-x');
+        const lbl = document.getElementById('style-finish-label');
+        if (inp) inp.value = String(editorDraft.finishX);
+        if (lbl) lbl.textContent = String(editorDraft.finishX);
+    }
 }
 
-let lastEditorDragPoint = null;
+function getEditorWorldCoords(e, fineEdit = false) {
+    const rect = editorCanvas.getBoundingClientRect();
+    const sx = editorCanvas.width / Math.max(1, rect.width);
+    const sy = editorCanvas.height / Math.max(1, rect.height);
+    const canvasX = (e.clientX - rect.left) * sx;
+    const canvasY = (e.clientY - rect.top) * sy;
+
+    const step = fineEdit ? EDITOR_GRID / 2 : EDITOR_GRID;
+    const rawX = canvasX + editorScrollX - 80;
+    const x = Math.max(0, Math.round(rawX / step) * step);
+    const y = Math.round(canvasY / step) * step;
+    return { x, y, rawX, canvasX, canvasY };
+}
+
+function placeSelectedAtWorldCoord(x, y) {
+    if (!editorDraft) return;
+    const clampedX = Math.max(200, x);
+    const snapY = Math.round(y / EDITOR_GRID) * EDITOR_GRID;
+
+    if (editorSelectedItem === 'spike') {
+        editorDraft.spikes.push({ x: clampedX, y: GROUND_Y, sizeType: 'normal' });
+    } else if (editorSelectedItem === 'mini_spike') {
+        editorDraft.spikes.push({ x: clampedX, y: GROUND_Y, sizeType: 'mini' });
+    } else if (editorSelectedItem === 'ceil_spike') {
+        editorDraft.spikes.push({ x: clampedX, y: CEILING_Y, sizeType: 'normal', inverted: true });
+    } else if (editorSelectedItem === 'platform') {
+        editorDraft.platforms.push({ x: clampedX, y: Math.min(GROUND_Y - 32, Math.max(CEILING_Y + 20, snapY)), w: EDITOR_GRID * 2, h: 28 });
+    } else if (editorSelectedItem === 'block') {
+        editorDraft.blocks.push({ x: clampedX, y: Math.min(GROUND_Y - BLOCK_SIZE, Math.max(CEILING_Y, snapY)), w: BLOCK_SIZE, h: BLOCK_SIZE });
+    } else if (editorSelectedItem === 'pad_yellow') {
+        editorDraft.pads.push({ x: clampedX, color: 'yellow', cooldown: 0 });
+    } else if (editorSelectedItem === 'pad_pink') {
+        editorDraft.pads.push({ x: clampedX, color: 'pink', cooldown: 0 });
+    } else if (editorSelectedItem === 'orb_yellow') {
+        editorDraft.orbs.push({ x: clampedX, y: Math.min(GROUND_Y - 24, Math.max(CEILING_Y + 20, snapY)), color: 'yellow', used: false });
+    } else if (editorSelectedItem === 'orb_pink') {
+        editorDraft.orbs.push({ x: clampedX, y: Math.min(GROUND_Y - 24, Math.max(CEILING_Y + 20, snapY)), color: 'pink', used: false });
+    } else if (editorSelectedItem === 'saw') {
+        editorDraft.saws.push({ x: clampedX, y: Math.min(GROUND_Y - 28, Math.max(CEILING_Y + 28, snapY)), r: 22, angle: 0 });
+    } else if (editorSelectedItem === 'pillar') {
+        editorDraft.pillars.push({ x: clampedX, h: 90, w: 34 });
+    } else if (editorSelectedItem === 'coin') {
+        editorDraft.coins.push({ x: clampedX, y: Math.min(GROUND_Y - 24, Math.max(CEILING_Y + 24, snapY)), collected: false });
+    } else if (editorSelectedItem === 'portal_ship') {
+        editorDraft.portals.push({ x: clampedX, type: 'ship', triggered: false });
+    } else if (editorSelectedItem === 'portal_cube') {
+        editorDraft.portals.push({ x: clampedX, type: 'cube', triggered: false });
+    } else if (editorSelectedItem === 'trig_speed_fast') {
+        editorDraft.triggers.push({ x: clampedX, kind: 'speed_fast', triggered: false });
+    } else if (editorSelectedItem === 'trig_speed_norm') {
+        editorDraft.triggers.push({ x: clampedX, kind: 'speed_normal', triggered: false });
+    } else if (editorSelectedItem === 'trig_bg_purple') {
+        editorDraft.triggers.push({ x: clampedX, kind: 'bg', bgTop: '#311042', bgBottom: '#7209b7', triggered: false });
+    } else if (editorSelectedItem === 'trig_shake') {
+        editorDraft.triggers.push({ x: clampedX, kind: 'shake', triggered: false });
+    } else if (editorSelectedItem === 'trig_low_grav') {
+        editorDraft.triggers.push({ x: clampedX, kind: 'low_grav', triggered: false });
+    } else if (editorSelectedItem === 'trig_norm_grav') {
+        editorDraft.triggers.push({ x: clampedX, kind: 'norm_grav', triggered: false });
+    }
+}
+
+function eraseAtWorldCoord(x, y) {
+    if (!editorDraft) return;
+    const hitRadius = EDITOR_GRID * 0.85;
+    const matchX = (ox, ow = 0) => x >= ox - hitRadius && x <= ox + Math.max(EDITOR_GRID, ow) + hitRadius;
+
+    editorDraft.spikes = editorDraft.spikes.filter(o => !matchX(o.x, BLOCK_SIZE));
+    editorDraft.pads = editorDraft.pads.filter(o => !matchX(o.x, 36));
+    editorDraft.pillars = editorDraft.pillars.filter(o => !matchX(o.x, o.w || 34));
+    editorDraft.portals = editorDraft.portals.filter(o => !matchX(o.x, PORTAL_WIDTH));
+    editorDraft.triggers = editorDraft.triggers.filter(o => !matchX(o.x, 28));
+
+    editorDraft.platforms = editorDraft.platforms.filter(o =>
+        !(matchX(o.x, o.w || 120) && Math.abs((o.y || GROUND_Y - 28) - y) <= hitRadius)
+    );
+    editorDraft.blocks = editorDraft.blocks.filter(o =>
+        !(matchX(o.x, o.w || BLOCK_SIZE) && Math.abs((o.y || GROUND_Y - BLOCK_SIZE) - y) <= hitRadius)
+    );
+    editorDraft.orbs = editorDraft.orbs.filter(o => Math.hypot((o.x || 0) - x, (o.y || GROUND_Y - 80) - y) > hitRadius);
+    editorDraft.saws = editorDraft.saws.filter(o => Math.hypot((o.x || 0) - x, (o.y || GROUND_Y - 80) - y) > hitRadius);
+    editorDraft.coins = editorDraft.coins.filter(o => Math.hypot((o.x || 0) - x, (o.y || GROUND_Y - 80) - y) > hitRadius);
+}
 
 function editAtEditorPointer(pointerEvent) {
     const point = getEditorWorldCoords(pointerEvent);
     expandEditorLevelIfNeeded(point.x);
 
     if (editorToolMode === 'erase') {
-        if (!lastEditorDragPoint) eraseAtWorldCoord(point.x, point.y);
-        else {
-            const dx = point.x - lastEditorDragPoint.x;
-            const dy = point.y - lastEditorDragPoint.y;
-            const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / EDITOR_GRID));
-            for (let i = 1; i <= steps; i++) {
-                eraseAtWorldCoord(
-                    lastEditorDragPoint.x + dx * i / steps,
-                    lastEditorDragPoint.y + dy * i / steps
-                );
-            }
-        }
-    } else if (editorToolMode === 'place' && editorSelectedItem !== 'platform') {
-        if (!lastEditorDragPoint) placeSelectedAtWorldCoord(point.x, point.y);
-        else {
-            const dx = point.x - lastEditorDragPoint.x;
-            const dy = point.y - lastEditorDragPoint.y;
-            const distance = Math.hypot(dx, dy);
-            if (distance >= EDITOR_GRID * 0.65) {
-                const steps = Math.max(1, Math.ceil(distance / EDITOR_GRID));
-                for (let i = 1; i <= steps; i++) {
-                    const x = lastEditorDragPoint.x + dx * (i / steps);
-                    const y = lastEditorDragPoint.y + dy * (i / steps);
-                    placeSelectedAtWorldCoord(
-                        editorShowGrid ? Math.round(x / EDITOR_GRID) * EDITOR_GRID : x,
-                        editorShowGrid ? Math.round(y / EDITOR_GRID) * EDITOR_GRID : y
-                    );
-                }
-            }
+        eraseAtWorldCoord(point.x, point.y);
+    } else if (editorToolMode === 'place') {
+        if (!lastEditorDragPoint || Math.hypot(point.x - lastEditorDragPoint.x, point.y - lastEditorDragPoint.y) >= EDITOR_GRID * 0.7) {
+            placeSelectedAtWorldCoord(point.x, point.y);
         }
     }
     lastEditorDragPoint = point;
 }
 
-editorCanvas.addEventListener('pointerdown', (e) => {
-    if (gameState !== 'EDITOR' || e.button > 0) return;
-    e.preventDefault();
-    lastEditorDragPoint = null;
-    editorCanvas.setPointerCapture?.(e.pointerId);
+function drawEditorCanvas() {
+    if (!editorDraft) return;
+    const w = editorCanvas.width;
+    const h = editorCanvas.height;
+    const groundY = Math.min(h - 44, GROUND_Y);
 
-    if (editorToolMode === 'pan') {
-        editorPanLastX = e.clientX;
-        editorCanvas.style.cursor = 'grabbing';
-        return;
-    }
+    eCtx.save();
+    eCtx.clearRect(0, 0, w, h);
 
-    const point = getEditorWorldCoords(e);
-    if (editorToolMode === 'place' && editorSelectedItem === 'platform') {
-        expandEditorLevelIfNeeded(point.x);
-        const x = Math.max(260, Math.min(editorDraft.finishX - 120, point.x));
-        const y = Math.min(GROUND_Y - 36, Math.max(CEILING_Y, point.y));
-        const platform = { x, y, w: EDITOR_GRID, h: 26 };
-        editorDraft.platforms.push(platform);
-        editorPlatformDrag = { platform, startX: x };
-        lastEditorDragPoint = point;
-        return;
-    }
-    editAtEditorPointer(e);
-});
+    const grad = eCtx.createLinearGradient(0, 0, 0, groundY);
+    grad.addColorStop(0, editorDraft.bgTop || '#1e1b4b');
+    grad.addColorStop(1, editorDraft.bgBottom || '#4338ca');
+    eCtx.fillStyle = grad;
+    eCtx.fillRect(0, 0, w, groundY);
 
-editorCanvas.addEventListener('pointermove', (e) => {
-    if (gameState !== 'EDITOR') return;
-
-    if (editorToolMode === 'pan' && editorPanLastX !== null) {
-        const rect = editorCanvas.getBoundingClientRect();
-        const scaleX = editorCanvas.width / Math.max(1, rect.width);
-        const delta = (e.clientX - editorPanLastX) * scaleX;
-        editorScrollX = Math.max(0, Math.min(editorDraft.finishX - 120, editorScrollX - delta));
-        editorPanLastX = e.clientX;
-        return;
-    }
-
-    if (editorPlatformDrag) {
-        const point = getEditorWorldCoords(e);
-        expandEditorLevelIfNeeded(point.x);
-        const x = Math.min(editorPlatformDrag.startX, point.x);
-        const right = Math.max(editorPlatformDrag.startX + EDITOR_GRID, point.x);
-        editorPlatformDrag.platform.x = Math.max(260, x);
-        editorPlatformDrag.platform.w = Math.max(EDITOR_GRID, right - x);
-        return;
-    }
-
-    if (lastEditorDragPoint) editAtEditorPointer(e);
-});
-
-function stopEditorPointerDrag() {
-    lastEditorDragPoint = null;
-    editorPlatformDrag = null;
-    editorPanLastX = null;
-    if (editorToolMode === 'pan') editorCanvas.style.cursor = 'grab';
-}
-editorCanvas.addEventListener('pointerup', stopEditorPointerDrag);
-editorCanvas.addEventListener('pointercancel', stopEditorPointerDrag);
-editorCanvas.addEventListener('lostpointercapture', stopEditorPointerDrag);
-editorCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-// === GARAGEM DE SKINS ===
-function renderSkinUI() {
-    const btnCanvas = document.getElementById('skin-btn-icon');
-    drawCubeSkin(btnCanvas.getContext('2d'), 4, 4, 36, 0, playerSkin);
-
-    const prevCanvas = document.getElementById('skin-preview');
-    const pCtx = prevCanvas.getContext('2d');
-    pCtx.clearRect(0, 0, 80, 80);
-    drawCubeSkin(pCtx, 12, 12, 56, 0, playerSkin);
-}
-
-function setupGarage() {
-    const modelsDiv = document.getElementById('skin-models');
-    const primDiv = document.getElementById('primary-colors');
-    const secDiv = document.getElementById('secondary-colors');
-
-    for (let i = 0; i < 4; i++) {
-        const opt = document.createElement('div');
-        opt.className = 'skin-option' + (playerSkin.model === i ? ' selected' : '');
-        const c = document.createElement('canvas');
-        c.width = 40;
-        c.height = 40;
-        drawCubeSkin(c.getContext('2d'), 4, 4, 32, 0, { ...playerSkin, model: i });
-        opt.appendChild(c);
-
-        opt.addEventListener('click', () => {
-            playerSkin.model = i;
-            document.querySelectorAll('.skin-option').forEach(el => el.classList.remove('selected'));
-            opt.classList.add('selected');
-            renderSkinUI();
-            writeSaveData();
-        });
-        modelsDiv.appendChild(opt);
-    }
-
-    COLORS.forEach(color => {
-        const sw1 = document.createElement('div');
-        sw1.className = 'color-swatch' + (playerSkin.primary === color ? ' selected' : '');
-        sw1.style.backgroundColor = color;
-        sw1.addEventListener('click', () => {
-            playerSkin.primary = color;
-            primDiv.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
-            sw1.classList.add('selected');
-            renderSkinUI();
-            writeSaveData();
-        });
-        primDiv.appendChild(sw1);
-
-        const sw2 = document.createElement('div');
-        sw2.className = 'color-swatch' + (playerSkin.secondary === color ? ' selected' : '');
-        sw2.style.backgroundColor = color;
-        sw2.addEventListener('click', () => {
-            playerSkin.secondary = color;
-            secDiv.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
-            sw2.classList.add('selected');
-            renderSkinUI();
-            writeSaveData();
-        });
-        secDiv.appendChild(sw2);
-    });
-
-    renderSkinUI();
-}
-
-// === SELEÇÃO DE FASES ===
-function updateLevelCard() {
-    const lvl = LEVELS[currentLevelIndex];
-    const best = levelProgress[lvl.name] || 0;
-    const attempts = levelAttempts[lvl.name] || 0;
-
-    document.getElementById('level-name').textContent = lvl.name;
-    document.getElementById('level-diff-text').textContent = `${lvl.difficulty} • RECORDE: ${best}% • ATT: ${attempts}`;
-    document.getElementById('level-stars').textContent = best === 100 ? `★ ${lvl.stars} (COMPLETA)` : `☆ ${lvl.stars}`;
-
-    const face = document.getElementById('level-diff-face');
-    const src = DIFFICULTY_FACES[lvl.faceKey] || DIFFICULTY_FACES.azul;
-    face.innerHTML = `<img src="${src}" alt="${lvl.difficulty}" onerror="this.style.display='none';">`;
-}
-
-// Navegação dos Menus, Editor, Configurações, Prática e Pause
-document.getElementById('play-btn').addEventListener('click', () => {
-    clearRespawnTimer();
-    clearHoldPauseTimer();
-    mainMenu.classList.add('hidden');
-    updateLevelCard();
-    levelSelect.classList.remove('hidden');
-    gameState = 'LEVEL_SELECT';
-});
-
-document.getElementById('editor-btn').addEventListener('click', () => {
-    clearRespawnTimer();
-    clearHoldPauseTimer();
-    mainMenu.classList.add('hidden');
-    editorHub.classList.remove('hidden');
-    gameState = 'EDITOR_HUB';
-});
-
-document.getElementById('back-from-editor-hub').addEventListener('click', () => {
-    editorHub.classList.add('hidden');
-    mainMenu.classList.remove('hidden');
-    gameState = 'MENU';
-});
-
-document.getElementById('open-create-editor-btn').addEventListener('click', () => {
-    editorHub.classList.add('hidden');
-    levelEditor.classList.remove('hidden');
-    openEditorWithLevel(null);
-});
-
-document.getElementById('open-creations-btn').addEventListener('click', () => {
-    editorHub.classList.add('hidden');
-    renderCreationsList();
-    creationsScreen.classList.remove('hidden');
-    gameState = 'CREATIONS';
-});
-
-document.getElementById('back-from-creations').addEventListener('click', () => {
-    creationsScreen.classList.add('hidden');
-    editorHub.classList.remove('hidden');
-    gameState = 'EDITOR_HUB';
-});
-
-document.getElementById('creations-new-btn').addEventListener('click', () => {
-    creationsScreen.classList.add('hidden');
-    levelEditor.classList.remove('hidden');
-    openEditorWithLevel(null);
-});
-
-document.getElementById('editor-exit-btn').addEventListener('click', () => {
-    levelEditor.classList.add('hidden');
-    renderCreationsList();
-    creationsScreen.classList.remove('hidden');
-    gameState = 'CREATIONS';
-});
-
-document.getElementById('tool-place-btn').addEventListener('click', () => {
-    editorToolMode = 'place';
-    if (!editorSelectedItem) editorSelectedItem = 'spike';
-    renderEditorPalettes();
-    syncEditorToolButtons();
-});
-
-document.getElementById('tool-erase-btn').addEventListener('click', () => {
-    editorToolMode = 'erase';
-    editorSelectedItem = null;
-    renderEditorPalettes();
-    syncEditorToolButtons();
-});
-
-document.getElementById('tool-pan-btn').addEventListener('click', () => {
-    editorToolMode = 'pan';
-    editorSelectedItem = null;
-    renderEditorPalettes();
-    syncEditorToolButtons();
-});
-
-document.getElementById('editor-grid-btn').addEventListener('click', () => {
-    editorShowGrid = !editorShowGrid;
-    syncEditorToolButtons();
-});
-
-document.getElementById('editor-clear-btn').addEventListener('click', () => {
-    const fresh = createEmptyEditorDraft();
-    fresh.id = editorDraft.id;
-    fresh.name = editorDraft.name;
-    fresh.difficulty = editorDraft.difficulty;
-    editorDraft = fresh;
-});
-
-document.getElementById('editor-save-btn').addEventListener('click', () => {
-    saveEditorDraftToCreations();
-    alert('Fase salva em Criações!');
-});
-
-document.getElementById('editor-test-btn').addEventListener('click', () => {
-    saveEditorDraftToCreations();
-    activePlayableLevel = JSON.parse(JSON.stringify(editorDraft));
-    isTestingFromEditor = true;
-    levelEditor.classList.add('hidden');
-    hud.classList.remove('hidden');
-    startAttempt(true);
-});
-
-document.querySelectorAll('.editor-tab').forEach(tabEl => {
-    tabEl.addEventListener('click', () => {
-        document.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
-        tabEl.classList.add('active');
-        const target = tabEl.getAttribute('data-tab');
-        document.getElementById('editor-panel-assets').classList.toggle('hidden', target !== 'assets');
-        document.getElementById('editor-panel-triggers').classList.toggle('hidden', target !== 'triggers');
-        document.getElementById('editor-panel-style').classList.toggle('hidden', target !== 'style');
-    });
-});
-
-document.getElementById('style-finish-x').addEventListener('input', (e) => {
-    document.getElementById('style-finish-label').textContent = e.target.value;
-});
-
-document.getElementById('skin-btn').addEventListener('click', () => {
-    clearRespawnTimer();
-    clearHoldPauseTimer();
-    mainMenu.classList.add('hidden');
-    skinGarage.classList.remove('hidden');
-    gameState = 'SKINS';
-});
-
-document.getElementById('settings-btn').addEventListener('click', () => {
-    clearRespawnTimer();
-    clearHoldPauseTimer();
-    applyPlatformSettingsUI();
-    mainMenu.classList.add('hidden');
-    settingsScreen.classList.remove('hidden');
-    gameState = 'SETTINGS';
-});
-
-document.getElementById('back-from-settings').addEventListener('click', () => {
-    settingsScreen.classList.add('hidden');
-    mainMenu.classList.remove('hidden');
-    gameState = 'MENU';
-});
-
-document.getElementById('mode-pc-btn').addEventListener('click', () => {
-    setPlatformMode('pc');
-});
-
-document.getElementById('mode-mobile-btn').addEventListener('click', () => {
-    setPlatformMode('mobile');
-});
-
-practiceToggleBtn.addEventListener('click', () => {
-    setPracticeMode(!isPracticeMode);
-});
-
-checkpointBtn.addEventListener('click', () => {
-    saveCheckpointAtCurrentState();
-});
-
-document.getElementById('back-from-levels').addEventListener('click', () => {
-    levelSelect.classList.add('hidden');
-    mainMenu.classList.remove('hidden');
-    gameState = 'MENU';
-});
-
-document.getElementById('back-from-skins').addEventListener('click', () => {
-    skinGarage.classList.add('hidden');
-    mainMenu.classList.remove('hidden');
-    gameState = 'MENU';
-});
-
-document.getElementById('prev-level').addEventListener('click', () => {
-    currentLevelIndex = (currentLevelIndex - 1 + LEVELS.length) % LEVELS.length;
-    updateLevelCard();
-});
-
-document.getElementById('next-level').addEventListener('click', () => {
-    currentLevelIndex = (currentLevelIndex + 1) % LEVELS.length;
-    updateLevelCard();
-});
-
-document.getElementById('level-card').addEventListener('click', () => {
-    activePlayableLevel = LEVELS[currentLevelIndex];
-    isTestingFromEditor = false;
-    levelSelect.classList.add('hidden');
-    hud.classList.remove('hidden');
-    startAttempt(true);
-});
-
-pauseMenuBtn.addEventListener('click', () => {
-    pauseCurrentGame();
-});
-
-document.getElementById('resume-btn').addEventListener('click', () => {
-    resumeCurrentGame();
-});
-
-document.getElementById('pause-restart-btn').addEventListener('click', () => {
-    pauseScreen.classList.add('hidden');
-    startAttempt(true);
-});
-
-document.getElementById('pause-exit-menu-btn').addEventListener('click', () => {
-    clearRespawnTimer();
-    clearHoldPauseTimer();
-    recordBestProgress(activePlayableLevel.name, currentRunPercent);
-    pauseScreen.classList.add('hidden');
-    hud.classList.add('hidden');
-
-    if (isTestingFromEditor) {
-        isTestingFromEditor = false;
-        levelEditor.classList.remove('hidden');
-        openEditorWithLevel(editorDraft);
-    } else {
-        mainMenu.classList.remove('hidden');
-        gameState = 'MENU';
-    }
-});
-
-document.getElementById('replay-btn').addEventListener('click', () => {
-    winScreen.classList.add('hidden');
-    hud.classList.remove('hidden');
-    startAttempt(true);
-});
-
-document.getElementById('win-menu-btn').addEventListener('click', () => {
-    winScreen.classList.add('hidden');
-    if (isTestingFromEditor) {
-        isTestingFromEditor = false;
-        levelEditor.classList.remove('hidden');
-        openEditorWithLevel(editorDraft);
-    } else {
-        updateLevelCard();
-        mainMenu.classList.remove('hidden');
-        gameState = 'MENU';
-    }
-});
-
-// Controles de Pulo/Voo, Editor e Pause
-window.addEventListener('keydown', (e) => {
-    if (gameState === 'EDITOR') {
-        if (e.code === 'ArrowRight' || e.code === 'KeyD') {
-            editorScrollX = Math.min(Math.max(0, editorDraft.finishX - 400), editorScrollX + 60);
-        } else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
-            editorScrollX = Math.max(0, editorScrollX - 60);
+    // Grid alinhada exatamente ao EDITOR_GRID (44px) e editorScrollX
+    if (editorShowGrid) {
+        eCtx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+        eCtx.lineWidth = 1;
+        const startX = -((editorScrollX - 80) % EDITOR_GRID);
+        for (let gx = startX; gx < w; gx += EDITOR_GRID) {
+            eCtx.beginPath();
+            eCtx.moveTo(gx, 0);
+            eCtx.lineTo(gx, groundY);
+            eCtx.stroke();
         }
-        return;
+        for (let gy = groundY; gy > 0; gy -= EDITOR_GRID) {
+            eCtx.beginPath();
+            eCtx.moveTo(0, gy);
+            eCtx.lineTo(w, gy);
+            eCtx.stroke();
+        }
     }
 
-    if (e.code === 'Escape' || e.code === 'KeyP') {
-        if (gameState === 'PAUSED') resumeCurrentGame();
-        else pauseCurrentGame();
-        return;
+    // Chão do editor
+    eCtx.fillStyle = editorDraft.groundFill || '#110e2e';
+    eCtx.fillRect(0, groundY, w, h - groundY);
+    eCtx.strokeStyle = editorDraft.groundGrid || '#3730a3';
+    eCtx.lineWidth = 2;
+    eCtx.beginPath();
+    eCtx.moveTo(0, groundY);
+    eCtx.lineTo(w, groundY);
+    eCtx.stroke();
+
+    const ox = -editorScrollX + 80;
+
+    // Objetos do rascunho
+    (editorDraft.pillars || []).forEach(pil => {
+        const sx = pil.x + ox;
+        if (sx < -60 || sx > w + 60) return;
+        eCtx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+        eCtx.fillRect(sx, groundY - (pil.h || 90), pil.w || 34, pil.h || 90);
+    });
+
+    (editorDraft.platforms || []).forEach(plat => {
+        const sx = plat.x + ox;
+        const py = plat.y !== undefined ? plat.y : groundY - 28;
+        if (sx + (plat.w || 120) < -60 || sx > w + 60) return;
+        eCtx.fillStyle = '#18376b';
+        eCtx.strokeStyle = '#00e5ff';
+        eCtx.lineWidth = 2;
+        eCtx.fillRect(sx, py, plat.w || 120, plat.h || 28);
+        eCtx.strokeRect(sx, py, plat.w || 120, plat.h || 28);
+    });
+
+    (editorDraft.blocks || []).forEach(blk => {
+        const sx = blk.x + ox;
+        const by = blk.y !== undefined ? blk.y : groundY - BLOCK_SIZE;
+        if (sx + BLOCK_SIZE < -60 || sx > w + 60) return;
+        eCtx.fillStyle = '#2563eb';
+        eCtx.strokeStyle = '#93c5fd';
+        eCtx.lineWidth = 2;
+        eCtx.fillRect(sx, by, BLOCK_SIZE, BLOCK_SIZE);
+        eCtx.strokeRect(sx, by, BLOCK_SIZE, BLOCK_SIZE);
+    });
+
+    (editorDraft.pads || []).forEach(pad => {
+        const sx = pad.x + ox;
+        if (sx < -50 || sx > w + 50) return;
+        eCtx.fillStyle = pad.color === 'pink' ? '#ff4fd8' : '#ffe600';
+        eCtx.fillRect(sx, groundY - 10, 36, 10);
+    });
+
+    (editorDraft.orbs || []).forEach(orb => {
+        const sx = orb.x + ox;
+        if (sx < -50 || sx > w + 50) return;
+        eCtx.fillStyle = orb.color === 'pink' ? '#ff4fd8' : '#ffd60a';
+        eCtx.beginPath();
+        eCtx.arc(sx, orb.y || groundY - 80, 14, 0, Math.PI * 2);
+        eCtx.fill();
+    });
+
+    (editorDraft.spikes || []).forEach(spk => {
+        const sx = spk.x + ox;
+        const isMini = spk.sizeType === 'mini';
+        const sw = isMini ? MINI_SPIKE_W : BLOCK_SIZE;
+        const sh = isMini ? MINI_SPIKE_H : BLOCK_SIZE;
+        if (sx + sw < -50 || sx > w + 50) return;
+        const inv = Boolean(spk.inverted);
+        const baseY = inv ? CEILING_Y : groundY;
+        const tipY = inv ? baseY + sh : baseY - sh;
+        eCtx.fillStyle = '#ff3b5c';
+        eCtx.beginPath();
+        eCtx.moveTo(sx + 2, baseY);
+        eCtx.lineTo(sx + sw / 2, tipY);
+        eCtx.lineTo(sx + sw - 2, baseY);
+        eCtx.closePath();
+        eCtx.fill();
+    });
+
+    (editorDraft.saws || []).forEach(saw => {
+        const sx = saw.x + ox;
+        if (sx < -50 || sx > w + 50) return;
+        eCtx.fillStyle = '#ff0055';
+        eCtx.beginPath();
+        eCtx.arc(sx, saw.y || groundY - 80, saw.r || 22, 0, Math.PI * 2);
+        eCtx.fill();
+    });
+
+    (editorDraft.coins || []).forEach(coin => {
+        const sx = coin.x + ox;
+        if (sx < -50 || sx > w + 50) return;
+        eCtx.fillStyle = '#ffd60a';
+        eCtx.beginPath();
+        eCtx.arc(sx, coin.y || groundY - 80, 12, 0, Math.PI * 2);
+        eCtx.fill();
+    });
+
+    (editorDraft.portals || []).forEach(pt => {
+        const sx = pt.x + ox;
+        if (sx < -70 || sx > w + 70) return;
+        eCtx.strokeStyle = pt.type === 'ship' ? '#00c8ff' : '#9dff00';
+        eCtx.lineWidth = 4;
+        eCtx.beginPath();
+        eCtx.ellipse(sx + PORTAL_WIDTH / 2, groundY - 50, 18, 45, 0, 0, Math.PI * 2);
+        eCtx.stroke();
+    });
+
+    (editorDraft.triggers || []).forEach(trg => {
+        const sx = trg.x + ox;
+        if (sx < -50 || sx > w + 50) return;
+        eCtx.strokeStyle = '#00e5ff';
+        eCtx.strokeRect(sx, groundY - 100, 24, 100);
+    });
+
+    // Linha de chegada no editor
+    const finX = (editorDraft.finishX || 4400) + ox;
+    if (finX >= -20 && finX <= w + 20) {
+        eCtx.strokeStyle = '#9dff00';
+        eCtx.lineWidth = 3;
+        eCtx.beginPath();
+        eCtx.moveTo(finX, 0);
+        eCtx.lineTo(finX, groundY);
+        eCtx.stroke();
     }
-    if (gameState === 'PLAYING' && (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW')) {
+
+    eCtx.restore();
+}
+
+// === EVENTOS E CONTROLES ===
+function bindEvents() {
+    document.getElementById('play-btn').addEventListener('click', () => {
+        renderLevelSelect();
+        showOverlay(levelSelect, 'LEVEL_SELECT');
+    });
+
+    document.getElementById('settings-btn').addEventListener('click', () => {
+        applyPlatformSettingsUI();
+        showOverlay(settingsScreen, 'SETTINGS');
+    });
+
+    document.getElementById('skin-btn').addEventListener('click', () => {
+        setupGarage();
+        showOverlay(skinGarage, 'SKINS');
+    });
+
+    document.getElementById('editor-btn').addEventListener('click', () => {
+        showOverlay(editorHub, 'EDITOR_HUB');
+    });
+
+    document.getElementById('back-from-settings').addEventListener('click', () => showOverlay(mainMenu, 'MENU'));
+    document.getElementById('back-from-levels').addEventListener('click', () => showOverlay(mainMenu, 'MENU'));
+    document.getElementById('back-from-skins').addEventListener('click', () => showOverlay(mainMenu, 'MENU'));
+    document.getElementById('back-from-editor-hub').addEventListener('click', () => showOverlay(mainMenu, 'MENU'));
+    document.getElementById('back-from-creations').addEventListener('click', () => showOverlay(editorHub, 'EDITOR_HUB'));
+
+    document.getElementById('mode-pc-btn').addEventListener('click', () => setPlatformMode('pc'));
+    document.getElementById('mode-mobile-btn').addEventListener('click', () => setPlatformMode('mobile'));
+
+    document.getElementById('prev-level').addEventListener('click', () => {
+        currentLevelIndex--;
+        renderLevelSelect();
+    });
+    document.getElementById('next-level').addEventListener('click', () => {
+        currentLevelIndex++;
+        renderLevelSelect();
+    });
+    document.getElementById('level-card').addEventListener('click', () => {
+        const list = getAllSelectableLevels();
+        startLevel(list[currentLevelIndex] || LEVELS[0], false);
+    });
+
+    document.getElementById('open-create-editor-btn').addEventListener('click', () => {
+        openEditorWithLevel(createEmptyEditorDraft());
+    });
+    document.getElementById('open-creations-btn').addEventListener('click', () => {
+        renderCreationsList();
+        showOverlay(creationsScreen, 'CREATIONS');
+    });
+    document.getElementById('creations-new-btn').addEventListener('click', () => {
+        openEditorWithLevel(createEmptyEditorDraft());
+    });
+
+    // Controles do editor
+    document.getElementById('editor-exit-btn').addEventListener('click', () => {
+        showOverlay(editorHub, 'EDITOR_HUB');
+    });
+    document.getElementById('tool-place-btn').addEventListener('click', () => {
+        editorToolMode = 'place';
+        syncEditorToolButtons();
+    });
+    document.getElementById('tool-erase-btn').addEventListener('click', () => {
+        editorToolMode = 'erase';
+        syncEditorToolButtons();
+    });
+    document.getElementById('tool-pan-btn').addEventListener('click', () => {
+        editorToolMode = 'pan';
+        syncEditorToolButtons();
+    });
+    document.getElementById('editor-grid-btn').addEventListener('click', () => {
+        editorShowGrid = !editorShowGrid;
+        syncEditorToolButtons();
+        drawEditorCanvas();
+    });
+    document.getElementById('editor-clear-btn').addEventListener('click', () => {
+        if (!editorDraft) return;
+        ['spikes', 'platforms', 'blocks', 'pads', 'orbs', 'saws', 'pillars', 'coins', 'triggers', 'portals', 'decorations', 'structures'].forEach(k => {
+            editorDraft[k] = [];
+        });
+        drawEditorCanvas();
+    });
+    document.getElementById('editor-save-btn').addEventListener('click', () => {
+        saveEditorDraftToCustomLevels();
+        alert('Fase salva em Criações!');
+    });
+    document.getElementById('editor-test-btn').addEventListener('click', () => {
+        saveEditorDraftToCustomLevels();
+        startLevel(editorDraft, true);
+    });
+
+    // Abas do editor
+    document.querySelectorAll('.editor-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.editor-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const target = tab.dataset.tab;
+            document.getElementById('editor-panel-assets').classList.toggle('hidden', target !== 'assets');
+            document.getElementById('editor-panel-triggers').classList.toggle('hidden', target !== 'triggers');
+            document.getElementById('editor-panel-style').classList.toggle('hidden', target !== 'style');
+        });
+    });
+
+    // Estilo da fase
+    ['style-bg-top', 'style-bg-bottom', 'style-ground-fill', 'style-ground-grid', 'style-finish-x', 'editor-level-title', 'editor-level-diff'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el || !editorDraft) return;
+        el.addEventListener('input', () => {
+            if (!editorDraft) return;
+            if (id === 'style-bg-top') editorDraft.bgTop = el.value;
+            if (id === 'style-bg-bottom') editorDraft.bgBottom = el.value;
+            if (id === 'style-ground-fill') editorDraft.groundFill = el.value;
+            if (id === 'style-ground-grid') editorDraft.groundGrid = el.value;
+            if (id === 'style-finish-x') {
+                editorDraft.finishX = Number(el.value) || 4400;
+                const lbl = document.getElementById('style-finish-label');
+                if (lbl) lbl.textContent = String(editorDraft.finishX);
+            }
+            if (id === 'editor-level-title') editorDraft.name = el.value;
+            if (id === 'editor-level-diff') editorDraft.difficulty = el.value;
+            drawEditorCanvas();
+        });
+    });
+
+    // Pointer no canvas do editor
+    editorCanvas.addEventListener('pointerdown', (e) => {
+        if (gameState !== 'EDITOR') return;
+        isPointerEditing = true;
+        lastEditorDragPoint = null;
+        if (editorToolMode === 'pan' || e.button === 1) {
+            panDragState = { startX: e.clientX, startScrollX: editorScrollX };
+            return;
+        }
+        editAtEditorPointer(e);
+        drawEditorCanvas();
+    });
+
+    window.addEventListener('pointermove', (e) => {
+        if (gameState !== 'EDITOR' || !isPointerEditing) return;
+        if (panDragState) {
+            editorScrollX = Math.max(0, panDragState.startScrollX - (e.clientX - panDragState.startX));
+            drawEditorCanvas();
+            return;
+        }
+        editAtEditorPointer(e);
+        drawEditorCanvas();
+    });
+
+    window.addEventListener('pointerup', () => {
+        isPointerEditing = false;
+        lastEditorDragPoint = null;
+        panDragState = null;
+    });
+
+    editorCanvas.addEventListener('wheel', (e) => {
+        if (gameState !== 'EDITOR') return;
+        e.preventDefault();
+        editorScrollX = Math.max(0, editorScrollX + (e.deltaY || e.deltaX));
+        drawEditorCanvas();
+    }, { passive: false });
+
+    // HUD, Prática, Checkpoint, Pause e Vitória
+    practiceToggleBtn.addEventListener('click', () => setPracticeMode(!isPracticeMode));
+    checkpointBtn.addEventListener('click', () => saveCheckpointAtCurrentState());
+    pauseMenuBtn.addEventListener('click', () => pauseCurrentGame());
+
+    document.getElementById('resume-btn').addEventListener('click', () => resumeCurrentGame());
+    document.getElementById('pause-restart-btn').addEventListener('click', () => {
+        pauseScreen.classList.add('hidden');
+        setPracticeMode(false);
+        resetAttemptsForLevel(activePlayableLevel.name);
+        startLevel(activePlayableLevel, isTestingFromEditor);
+    });
+    document.getElementById('pause-exit-menu-btn').addEventListener('click', () => {
+        clearRespawnTimer();
+        setPracticeMode(false);
+        if (isTestingFromEditor && editorDraft) {
+            isTestingFromEditor = false;
+            openEditorWithLevel(editorDraft);
+        } else {
+            showOverlay(mainMenu, 'MENU');
+        }
+    });
+
+    document.getElementById('replay-btn').addEventListener('click', () => {
+        winScreen.classList.add('hidden');
+        startLevel(activePlayableLevel, isTestingFromEditor);
+    });
+    document.getElementById('win-menu-btn').addEventListener('click', () => {
+        winScreen.classList.add('hidden');
+        setPracticeMode(false);
+        if (isTestingFromEditor && editorDraft) {
+            isTestingFromEditor = false;
+            openEditorWithLevel(editorDraft);
+        } else {
+            showOverlay(mainMenu, 'MENU');
+        }
+    });
+
+    // Controles de pulo / voo (Teclado e Canvas)
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+            if (gameState === 'PLAYING') {
+                e.preventDefault();
+                if (!isHoldingJump) jumpJustPressed = true;
+                isHoldingJump = true;
+            }
+        } else if (e.code === 'Escape') {
+            if (gameState === 'PLAYING' || gameState === 'DEAD') pauseCurrentGame();
+            else if (gameState === 'PAUSED') resumeCurrentGame();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+            isHoldingJump = false;
+        }
+    });
+
+    canvas.addEventListener('pointerdown', (e) => {
+        if (gameState !== 'PLAYING') return;
+        e.preventDefault();
         if (!isHoldingJump) jumpJustPressed = true;
         isHoldingJump = true;
-    }
-});
+        startHoldPauseTimer();
+    });
 
-window.addEventListener('keyup', (e) => {
-    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+    window.addEventListener('pointerup', () => {
         isHoldingJump = false;
-    }
-});
-
-canvas.addEventListener('mousedown', () => {
-    if (gameState === 'PLAYING') {
-        jumpJustPressed = true;
-        isHoldingJump = true;
-    }
-});
-window.addEventListener('mouseup', () => { isHoldingJump = false; });
-
-canvas.addEventListener('touchstart', (e) => {
-    if (gameState === 'PLAYING') {
-        e.preventDefault();
-        jumpJustPressed = true;
-        isHoldingJump = true;
-        if (controlPlatform === 'mobile') {
-            startHoldPauseTimer();
-        }
-    }
-}, { passive: false });
-
-function cancelMobileTouch() {
-    isHoldingJump = false;
-    clearHoldPauseTimer();
+        clearHoldPauseTimer();
+    });
 }
 
-window.addEventListener('touchend', cancelMobileTouch);
-window.addEventListener('touchcancel', cancelMobileTouch);
-
-// Inicializa
 applyPlatformSettingsUI();
 setupMobileUiDrag();
-updatePracticeUI();
 setupGarage();
-loop();
+renderLevelSelect();
+bindEvents();
+requestAnimationFrame(loop);
