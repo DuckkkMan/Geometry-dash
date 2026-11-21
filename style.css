@@ -1478,3 +1478,7 @@ canvas {
  #level-editor .editor-transform-panel{right:4px;top:4px;width:145px;padding:6px}
  #level-editor .asset-card{flex-basis:60px;width:60px}
 }
+
+/* Correção da grade: células quadradas e origem alinhada ao offset do canvas. */
+#level-editor #editor-panel-triggers{display:none!important}
+#level-editor .editor-palette{align-items:center}
