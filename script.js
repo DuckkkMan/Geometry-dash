@@ -1677,7 +1677,7 @@ function loop() {
 }
 
 // === EDITOR DE FASES (GRID + ASSETS + TRIGGERS + BG/GROUND + CRIAÇÕES) ===
-const EDITOR_GRID = 38;
+const EDITOR_GRID = 44;
 const EDITOR_GROUND_Y = 264;
 const EDITOR_SCALE_Y = EDITOR_GROUND_Y / GROUND_Y;
 
@@ -1950,7 +1950,7 @@ function placeSelectedAtWorldCoord(worldX, worldY) {
             editorDraft.platforms.push({ x: clampedX, y: Math.min(GROUND_Y - 36, clampedY), w: EDITOR_GRID, h: 26 });
             break;
         case 'block':
-            editorDraft.blocks.push({ x: clampedX, y: Math.min(GROUND_Y - BLOCK_SIZE, Math.max(CEILING_Y, clampedY - BLOCK_SIZE / 2)), w: BLOCK_SIZE, h: BLOCK_SIZE });
+            editorDraft.blocks.push({ x: clampedX, y: Math.min(GROUND_Y - EDITOR_GRID, Math.max(CEILING_Y, clampedY)), w: EDITOR_GRID, h: EDITOR_GRID });
             break;
         case 'pad_yellow':
             editorDraft.pads.push({ x: clampedX, color: 'yellow', cooldown: 0 });
@@ -2050,7 +2050,7 @@ function drawEditorCanvas() {
 
     editorDraft.pillars.forEach(pi => {
         const sx = toSX(pi.x);
-        const h = (pi.h || 90) * EDITOR_SCALE_Y;
+        const h = (pi.h || 90);
         eCtx.fillStyle = 'rgba(255,255,255,0.2)';
         eCtx.fillRect(sx, EDITOR_GROUND_Y - h, 24, h);
     });
@@ -2059,7 +2059,7 @@ function drawEditorCanvas() {
         const sx = toSX(pl.x);
         const sy = toSY(pl.y);
         const width = Math.max(EDITOR_GRID, pl.w);
-        const height = Math.max(12, (pl.h || 26) * EDITOR_SCALE_Y);
+        const height = Math.max(12, (pl.h || 26));
         eCtx.fillStyle = '#00e5ff';
         eCtx.strokeStyle = '#000';
         eCtx.lineWidth = 2;
