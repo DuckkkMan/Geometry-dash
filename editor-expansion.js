@@ -377,7 +377,7 @@ function addAssetAtWorld(x,y) {
   } else if(item.type==='coin') {
     editorDraft.coins.push({x:base.x,y:Math.min(GROUND_Y-30,y),collected:false,groups:[]});
   } else if(item.type==='trigger'||item.type==='legacy_trigger') {
-    const kind={trigger_move:'move',trigger_pulse:'pulse',trigger_scale:'scale',trigger_color:'color',trigger_speed:'speed'}[selectedAssetId];
+    const kind={trigger_move:'move',trigger_pulse:'pulse',trigger_scale:'scale',trigger_color:'color',trigger_speed:'speed',trig_bg_purple:'bg',trig_shake:'shake',trig_low_grav:'low_grav',trig_norm_grav:'norm_grav'}[selectedAssetId];
     if(kind)editorDraft.triggers.push({id:makeId(),x:base.x,y:Math.min(GROUND_Y-20,Math.max(CEILING_Y,y)),kind:kind,group:'1',duration:1,intensity:1,distance:120,scale:1.5,color:'#00e5ff',speedMultiplier:1,customSpeed:1,triggered:false});
     else return false;
   } else if(item.type==='structure') {
@@ -402,6 +402,7 @@ const oldEditAtPointer=editAtEditorPointer;
 editAtEditorPointer=function(pointerEvent){
   const point=getEditorWorldCoords(pointerEvent);expandEditorLevelIfNeeded(point.x);
   if(editorToolMode==='erase'){
+    if(eraseGestureMode==='click'&&lastEditorDragPoint){lastEditorDragPoint=point;return;}
     if(!lastEditorDragPoint)eraseAtWorldCoord(point.x,point.y);
     else{
       const dx=point.x-lastEditorDragPoint.x,dy=point.y-lastEditorDragPoint.y;
@@ -476,7 +477,7 @@ drawEditorCanvas = function() {
   }
   (editorDraft.decorations||[]).forEach(o=>drawExtraEditorObject(o,'decoration'));
   (editorDraft.structures||[]).forEach(o=>drawExtraEditorObject(o,'structure'));
-  (editorDraft.triggers||[]).filter(t=>['move','pulse','scale','color','speed'].includes(t.kind)).forEach(t=>drawExtraEditorObject(t,'trigger'));
+  (editorDraft.triggers||[]).filter(t=>['move','pulse','scale','color','speed','bg','shake','low_grav','norm_grav'].includes(t.kind)).forEach(t=>drawExtraEditorObject(t,'trigger'));
   getSelectionRecords().forEach(s=>{
     const o=s.obj,x=o.x-editorScrollX+80,y=(o.y===undefined?GROUND_Y-40:o.y)*EDITOR_SCALE_Y,scale=o.scale||1;
     eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);eCtx.scale(o.flipX?-1:1,o.flipY?-1:1);eCtx.strokeStyle='#fff';eCtx.lineWidth=2;eCtx.setLineDash([5,4]);eCtx.strokeRect(-24*scale,-24*scale,48*scale,48*scale);eCtx.restore();
