@@ -1563,8 +1563,8 @@ function loop() {
 
         for (let pillar of activePillars) {
             const sx = pillar.x - levelDistance + 160;
-            const w = pillar.w || 34;
-            const h = pillar.h || 90;
+            const w = (pillar.w || 34) * (pillar.scale || 1);
+            const h = (pillar.h || 90) * (pillar.scale || 1);
             const pillarBottom = pillar.y === undefined ? GROUND_Y : pillar.y;
             if (player.x + player.size - 4 > sx && player.x + 4 < sx + w &&
                 player.y + player.size - 4 > pillarBottom - h && player.y + 4 < pillarBottom) {
@@ -2106,23 +2106,21 @@ function drawEditorCanvas() {
 
     editorDraft.spikes.forEach(sp => {
         const sx = toSX(sp.x);
-        const sy = sp.inverted ? toSY(CEILING_Y) : EDITOR_GROUND_Y;
-        const h = (sp.sizeType === 'mini' ? 18 : 30);
-        eCtx.fillStyle = '#ff595e';
-        eCtx.strokeStyle = '#fff';
-        eCtx.beginPath();
+        const sy = sp.y===undefined?(sp.inverted?toSY(CEILING_Y):EDITOR_GROUND_Y):toSY(sp.y);
+        const h=(sp.sizeType==='mini'?18:30)*(sp.scale||1);
+        eCtx.save();eCtx.globalAlpha=sp.alpha===undefined?1:sp.alpha;eCtx.translate(sx+15,sy);eCtx.rotate(sp.rotation||0);
+        eCtx.fillStyle=sp.color||'#ff595e';eCtx.strokeStyle='#fff';eCtx.beginPath();
         if (sp.inverted) {
-            eCtx.moveTo(sx, sy);
-            eCtx.lineTo(sx + 15, sy + h);
-            eCtx.lineTo(sx + 30, sy);
+            eCtx.moveTo(-15, 0);
+            eCtx.lineTo(0, h);
+            eCtx.lineTo(15, 0);
         } else {
-            eCtx.moveTo(sx, sy);
-            eCtx.lineTo(sx + 15, sy - h);
-            eCtx.lineTo(sx + 30, sy);
+            eCtx.moveTo(-15, 0);
+            eCtx.lineTo(0, -h);
+            eCtx.lineTo(15, 0);
         }
         eCtx.closePath();
-        eCtx.fill();
-        eCtx.stroke();
+        eCtx.fill();eCtx.stroke();eCtx.restore();
     });
 
     editorDraft.pads.forEach(pd => {
@@ -2150,10 +2148,10 @@ function drawEditorCanvas() {
     });
 
     editorDraft.portals.forEach(pt => {
-        const sx = toSX(pt.x);
-        eCtx.strokeStyle = pt.type === 'ship' ? '#38bdf8' : '#80ed99';
-        eCtx.lineWidth = 3;
-        eCtx.strokeRect(sx, EDITOR_GROUND_Y - 78, 32, 78);
+        const sx=toSX(pt.x),bottom=pt.y===undefined?EDITOR_GROUND_Y:toSY(pt.y),scale=pt.scale||1;
+        eCtx.save();eCtx.globalAlpha=pt.alpha===undefined?1:pt.alpha;eCtx.translate(sx+16,bottom-39*scale);eCtx.rotate(pt.rotation||0);
+        eCtx.strokeStyle=pt.color|| (pt.type==='ship'?'#38bdf8':'#80ed99');eCtx.lineWidth=3;
+        eCtx.strokeRect(-16*scale,-39*scale,32*scale,78*scale);eCtx.restore();
     });
 
     editorDraft.triggers.forEach(tr => {
