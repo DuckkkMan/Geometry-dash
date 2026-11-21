@@ -88,6 +88,17 @@ function drawModeIcon(c,mode,x,y,size,rotation,skin) {
     for(let a=0;a<Math.PI*2;a+=Math.PI/3){c.beginPath();c.moveTo(Math.cos(a)*10,Math.sin(a)*10);c.lineTo(Math.cos(a)*23,Math.sin(a)*23);c.stroke();}
     c.fillStyle=s.secondary; c.beginPath(); c.arc(-5,-3,2.5,0,Math.PI*2); c.arc(5,-3,2.5,0,Math.PI*2); c.fill();
   }
+  // Variações reais de rosto/decoração para os oito ícones de cada modo.
+  const variant=(Number(s.model)||0)%8;
+  c.fillStyle=s.secondary; c.strokeStyle='#07101d'; c.lineWidth=2;
+  if(variant===0){c.fillRect(-12,-7,7,7);c.fillRect(5,-7,7,7);}
+  else if(variant===1){c.beginPath();c.arc(-8,-4,4,0,Math.PI*2);c.arc(8,-4,4,0,Math.PI*2);c.fill();}
+  else if(variant===2){c.fillRect(-13,-8,10,4);c.fillRect(3,-8,10,4);c.fillRect(-7,7,14,4);}
+  else if(variant===3){c.beginPath();c.moveTo(-13,-7);c.lineTo(-4,-2);c.lineTo(-13,2);c.fill();c.beginPath();c.moveTo(13,-7);c.lineTo(4,-2);c.lineTo(13,2);c.fill();}
+  else if(variant===4){c.fillRect(-12,-5,24,5);c.fillRect(-8,7,16,3);}
+  else if(variant===5){c.beginPath();c.arc(0,0,8,0,Math.PI*2);c.stroke();}
+  else if(variant===6){c.fillRect(-14,-10,28,3);c.fillRect(-14,8,28,3);}
+  else {c.beginPath();c.moveTo(-12,-8);c.lineTo(-5,-1);c.lineTo(-12,6);c.moveTo(12,-8);c.lineTo(5,-1);c.lineTo(12,6);c.stroke();}
   c.restore();
 }
 
@@ -200,9 +211,9 @@ player.jump=function() {
   if(playerMode==='cube'||playerMode==='robot') originalPlayerJump();
 };
 player.draw=function() {
-  if(playerMode==='cube') { originalPlayerDraw(); return; }
-  if(playerMode==='ship') { originalPlayerDraw(); return; }
-  drawModeIcon(ctx,playerMode,this.x,this.y,this.size,this.rotation,modeSkins[activeSkinMode] && activeSkinMode===playerMode ? currentModeSkin() : modeSkins[playerMode]);
+  if(playerMode==='cube') { drawCubeSkin(ctx,this.x,this.y,this.size,this.rotation,modeSkins.cube); return; }
+  if(playerMode==='ship') { drawShipPlayer(ctx,this.x,this.y,this.size,this.dy,modeSkins.ship); return; }
+  drawModeIcon(ctx,playerMode,this.x,this.y,this.size,this.rotation,modeSkins[playerMode]);
 };
 const originalStartAttempt=startAttempt;
 startAttempt=function(countNewAttempt=true) {
@@ -262,6 +273,14 @@ drawEditorCanvas=function() {
 renderEditorPalettes();
 
 // === GARAGEM DE ÍCONES MULTIMODO ===
+const originalRenderSkinUI=renderSkinUI;
+renderSkinUI=function() {
+  originalRenderSkinUI();
+  const icon=document.getElementById('skin-btn-icon');
+  if(icon)drawModeIcon(icon.getContext('2d'),activeSkinMode,4,4,36,0,modeSkins[activeSkinMode]);
+  const preview=document.getElementById('skin-preview');
+  if(preview){const pc=preview.getContext('2d');pc.clearRect(0,0,80,80);drawModeIcon(pc,activeSkinMode,12,12,56,0,modeSkins[activeSkinMode]);}
+};
 function renderModeGarage() {
   const garage=document.querySelector('.garage-box');
   if(!garage)return;
@@ -411,6 +430,11 @@ editorCanvas.addEventListener('pointerup',()=>{editorCanvas.dataset.moving='0';}
 const oldDrawEditor2=drawEditorCanvas;
 drawEditorCanvas=function(){
   oldDrawEditor2();
+  // Guia visual permanente do personagem inicial no editor.
+  const guideX=160-editorScrollX+80, guideY=(GROUND_Y-BLOCK_SIZE)*EDITOR_SCALE_Y+22;
+  eCtx.save();eCtx.strokeStyle='rgba(255,255,255,.65)';eCtx.setLineDash([5,5]);eCtx.lineWidth=2;
+  eCtx.beginPath();eCtx.moveTo(guideX-70,guideY);eCtx.lineTo(guideX+2,guideY);eCtx.stroke();eCtx.setLineDash([]);
+  drawModeIcon(eCtx,'cube',guideX-22,guideY-22,44,0,modeSkins.cube);eCtx.restore();
   if(selectedEditorObject){
     const o=selectedEditorObject.obj,sx=o.x-editorScrollX+80,sy=(o.y===undefined?GROUND_Y-40:o.y)*EDITOR_SCALE_Y;
     eCtx.save();eCtx.strokeStyle='#fff';eCtx.lineWidth=2;eCtx.setLineDash([5,4]);eCtx.strokeRect(sx-9,sy-22,Math.max(34,(o.w||30)+18),44);eCtx.restore();
@@ -483,6 +507,9 @@ if(mobileHint)mobileHint.textContent='PC: Espaço/clique para jogar. Celular: to
 const originalApplyPlatform=applyPlatformSettingsUI;
 applyPlatformSettingsUI=function(){originalApplyPlatform();canvas.style.touchAction='none';};
 
+// Os controles antigos de skin ficam ocultos: a garagem nova substitui esses quatro slots.
+document.querySelectorAll('#skin-models,.color-section').forEach(el=>el.style.display='none');
+renderSkinUI();
 // Refresh card and garage after expansion.
 updateLevelCard();
 renderModeGarage();
