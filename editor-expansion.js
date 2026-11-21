@@ -828,8 +828,7 @@ function addKeyboardEditorShortcuts() {
   });
 }
 const oldSave=saveEditorDraftToCreations;
-saveEditorDraftToCreations=function(){ensureDraftSchema(editorDraft);syncStageSettingsIfPresent();oldSave();};
-function syncStageSettingsIfPresent(){if($('stage-start-mode'))syncStageSettings();}
+saveEditorDraftToCreations=function(){ensureDraftSchema(editorDraft);oldSave();};
 const oldOpen=openEditorWithLevel;
 openEditorWithLevel=function(level){oldOpen(level);ensureDraftSchema(editorDraft);selectedObjects=[];selectedEditorObject=null;refreshInspector();};
 const oldRenderPalettes=renderEditorPalettes;
