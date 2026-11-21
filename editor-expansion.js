@@ -109,7 +109,14 @@ function allEditorArrays(draft) {
     .map(key => ({key,items:Array.isArray(draft[key])?draft[key]:[]}));
 }
 function objectCenter(obj) {
-  return {x:Number(obj.x)||0,y:Number(obj.y===undefined?GROUND_Y-45:obj.y)};
+  let y=obj.y;
+  if(y===undefined){
+    if(obj.cooldown!==undefined)y=GROUND_Y-5;
+    else if(obj.h!==undefined)y=GROUND_Y-(Number(obj.h)||90)/2;
+    else if(obj.type)y=GROUND_Y-PORTAL_HEIGHT/2;
+    else y=GROUND_Y-45;
+  }
+  return {x:Number(obj.x)||0,y:Number(y)};
 }
 function objectGroupList(obj) {
   if (Array.isArray(obj.groups)) return obj.groups.map(String);
@@ -536,7 +543,7 @@ const PAD_COLOR_MAP={yellow:'#ffe600',pink:'#ff4fd8',red:'#ef4444',blue:'#38bdf8
 const oldDrawPad=drawPad;
 drawPad=function(pad,screenX){
   const color=PAD_COLOR_MAP[pad.color]||(/^#[0-9a-f]{6}$/i.test(pad.color||'')?pad.color:null);if(!color){oldDrawPad(pad,screenX);return;}
-  const w=Number(pad.width)||36,h=Number(pad.height)||11,y=GROUND_Y-h;
+  const w=Number(pad.width)||36,h=Number(pad.height)||11,y=pad.y===undefined?GROUND_Y-h:pad.y-h/2;
   if(screenX+w<-40||screenX>canvas.width+40)return;
   ctx.save();ctx.fillStyle=color+'55';ctx.fillRect(screenX-4,y-8,w+8,h+10);
   ctx.fillStyle=color;ctx.strokeStyle='#000';ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(screenX,y,w,h,[6,6,2,2]);ctx.fill();ctx.stroke();ctx.restore();
@@ -544,7 +551,7 @@ drawPad=function(pad,screenX){
 const oldCheckPad=checkPadCollision;
 checkPadCollision=function(p,pad,screenX){
   if(pad.cooldown>0){pad.cooldown--;return;}
-  const w=Number(pad.width)||36,h=Number(pad.height)||14,padTop=GROUND_Y-h;
+  const w=Number(pad.width)||36,h=Number(pad.height)||14,padTop=pad.y===undefined?GROUND_Y-h:pad.y-h/2;
   const overlaps=p.x+p.size>screenX+3&&p.x<screenX+w-3&&p.y+p.size>=padTop&&p.y<GROUND_Y;
   if(!overlaps)return;
   pad.cooldown=12;playerMode='cube';p.grounded=false;
@@ -591,14 +598,14 @@ drawPortal=function(portal,screenX){
 };
 const oldPortalCheck=checkPortalTrigger;
 checkPortalTrigger=function(p,portal,screenX){
-  if(['ship','cube'].includes(portal.type)){oldPortalCheck(p,portal,screenX);return;}
   if(portal.triggered)return;
-  const top=GROUND_Y-PORTAL_HEIGHT,bottom=GROUND_Y;
+  const top=portal.y===undefined?GROUND_Y-PORTAL_HEIGHT:portal.y-PORTAL_HEIGHT/2,bottom=top+PORTAL_HEIGHT;
   const overlaps=p.x+p.size>screenX+6&&p.x<screenX+PORTAL_WIDTH-6&&p.y+p.size>top&&p.y<bottom;
   if(!overlaps)return;
   portal.triggered=true;
-  if(['ball','ufo','wave','robot','spider'].includes(portal.type))playerMode=portal.type;
+  if(['cube','ship','ball','ufo','wave','robot','spider'].includes(portal.type))playerMode=portal.type;
   else if(portal.type==='gravity'||portal.type==='mirror'){gravityMultiplier*=-1;p.dy=0;}
+  if(portal.type==='ship'){p.dy=Math.min(p.dy,-3);p.grounded=false;}
   playSfx('portal');spawnEndParticles(screenX+PORTAL_WIDTH/2,p.y+p.size/2,16,true);
 };
 const oldDrawPlatform=drawPlatform;
@@ -611,10 +618,9 @@ drawPlatform=function(plat,screenX){
 };
 const oldDrawPillar=drawPillar;
 drawPillar=function(pillar,screenX){
-  if(!pillar.color){oldDrawPillar(pillar,screenX);return;}
-  const w=pillar.w||34,h=pillar.h||90;if(screenX+w<-50||screenX>canvas.width+50)return;
-  ctx.save();ctx.fillStyle=pillar.color;ctx.strokeStyle='rgba(255,255,255,.65)';ctx.lineWidth=2;
-  ctx.fillRect(screenX,GROUND_Y-h,w,h);ctx.strokeRect(screenX,GROUND_Y-h,w,h);ctx.restore();
+  const w=pillar.w||34,h=pillar.h||90,top=pillar.y===undefined?GROUND_Y-h:pillar.y-h/2;if(screenX+w<-50||screenX>canvas.width+50)return;
+  ctx.save();ctx.fillStyle=pillar.color||'rgba(255,255,255,.14)';ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
+  ctx.fillRect(screenX,top,w,h);ctx.strokeRect(screenX,top,w,h);ctx.restore();
 };
 const oldDrawSaw=drawSaw;
 drawSaw=function(saw,screenX){
