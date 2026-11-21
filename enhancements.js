@@ -946,4 +946,36 @@ renderPagedAssetCategory();
 setEditorCornerMode('block');
 syncTransformControls();
 
+
+/* === PATCH: MOEDAS SECRETAS PERSISTENTES === */
+function updateSecretCoinCounter() {
+    const count=secretCoins.size;
+    document.querySelectorAll('.secret-coin-counter').forEach(el=>el.textContent='◆ '+count+' MOEDA(S) SECRETA(S)');
+}
+window.updateSecretCoinCounter=updateSecretCoinCounter;
+function setupSecretCoinSettings() {
+    const box=document.querySelector('#settings-screen .settings-box');
+    if(!box||document.getElementById('reset-secret-coins'))return;
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;flex-direction:column;gap:9px;margin-top:20px;padding:12px;border:2px solid #167eb4;border-radius:10px;background:#071c32;color:#eaf8ff;font:900 11px Arial';
+    const label=document.createElement('div');label.className='secret-coin-counter';
+    const reset=document.createElement('button');reset.id='reset-secret-coins';reset.type='button';reset.textContent='RESETAR MOEDAS SECRETAS';
+    reset.style.cssText='padding:10px;border:2px solid #03101e;border-radius:7px;background:linear-gradient(180deg,#168dcc,#07518a);color:white;font:900 10px Orbitron,sans-serif;cursor:pointer';
+    reset.addEventListener('click',()=>{
+        if(!confirm('Tem certeza que deseja apagar todas as moedas secretas coletadas?'))return;
+        secretCoins.clear();writeSaveData();updateSecretCoinCounter();label.textContent='0 MOEDAS SECRETAS';
+    });
+    row.append(label,reset);box.appendChild(row);
+}
+const menuCoinCounter=document.createElement('div');
+menuCoinCounter.className='secret-coin-counter';
+menuCoinCounter.style.cssText='position:absolute;top:18px;left:18px;z-index:30;padding:7px 11px;border:2px solid #063b73;border-radius:8px;background:linear-gradient(180deg,#43d8ff,#0875b9);color:#fff;font:900 12px Orbitron,sans-serif;text-shadow:0 2px #063b73;box-shadow:0 3px #000';
+document.getElementById('main-menu')?.appendChild(menuCoinCounter);
+const settingsCoinCounter=menuCoinCounter.cloneNode(true);
+settingsCoinCounter.style.position='static';
+settingsCoinCounter.style.display='block';
+document.querySelector('#settings-screen .settings-box')?.appendChild(settingsCoinCounter);
+setupSecretCoinSettings();
+updateSecretCoinCounter();
+
 })();
