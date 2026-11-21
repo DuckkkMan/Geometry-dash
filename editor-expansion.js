@@ -99,6 +99,7 @@ const GRID_PREF_KEY = 'gd_web_editor_grid_v1';
 let gridLineStrength = 'normal';
 let gridSettingsOpen = false;
 let eraseGestureMode = 'click';
+let selectedDragState = null;
 
 try {
   const savedGrid = JSON.parse(localStorage.getItem(GRID_PREF_KEY) || 'null');
@@ -594,8 +595,30 @@ editAtEditorPointer = function (pointerEvent) {
   expandEditorLevelIfNeeded(point.x);
 
   if (editorToolMode === 'select') {
-    const hit = findObjectAt(point);
-    selectedObjects = hit ? [hit] : [];
+    if (!selectedDragState) {
+      const hit = findObjectAt(point);
+      selectedObjects = hit ? [hit] : [];
+      selectedDragState = hit ? {
+        key: hit.key, obj: hit.obj, startX: point.x, startY: point.y,
+        objectX: Number(hit.obj.x) || 0, objectY: Number.isFinite(Number(hit.obj.y)) ? Number(hit.obj.y) : objectCenter(hit.obj).y,
+        moved: false
+      } : { empty: true };
+      refreshInspector();
+      return;
+    }
+    if (selectedDragState.empty) return;
+    const dx = point.x - selectedDragState.startX;
+    const dy = point.y - selectedDragState.startY;
+    if (!selectedDragState.moved && Math.hypot(dx, dy) < 5) return;
+    if (!selectedDragState.moved) {
+      recordHistory();
+      selectedDragState.moved = true;
+    }
+    const obj = selectedDragState.obj;
+    obj.x = Math.max(0, Math.round((selectedDragState.objectX + dx) / gridUnit) * gridUnit);
+    if (obj.y !== undefined || ['blocks','platforms','orbs','saws','coins','spikes','decorations'].includes(selectedDragState.key)) {
+      obj.y = Math.round((selectedDragState.objectY + dy) / gridUnit) * gridUnit;
+    }
     refreshInspector();
     return;
   }
@@ -614,6 +637,8 @@ editAtEditorPointer = function (pointerEvent) {
 
   oldEditAtPointer(pointerEvent);
 };
+window.addEventListener('pointerup', () => { selectedDragState = null; });
+window.addEventListener('pointercancel', () => { selectedDragState = null; });
 
 // Mantém a grade desenhada exatamente na mesma unidade (44px) e deslocamento (editorScrollX) que o clique
 const oldDrawEditor = drawEditorCanvas;
