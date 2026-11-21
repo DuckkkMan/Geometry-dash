@@ -1795,3 +1795,23 @@ canvas {
     #editor-tool-rail { top: 48px; }
     #editor-inspector { bottom: 110px; }
 }
+
+
+/* Biblioteca de assets expandida: busca, cartões compactos e rolagem suave */
+#level-editor #editor-library { display:flex; flex-direction:column; min-width:0; }
+#level-editor .editor-library-head { flex:0 0 auto; }
+#level-editor .editor-asset-search {
+  flex:0 0 25px; width:min(340px,100%); align-self:center; box-sizing:border-box;
+  border:1px solid #3977ad; border-radius:5px; padding:4px 9px;
+  background:#07172b; color:#effaff; font:10px 'Orbitron',sans-serif;
+  outline:none;
+}
+#level-editor .editor-asset-search:focus { border-color:#ffe600; box-shadow:0 0 0 2px #ffe60033; }
+#level-editor .editor-asset-grid { grid-template-columns:repeat(auto-fill,minmax(68px,1fr)); overflow-x:hidden; overflow-y:auto; }
+#level-editor .editor-asset-card { min-width:0; min-height:58px; height:68px; padding:3px; }
+#level-editor .editor-asset-card canvas { width:42px; height:42px; flex:0 0 42px; }
+#level-editor .editor-asset-card span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:8px; }
+@media (max-width:700px) {
+  #level-editor .editor-asset-search { flex-basis:22px; font-size:9px; }
+  #level-editor .editor-asset-card { height:64px; }
+}
