@@ -269,9 +269,10 @@ function applyInspector() {
   recordHistory();
   const x=Number($('inspect-x').value),y=Number($('inspect-y').value);
   const rot=Number($('inspect-rotation').value),scale=Number($('inspect-scale').value)/100;
-  records.forEach((s,index)=>{
-    if(Number.isFinite(x))s.obj.x=x+(index?0:0);
-    if(Number.isFinite(y))s.obj.y=y;
+  const first=records[0].obj,dx=Number.isFinite(x)?x-(first.x||0):0,dy=Number.isFinite(y)?y-(first.y===undefined?GROUND_Y-45:first.y):0;
+  records.forEach(s=>{
+    if(Number.isFinite(x))s.obj.x=(s.obj.x||0)+dx;
+    if(Number.isFinite(y))s.obj.y=(s.obj.y===undefined?GROUND_Y-45:s.obj.y)+dy;
     if(Number.isFinite(rot))s.obj.rotation=rot*Math.PI/180;
     if(Number.isFinite(scale))applyObjectScale(s.obj,Math.max(.1,Math.min(5,scale)));
     assignGroups(s.obj,$('inspect-groups').value);
