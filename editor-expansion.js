@@ -385,6 +385,7 @@ function addAssetAtWorld(x,y) {
   } else {
     editorDraft.decorations.push(Object.assign(base,{kind:selectedAssetId,color:item.color,gameplay:false}));
   }
+  updateAutoFinish();drawEditorCanvas();
   return true;
 }
 const oldPlace = placeSelectedAtWorldCoord;
@@ -918,7 +919,7 @@ const oldRenderPalettes=renderEditorPalettes;
 renderEditorPalettes=function(){oldRenderPalettes();renderAssetLibrary();};
 const oldSyncTools=syncEditorToolButtons;
 syncEditorToolButtons=function(){oldSyncTools();const bar=$('editor-command-bar');if(bar)bar.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===editorToolMode));};
-addCategoryPanel();addEditorCommandBar();addInspector();addAdvancedTriggerEditor();installSelectionInput();addKeyboardEditorShortcuts();
+addCategoryPanel();addEditorCommandBar();addInspector();addAdvancedTriggerEditor();installSelectionInput();addKeyboardEditorShortcuts();installGameWindowResize();
 ensureDraftSchema(editorDraft);
 renderAssetLibrary();
 })();
