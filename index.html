@@ -108,7 +108,7 @@
                 <div class="editor-top-center">
                     <button id="tool-place-btn" class="mini-btn active" type="button">COLOCAR</button>
                     <button id="tool-erase-btn" class="mini-btn" type="button">APAGAR</button>
-                    <button id="tool-pan-btn" class="mini-btn" type="button">MÃO / MOVER</button>
+                    <button id="tool-pan-btn" class="mini-btn" type="button">ARRASTAR CÂMERA</button>
                     <button id="editor-grid-btn" class="mini-btn active" type="button">GRID: ON</button>
                     <button id="editor-clear-btn" class="mini-btn warn" type="button">LIMPAR</button>
                 </div>
@@ -131,7 +131,16 @@
                 </div>
 
                 <div id="editor-panel-assets" class="editor-tab-content">
-                    <div id="editor-palette" class="editor-palette"></div>
+                    <div class="asset-browser">
+                        <nav id="asset-categories" class="asset-categories" aria-label="Categorias de objetos"></nav>
+                        <section class="asset-browser-content">
+                            <div class="asset-browser-heading">
+                                <strong id="asset-category-title">TODOS OS OBJETOS</strong>
+                                <span id="asset-category-count">Selecione um objeto para colocar na fase</span>
+                            </div>
+                            <div id="editor-palette" class="editor-palette"></div>
+                        </section>
+                    </div>
                 </div>
 
                 <div id="editor-panel-triggers" class="editor-tab-content hidden">
