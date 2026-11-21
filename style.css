@@ -1557,3 +1557,48 @@ canvas {
  #editor-tool-rail button b{font-size:17px}
  #editor-inspector.editor-inspector-floating{width:165px;right:5px;top:52px}
 }
+
+
+/* v1.2 editor correction: one clean asset dock and square editor cells */
+#level-editor .editor-bottom-panel{
+  height:126px;min-height:126px;flex:0 0 126px;
+  display:flex;flex-direction:column;padding:0;overflow:hidden;
+}
+#editor-library{
+  box-sizing:border-box;display:flex;flex:1 1 auto;flex-direction:column;
+  width:100%;height:100%;min-height:0;gap:2px;padding:3px 8px 4px;
+}
+#editor-library .editor-library-head{
+  height:26px;min-height:26px;flex:0 0 26px;margin:0;gap:12px;
+}
+#editor-library .editor-library-head>div{min-width:110px}
+#editor-library .editor-library-head strong{font-size:12px}
+#editor-library .editor-library-head button{width:30px;height:24px}
+#editor-library .editor-asset-grid{
+  display:flex;flex:1 1 auto;align-items:center;min-height:0;
+  gap:7px;overflow-x:auto;overflow-y:hidden;padding:1px 2px;
+}
+#editor-library .editor-asset-card{
+  box-sizing:border-box;flex:0 0 66px;width:66px;height:66px;min-height:66px;
+  padding:2px;gap:1px;border-width:2px;
+}
+#editor-library .editor-asset-card canvas{width:40px;height:40px}
+#editor-library .editor-selected-label{
+  height:10px;min-height:10px;flex:0 0 10px;line-height:10px;
+}
+#level-editor .editor-main-area{min-height:0}
+#level-editor #editorCanvas{image-rendering:auto}
+#editor-tool-rail{top:56px}
+#editor-delete-panel{top:252px}
+@media(max-width:700px){
+  #level-editor .editor-bottom-panel{height:112px;min-height:112px;flex-basis:112px}
+  #editor-library{padding:2px 5px 3px;gap:1px}
+  #editor-library .editor-library-head{height:23px;min-height:23px;flex-basis:23px;gap:8px}
+  #editor-library .editor-library-head strong{font-size:10px}
+  #editor-library .editor-library-head button{width:26px;height:21px;font-size:12px}
+  #editor-library .editor-asset-card{flex-basis:57px;width:57px;height:58px;min-height:58px}
+  #editor-library .editor-asset-card canvas{width:34px;height:34px}
+  #editor-library .editor-selected-label{height:9px;min-height:9px;flex-basis:9px;line-height:9px}
+  #editor-tool-rail{top:50px}
+  #editor-delete-panel{top:220px;left:66px;width:min(190px,calc(100% - 74px))}
+}
