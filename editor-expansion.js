@@ -509,6 +509,8 @@ function refreshInspector() {
     if ($(id)) $(id).disabled = !first;
   });
   if ($('inspect-y')) $('inspect-y').disabled = !first || ['spikes', 'pads', 'pillars', 'portals', 'triggers'].includes(first.key);
+  if ($('inspect-rotation')) $('inspect-rotation').disabled = !first || first.key !== 'decorations';
+  if ($('inspect-scale')) $('inspect-scale').disabled = !first || first.key !== 'decorations';
   if (!first) return;
   $('inspect-x').value = Math.round(first.obj.x || 0);
   $('inspect-y').value = Math.round(first.obj.y === undefined ? GROUND_Y - 45 : first.obj.y);
@@ -534,8 +536,8 @@ function applyInspector() {
     if (Number.isFinite(y) && !['spikes', 'pads', 'pillars', 'portals', 'triggers'].includes(s.key)) {
       s.obj.y = Math.round(((s.obj.y === undefined ? GROUND_Y - 45 : s.obj.y) + dy) / gridUnit) * gridUnit;
     }
-    if (Number.isFinite(rot)) s.obj.rotation = (rot * Math.PI) / 180;
-    if (Number.isFinite(scale)) s.obj.scale = Math.max(0.1, Math.min(5, scale));
+    if (s.key === 'decorations' && Number.isFinite(rot)) s.obj.rotation = (rot * Math.PI) / 180;
+    if (s.key === 'decorations' && Number.isFinite(scale)) s.obj.scale = Math.max(0.1, Math.min(5, scale));
     assignGroups(s.obj, $('inspect-groups').value);
   });
   drawEditorCanvas();
@@ -705,7 +707,16 @@ openEditorWithLevel = function (level) {
   localUndoStack.length = 0;
   localRedoStack.length = 0;
   selectedObjects = [];
-  originalOpenEditorWithLevel.call(this, level);
+  selectedDragState = null;
+
+  // Compatibilidade com fases antigas: garante todas as listas antes de usar a biblioteca nova.
+  const safeLevel = JSON.parse(JSON.stringify(level || createEmptyEditorDraft()));
+  ['spikes', 'platforms', 'blocks', 'pads', 'orbs', 'saws', 'pillars', 'coins',
+   'portals', 'triggers', 'decorations', 'structures'].forEach(key => {
+    if (!Array.isArray(safeLevel[key])) safeLevel[key] = [];
+  });
+  if (!Number.isFinite(Number(safeLevel.finishX))) safeLevel.finishX = 4400;
+  originalOpenEditorWithLevel.call(this, safeLevel);
 };
 $('editor-clear-btn')?.addEventListener('click', () => recordHistory(), true);
 
