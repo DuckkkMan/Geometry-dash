@@ -83,7 +83,7 @@ let localHistoryLock=false;
 let inspectorLock = false;
 let dragState = null;
 let snapEnabled = true;
-let gridUnit = 38;
+let gridUnit = 44;
 let editorZoom = 1;
 const zoomBuffer=document.createElement('canvas');zoomBuffer.width=editorCanvas.width;zoomBuffer.height=editorCanvas.height;
 const zoomBufferCtx=zoomBuffer.getContext('2d');
@@ -153,30 +153,26 @@ function redoLocalEditor() {
   localUndoStack.push(JSON.stringify(editorDraft));restoreLocalSnapshot(localRedoStack.pop());
 }
 function addCategoryPanel() {
-  const bottom = editorRoot.querySelector('.editor-bottom-panel');
-  if (!bottom || $('editor-library')) return;
-  const tabBar = bottom.querySelector('.editor-tabs');
-  const oldAssets = $('editor-panel-assets');
-  const oldTriggers = $('editor-panel-triggers');
-  if (oldAssets) oldAssets.classList.add('hidden');
-  if (oldTriggers) oldTriggers.classList.add('hidden');
-  tabBar.querySelectorAll('.editor-tab').forEach(t=>t.classList.remove('active'));
-  const tab = document.createElement('button');
-  tab.type='button';tab.className='editor-tab active';tab.dataset.tab='library';tab.textContent='ASSET LIBRARY';
-  tabBar.insertBefore(tab,tabBar.firstChild);
-  const panel=document.createElement('div');panel.id='editor-library';panel.className='editor-tab-content';
-  panel.innerHTML='<div class="editor-library-layout"><nav class="editor-category-list" aria-label="Asset categories"></nav><div class="editor-library-main"><div class="editor-library-head"><strong id="editor-category-title">Blocks</strong><span id="editor-asset-count"></span><span id="editor-selected-name">Select an asset</span></div><div class="editor-asset-grid"></div></div></div>';
-  bottom.insertBefore(panel,oldAssets);
-  tab.addEventListener('click',()=>activateEditorPanel('library',tab));
-  tabBar.querySelectorAll('.editor-tab').forEach(t=>t.addEventListener('click',()=>activateEditorPanel(t.dataset.tab,t)));
+  const bottom=editorRoot.querySelector('.editor-bottom-panel');
+  if(!bottom||$('editor-library'))return;
+  bottom.querySelector('.editor-tabs')?.classList.add('hidden');
+  ['editor-panel-assets','editor-panel-triggers','editor-panel-style'].forEach(id=>$(id)?.classList.add('hidden'));
+  const panel=document.createElement('section');
+  panel.id='editor-library';
+  panel.innerHTML='<div class="editor-library-head"><button id="editor-category-prev" type="button" aria-label="Categoria anterior">◀</button><div><small>CATEGORIA</small><strong id="editor-category-title">Blocks</strong></div><span id="editor-asset-count"></span><button id="editor-category-next" type="button" aria-label="Próxima categoria">▶</button></div><div class="editor-asset-grid"></div><div class="editor-selected-label" id="editor-selected-name">Selecione um objeto</div>';
+  bottom.appendChild(panel);
+  $('editor-category-prev').addEventListener('click',()=>changeEditorCategory(-1));
+  $('editor-category-next').addEventListener('click',()=>changeEditorCategory(1));
   renderAssetLibrary();
 }
-function activateEditorPanel(target,clicked) {
-  editorRoot.querySelectorAll('.editor-tabs .editor-tab').forEach(t=>t.classList.toggle('active',t===clicked));
-  ['library','assets','triggers','style'].forEach(key=>{
-    const el=key==='library'?$('editor-library'):$('editor-panel-'+key);
-    if(el)el.classList.toggle('hidden',key!==target);
-  });
+function changeEditorCategory(direction){
+  const index=EXTRA_CATEGORIES.findIndex(c=>c.id===activeCategory);
+  activeCategory=EXTRA_CATEGORIES[(index+direction+EXTRA_CATEGORIES.length)%EXTRA_CATEGORIES.length].id;
+  renderAssetLibrary();
+}
+function activateEditorPanel(target){
+  const panel=$('editor-library');
+  if(panel)panel.classList.toggle('hidden',target!=='library');
 }
 function drawAssetThumb(ctx,item,size) {
   const c=item.color||'#38bdf8';ctx.save();ctx.translate(size/2,size/2);
@@ -213,67 +209,78 @@ function drawAssetThumb(ctx,item,size) {
   ctx.restore();
 }
 function renderAssetLibrary() {
-  const nav=editorRoot.querySelector('.editor-category-list'),grid=editorRoot.querySelector('.editor-asset-grid');
-  if(!nav||!grid)return;
-  nav.replaceChildren();grid.replaceChildren();
-  EXTRA_CATEGORIES.forEach(cat=>{
-    const b=document.createElement('button');b.type='button';b.className='editor-category-btn'+(activeCategory===cat.id?' active':'');
-    b.innerHTML='<span class="editor-category-icon">'+cat.icon+'</span><span>'+cat.name+'</span><small>'+cat.items.length+'</small>';
-    b.addEventListener('click',()=>{activeCategory=cat.id;renderAssetLibrary();});nav.appendChild(b);
-  });
+  const grid=editorRoot.querySelector('.editor-asset-grid');
+  if(!grid)return;
+  grid.replaceChildren();
   const cat=EXTRA_CATEGORIES.find(c=>c.id===activeCategory)||EXTRA_CATEGORIES[0];
   $('editor-category-title').textContent=cat.name;
-  $('editor-asset-count').textContent=cat.items.length+' ASSETS';
+  $('editor-asset-count').textContent=cat.items.length+' OBJETOS';
   cat.items.forEach(raw=>{
-    const item=ASSET_BY_ID[raw[0]],b=document.createElement('button');b.type='button';
-    b.className='editor-asset-card'+(selectedAssetId===item.id?' selected':'');
-    const cv=document.createElement('canvas');cv.width=64;cv.height=64;drawAssetThumb(cv.getContext('2d'),item,56);
+    const item=ASSET_BY_ID[raw[0]],b=document.createElement('button');
+    b.type='button';b.className='editor-asset-card'+(selectedAssetId===item.id?' selected':'');
+    const cv=document.createElement('canvas');cv.width=64;cv.height=64;
+    drawAssetThumb(cv.getContext('2d'),item,56);
     const name=document.createElement('span');name.textContent=item.label;
     b.append(cv,name);
     b.addEventListener('click',()=>{
       selectedAssetId=item.id;editorSelectedItem=item.id;editorToolMode='place';
       $('editor-selected-name').textContent=item.label;
-      if(item.type==='trigger'||item.type==='legacy_trigger')activateEditorPanel('library',editorRoot.querySelector('[data-tab="library"]'));
-      syncEditorToolButtons();renderAssetLibrary();
+      syncEditorToolButtons();renderAssetLibrary();showEditorLibrary(true);
     });
     grid.appendChild(b);
   });
-  $('editor-selected-name').textContent=(ASSET_BY_ID[selectedAssetId]||{label:'Select an asset'}).label;
+  $('editor-selected-name').textContent=(ASSET_BY_ID[selectedAssetId]||{label:'Selecione um objeto'}).label;
 }
+function showEditorLibrary(show){
+  const panel=$('editor-library');
+  if(panel)panel.classList.toggle('hidden',!show);
+}
+let eraseGestureMode='drag';
 function addEditorCommandBar() {
   const top=editorRoot.querySelector('.editor-topbar');
-  if(!top||$('editor-command-bar'))return;
-  const bar=document.createElement('div');bar.id='editor-command-bar';bar.className='editor-command-bar';
-  bar.innerHTML='<div class="editor-command-tools"><button data-tool="place" class="editor-command-btn active">PLACE</button><button data-tool="select" class="editor-command-btn">MOVE / SELECT</button><button data-tool="erase" class="editor-command-btn">DELETE</button><button data-tool="pan" class="editor-command-btn">HAND</button></div><div class="editor-command-actions"><button id="editor-duplicate-btn">DUPLICATE</button><button id="editor-mirror-x-btn">FLIP X</button><button id="editor-mirror-y-btn">FLIP Y</button><button id="editor-group-btn">GROUP</button><button id="editor-ungroup-btn">UNGROUP</button><button id="editor-select-group-btn">SELECT GROUP</button><button id="editor-copy-props-btn">COPY PROPS</button><button id="editor-paste-props-btn">PASTE PROPS</button><label class="editor-zoom-control">ZOOM <input id="editor-zoom-range" type="range" min="0.55" max="1.8" step="0.05" value="1"><span id="editor-zoom-label">100%</span></label><label class="editor-snap-control"><input id="editor-snap-toggle" type="checkbox" checked> SNAP</label><label class="editor-grid-size-control">GRID <input id="editor-grid-size" type="number" min="8" max="100" step="1" value="38"></label></div>';
-  const bottom=editorRoot.querySelector('.editor-bottom-panel');if(bottom)bottom.insertBefore(bar,bottom.firstChild);else top.insertAdjacentElement('afterend',bar);
-  ['editor-copy-btn','editor-paste-btn','editor-undo-btn','editor-redo-btn'].forEach(id=>{
-    const old=$(id);if(!old)return;const fresh=old.cloneNode(true);old.replaceWith(fresh);
-    if(id==='editor-copy-btn')fresh.addEventListener('click',()=>{clipboardObjects=getSelectionRecords().map(s=>({key:s.key,obj:deepClone(s.obj)}));});
-    else if(id==='editor-paste-btn')fresh.addEventListener('click',()=>{if(!clipboardObjects.length)return;recordHistory();const next=clipboardObjects.map(s=>{const o=deepClone(s.obj);o.id=makeId();o.x=(o.x||0)+gridUnit;editorDraft[s.key].push(o);return {key:s.key,obj:o};});setSelection(next);});
-    else if(id==='editor-undo-btn')fresh.addEventListener('click',undoLocalEditor);
-    else fresh.addEventListener('click',redoLocalEditor);
-  });
-  bar.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{
-    editorToolMode=b.dataset.tool;syncEditorToolButtons();bar.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));
+  if(!top||$('editor-tool-rail'))return;
+  editorRoot.querySelector('.editor-top-center')?.classList.add('hidden');
+  const rail=document.createElement('nav');
+  rail.id='editor-tool-rail';
+  rail.innerHTML='<button type="button" data-tool="place" class="active"><b>＋</b><span>Colocar</span></button><button type="button" data-tool="select"><b>↖</b><span>Editar</span></button><button type="button" data-tool="erase"><b>⌫</b><span>Apagar</span></button>';
+  editorRoot.appendChild(rail);
+  rail.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{
+    editorToolMode=b.dataset.tool;
+    rail.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));
+    showEditorLibrary(editorToolMode==='place');
+    $('editor-delete-panel')?.classList.toggle('hidden',editorToolMode!=='erase');
+    $('editor-inspector')?.classList.toggle('editor-inspector-open',editorToolMode==='select');
+    syncEditorToolButtons();
   }));
-  $('editor-duplicate-btn').addEventListener('click',duplicateSelection);
-  $('editor-mirror-x-btn').addEventListener('click',()=>transformSelection(o=>{o.flipX=!o.flipX;}));
-  $('editor-mirror-y-btn').addEventListener('click',()=>transformSelection(o=>{o.flipY=!o.flipY;}));
-  $('editor-group-btn').addEventListener('click',()=>transformSelection(o=>assignGroups(o, '1')));
-  $('editor-ungroup-btn').addEventListener('click',()=>transformSelection(o=>{o.groups=[];delete o.group;}));
-  $('editor-select-group-btn').addEventListener('click',()=>{const first=getSelectionRecords()[0];if(!first)return;const ids=objectGroupList(first.obj);setSelection(allEditorArrays(editorDraft).flatMap(g=>g.items.map(obj=>({key:g.key,obj}))).filter(s=>objectGroupList(s.obj).some(id=>ids.includes(id))));});
-  let propertyClipboard=null;
-  $('editor-copy-props-btn').addEventListener('click',()=>{const s=getSelectionRecords()[0];if(s)propertyClipboard={rotation:s.obj.rotation||0,scale:s.obj.scale||1,color:s.obj.color||null,groups:objectGroupList(s.obj)};});
-  $('editor-paste-props-btn').addEventListener('click',()=>{if(!propertyClipboard)return;transformSelection(o=>{o.rotation=propertyClipboard.rotation;o.scale=propertyClipboard.scale;if(propertyClipboard.color)o.color=propertyClipboard.color;assignGroups(o,propertyClipboard.groups.join(', '));});});
-  $('editor-zoom-range').addEventListener('input',()=>{editorZoom=Number($('editor-zoom-range').value)||1;$('editor-zoom-label').textContent=Math.round(editorZoom*100)+'%';drawEditorCanvas();});
-  $('editor-snap-toggle').addEventListener('change',()=>{snapEnabled=$('editor-snap-toggle').checked;});
-  $('editor-grid-size').addEventListener('change',()=>{gridUnit=Math.max(8,Math.min(100,Number($('editor-grid-size').value)||38));$('editor-grid-size').value=gridUnit;drawEditorCanvas();});
+  const del=document.createElement('section');
+  del.id='editor-delete-panel';del.className='hidden';
+  del.innerHTML='<strong>APAGAR OBJETOS</strong><div class="editor-delete-modes"><button type="button" data-erase="click" class="active">Clique</button><button type="button" data-erase="drag">Deslize</button></div><label class="editor-clear-slider"><span>Limpar fase</span><input id="editor-clear-swipe" type="range" min="0" max="100" value="0"><small>Deslize até o final para limpar tudo</small></label>';
+  editorRoot.appendChild(del);
+  del.querySelectorAll('[data-erase]').forEach(b=>b.addEventListener('click',()=>{
+    eraseGestureMode=b.dataset.erase;
+    del.querySelectorAll('[data-erase]').forEach(x=>x.classList.toggle('active',x===b));
+  }));
+  $('editor-clear-swipe').addEventListener('input',e=>{
+    if(Number(e.target.value)<98)return;
+    recordHistory();
+    ['spikes','platforms','blocks','pads','orbs','saws','pillars','coins','portals','triggers','decorations','structures'].forEach(k=>editorDraft[k]=[]);
+    selectedObjects=[];selectedEditorObject=null;updateAutoFinish();refreshInspector();drawEditorCanvas();
+    e.target.value=0;
+  });
+  const settings=document.createElement('button');
+  settings.id='editor-level-settings-open';settings.type='button';settings.textContent='⚙';
+  settings.title='Configurações da fase';
+  settings.addEventListener('click',openStageSettings);
+  top.querySelector('.editor-top-right')?.prepend(settings);
+  const undo=$('editor-undo-btn'),redo=$('editor-redo-btn');
+  if(undo)undo.addEventListener('click',undoLocalEditor);
+  if(redo)redo.addEventListener('click',redoLocalEditor);
 }
 function addInspector() {
   const bottom=editorRoot.querySelector('.editor-bottom-panel');
   if(!bottom||$('editor-inspector'))return;
   const panel=document.createElement('aside');panel.id='editor-inspector';panel.innerHTML='<div class="editor-inspector-title">OBJECT INSPECTOR <span id="editor-selection-count">0 selected</span></div><div class="editor-inspector-fields"><label>X<input id="inspect-x" type="number" step="1"></label><label>Y<input id="inspect-y" type="number" step="1"></label><label>ROTATION<input id="inspect-rotation" type="number" step="1" value="0"></label><label>SCALE %<input id="inspect-scale" type="number" min="10" max="500" step="5" value="100"></label><label class="group-field">GROUPS<input id="inspect-groups" type="text" placeholder="Ex.: 1, 2, 10"></label><button id="inspect-apply-btn" type="button">APPLY</button></div>';
-  bottom.insertAdjacentElement('beforebegin',panel);
+  editorRoot.appendChild(panel);panel.classList.add('editor-inspector-floating');
   $('inspect-apply-btn').addEventListener('click',applyInspector);
   ['inspect-x','inspect-y','inspect-rotation','inspect-scale','inspect-groups'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')applyInspector();}));
 }
@@ -383,12 +390,12 @@ function addAssetAtWorld(x,y) {
 const oldPlace = placeSelectedAtWorldCoord;
 placeSelectedAtWorldCoord = function(x,y) {
   if(ASSET_BY_ID[selectedAssetId] && !['spike','mini_spike','ceil_spike','platform','block','pad_yellow','pad_pink','orb_yellow','orb_pink','saw','pillar','coin','portal_ship','portal_cube','trig_speed_fast','trig_speed_norm','trig_bg_purple','trig_shake','trig_low_grav','trig_norm_grav'].includes(selectedAssetId)){
-    recordHistory();addAssetAtWorld(x,y);return;
+    recordHistory();addAssetAtWorld(x,y);updateAutoFinish();drawEditorCanvas();return;
   }
   if(ASSET_BY_ID[selectedAssetId] && ['orb_blue','orb_red','orb_green','orb_black','orb_purple','orb_cyan','orb_dash','pad_red','pad_blue','pad_green','pad_black'].includes(selectedAssetId)){
     recordHistory();addAssetAtWorld(x,y);return;
   }
-  recordHistory();oldPlace.call(this,x,y);
+  recordHistory();oldPlace.call(this,x,y);updateAutoFinish();drawEditorCanvas();
 };
 const oldEditAtPointer=editAtEditorPointer;
 editAtEditorPointer=function(pointerEvent){
@@ -403,12 +410,12 @@ editAtEditorPointer=function(pointerEvent){
   }else if(editorToolMode==='place'&&editorSelectedItem!=='platform'){
     if(!lastEditorDragPoint)placeSelectedAtWorldCoord(point.x,point.y);
     else{
-      const dx=point.x-lastEditorDragPoint.x,dy=point.y-lastEditorDragPoint.y,dist=Math.hypot(dx,dy);
+      const dx=point.x-lastEditorDragPoint.x,dy=point.y-lastEditorDragPoint.y,dist=Math.hypot(dx,dy*EDITOR_SCALE_Y);
       if(dist>=gridUnit*.65){
         const steps=Math.max(1,Math.ceil(dist/gridUnit));
         for(let i=1;i<=steps;i++){
           let x=lastEditorDragPoint.x+dx*i/steps,y=lastEditorDragPoint.y+dy*i/steps;
-          if(snapEnabled){x=Math.round(x/gridUnit)*gridUnit;y=Math.round(y/gridUnit)*gridUnit;}
+          if(snapEnabled){x=Math.round(x/gridUnit)*gridUnit;y=Math.round(y/(gridUnit/EDITOR_SCALE_Y))*(gridUnit/EDITOR_SCALE_Y);}
           placeSelectedAtWorldCoord(x,y);
         }
       }
@@ -418,7 +425,7 @@ editAtEditorPointer=function(pointerEvent){
 };
 const oldErase = eraseAtWorldCoord;
 eraseAtWorldCoord = function(x,y) {
-  recordHistory();oldErase(x,y);
+  recordHistory();oldErase(x,y);updateAutoFinish();
   ['decorations','structures'].forEach(key=>{editorDraft[key]=(editorDraft[key]||[]).filter(o=>Math.hypot((o.x||0)-x,(o.y||0)-y)>Math.max(24,(o.scale||1)*28));});
 };
 getEditorWorldCoords = function(e) {
@@ -427,9 +434,22 @@ getEditorWorldCoords = function(e) {
   const rawX=(e.clientX-rect.left)*sx,rawY=(e.clientY-rect.top)*sy;
   const logicalX=(rawX-zoomOffsetX())/editorZoom,logicalY=(rawY-zoomOffsetY())/editorZoom;
   let x=logicalX+editorScrollX-80,y=logicalY/EDITOR_SCALE_Y;
-  if(snapEnabled){x=Math.round(x/gridUnit)*gridUnit;y=Math.round(y/gridUnit)*gridUnit;}
+  if(snapEnabled){x=Math.round(x/gridUnit)*gridUnit;y=Math.round(y/(gridUnit/EDITOR_SCALE_Y))*(gridUnit/EDITOR_SCALE_Y);}
   return {x,y};
 };
+function updateAutoFinish(){
+  const keys=['spikes','platforms','blocks','pads','orbs','saws','pillars','coins','portals','triggers','decorations','structures'];
+  let farthest=0;
+  keys.forEach(k=>(editorDraft[k]||[]).forEach(o=>{
+    const right=(Number(o.x)||0)+(Number(o.w||o.width)||0);
+    farthest=Math.max(farthest,right);
+  }));
+  const next=Math.max(gridUnit*10,Math.ceil((farthest+gridUnit*10)/gridUnit)*gridUnit);
+  editorDraft.finishX=next;
+  const input=$('style-finish-x'),label=$('style-finish-label');
+  if(input){input.max=String(Math.max(next+10000,Number(input.max)||0));input.value=String(next);}
+  if(label)label.textContent=String(next);
+}
 const oldDrawEditor = drawEditorCanvas;
 drawEditorCanvas = function() {
   if(gameState!=='EDITOR'){oldDrawEditor();return;}
@@ -447,7 +467,7 @@ drawEditorCanvas = function() {
       const sx=x-editorScrollX+80;eCtx.strokeStyle=(Math.round(x/gridUnit)%4===0)?'rgba(255,255,255,.22)':'rgba(255,255,255,.09)';
       eCtx.lineWidth=(Math.round(x/gridUnit)%4===0)?1.4:1;eCtx.beginPath();eCtx.moveTo(sx,0);eCtx.lineTo(sx,EDITOR_GROUND_Y);eCtx.stroke();
     }
-    const stepY=gridUnit*EDITOR_SCALE_Y;
+    const stepY=gridUnit;
     for(let y=0;y<=EDITOR_GROUND_Y;y+=stepY){
       eCtx.strokeStyle=(Math.round(y/stepY)%4===0)?'rgba(255,255,255,.2)':'rgba(255,255,255,.08)';
       eCtx.lineWidth=(Math.round(y/stepY)%4===0)?1.4:1;eCtx.beginPath();eCtx.moveTo(0,y);eCtx.lineTo(editorCanvas.width,y);eCtx.stroke();
@@ -460,6 +480,17 @@ drawEditorCanvas = function() {
     const o=s.obj,x=o.x-editorScrollX+80,y=(o.y===undefined?GROUND_Y-40:o.y)*EDITOR_SCALE_Y,scale=o.scale||1;
     eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);eCtx.scale(o.flipX?-1:1,o.flipY?-1:1);eCtx.strokeStyle='#fff';eCtx.lineWidth=2;eCtx.setLineDash([5,4]);eCtx.strokeRect(-24*scale,-24*scale,48*scale,48*scale);eCtx.restore();
   });
+  // Spawn block: fixed at the beginning of every custom level.
+  eCtx.save();
+  eCtx.fillStyle='rgba(255,55,65,.38)';eCtx.strokeStyle='rgba(255,85,95,.95)';eCtx.lineWidth=2;
+  eCtx.fillRect(80,EDITOR_GROUND_Y-44,44,44);eCtx.strokeRect(80,EDITOR_GROUND_Y-44,44,44);
+  eCtx.fillStyle='#fff';eCtx.font='900 9px Orbitron,sans-serif';eCtx.textAlign='center';eCtx.fillText('SPAWN',102,EDITOR_GROUND_Y-51);
+  const finishScreenX=editorDraft.finishX-editorScrollX+80;
+  eCtx.fillStyle='rgba(0,255,170,.14)';eCtx.fillRect(finishScreenX-5,0,10,EDITOR_GROUND_Y);
+  eCtx.strokeStyle='#00ffaa';eCtx.lineWidth=3;eCtx.beginPath();eCtx.moveTo(finishScreenX,0);eCtx.lineTo(finishScreenX,EDITOR_GROUND_Y);eCtx.stroke();
+  eCtx.fillStyle='#fff';eCtx.font='900 9px Orbitron,sans-serif';eCtx.fillText('FINISH',finishScreenX,18);
+  for(let row=0;row<4;row++)for(let col=0;col<4;col++){eCtx.fillStyle=(row+col)%2?'#fff':'#111827';eCtx.fillRect(finishScreenX+5+col*8,26+row*8,8,8);}
+  eCtx.restore();
   eCtx.restore();eCtx.restore();
 };
 function drawDecorGraphic(c,kind,color,s) {
@@ -521,10 +552,12 @@ function drawExtraEditorObject(o,kind) {
   if(x<-80||x>editorCanvas.width+80)return;
   eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);eCtx.scale(o.flipX?-1:1,o.flipY?-1:1);
   if(kind==='trigger'){
-    eCtx.fillStyle='rgba(5,15,35,.8)';eCtx.strokeStyle=o.color||'#38bdf8';eCtx.lineWidth=3;
-    eCtx.fillRect(-12,-30,24,60);eCtx.strokeRect(-12,-30,24,60);
-    eCtx.fillStyle='#fff';eCtx.font='bold 10px sans-serif';eCtx.textAlign='center';eCtx.fillText(String(o.kind||'TRG').toUpperCase().slice(0,5),0,4);
-    eCtx.fillStyle='#facc15';eCtx.beginPath();eCtx.arc(0,-34,4,0,Math.PI*2);eCtx.fill();
+    const triggerColor=o.color||({move:'#38bdf8',pulse:'#f472b6',scale:'#a78bfa',color:'#22c55e',speed:'#facc15'}[o.kind]||'#facc15');
+    eCtx.shadowColor=triggerColor;eCtx.shadowBlur=12;eCtx.fillStyle='rgba(5,15,35,.94)';eCtx.strokeStyle=triggerColor;eCtx.lineWidth=3;
+    eCtx.fillRect(-17,-25,34,50);eCtx.strokeRect(-17,-25,34,50);eCtx.shadowBlur=0;
+    eCtx.fillStyle=triggerColor;eCtx.font='900 9px Orbitron,sans-serif';eCtx.textAlign='center';eCtx.fillText(String(o.kind||'TRG').toUpperCase().slice(0,6),0,4);
+    eCtx.fillStyle='#fff';eCtx.font='bold 8px sans-serif';eCtx.fillText('G'+String(o.group||'1'),0,16);
+    eCtx.fillStyle='#fff';eCtx.beginPath();eCtx.arc(0,-30,4,0,Math.PI*2);eCtx.fill();
   } else if(o.kind==='portal') {
     eCtx.strokeStyle=o.color||'#a78bfa';eCtx.lineWidth=6;eCtx.beginPath();eCtx.ellipse(0,0,s*.55,s*1.25,0,0,Math.PI*2);eCtx.stroke();
     eCtx.strokeStyle='#fff';eCtx.lineWidth=1.5;eCtx.beginPath();eCtx.ellipse(0,0,s*.38,s,0,0,Math.PI*2);eCtx.stroke();
@@ -851,7 +884,7 @@ function installSelectionInput() {
     dragState.items.forEach(s=>{s.obj.x=(s.obj.x||0)+dx;if(s.obj.y!==undefined)s.obj.y+=dy;});
     dragState.lastX=p.x;dragState.lastY=p.y;refreshInspector();drawEditorCanvas();
   },true);
-  const end=()=>{dragState=null;};
+  const end=()=>{dragState=null;updateAutoFinish();drawEditorCanvas();};
   editorCanvas.addEventListener('pointerup',end,true);editorCanvas.addEventListener('pointercancel',end,true);
 }
 document.addEventListener('keydown',e=>{
@@ -873,8 +906,7 @@ function addKeyboardEditorShortcuts() {
     }
   });
 }
-const clearButton=$('editor-clear-btn');
-if(clearButton)clearButton.addEventListener('click',recordHistory,true);
+const clearButton=$('editor-clear-btn');if(clearButton)clearButton.classList.add('hidden');
 document.addEventListener('pointerdown',e=>{
   if(e.target===editorCanvas&&gameState==='EDITOR'&&editorToolMode==='place'&&editorSelectedItem==='platform')recordHistory();
 },true);
