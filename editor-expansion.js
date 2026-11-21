@@ -432,7 +432,7 @@ function findObjectAt(point) {
 function addAssetAtWorld(x, y) {
   const item = ASSET_BY_ID[selectedAssetId];
   if (!item) return false;
-  const base = { id: makeId(), x: Math.max(200, x), y, rotation: 0, scale: 1, groups: [] };
+  const base = { id: makeId(), x: Math.max(gridUnit * Math.ceil(200 / gridUnit), x), y, rotation: 0, scale: 1, groups: [] };
 
   if (item.type === 'spike' || item.type === 'mini_spike' || item.type === 'ceil_spike') {
     editorDraft.spikes.push({
@@ -534,7 +534,7 @@ drawEditorCanvas = function () {
     eCtx.lineTo(gx, groundY);
     eCtx.stroke();
   }
-  for (let gy = groundY; gy > 0; gy -= gridUnit) {
+  for (let gy = 0; gy <= groundY; gy += gridUnit) {
     eCtx.beginPath();
     eCtx.moveTo(0, gy);
     eCtx.lineTo(w, gy);
@@ -552,6 +552,16 @@ drawEditorCanvas = function () {
 
   eCtx.restore();
 };
+
+// Cada sessão de edição começa com histórico próprio; limpar também pode ser desfeito.
+const originalOpenEditorWithLevel = openEditorWithLevel;
+openEditorWithLevel = function (level) {
+  localUndoStack.length = 0;
+  localRedoStack.length = 0;
+  selectedObjects = [];
+  originalOpenEditorWithLevel.call(this, level);
+};
+$('editor-clear-btn')?.addEventListener('click', () => recordHistory(), true);
 
 addCategoryPanel();
 addEditorCommandBar();
