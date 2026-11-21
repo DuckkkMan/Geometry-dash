@@ -561,6 +561,31 @@ checkPortalTrigger=function(p,portal,screenX){
   else if(portal.type==='gravity'||portal.type==='mirror'){gravityMultiplier*=-1;p.dy=0;}
   playSfx('portal');spawnEndParticles(screenX+PORTAL_WIDTH/2,p.y+p.size/2,16,true);
 };
+const oldDrawPlatform=drawPlatform;
+drawPlatform=function(plat,screenX){
+  if(!plat.color){oldDrawPlatform(plat,screenX);return;}
+  if(screenX+plat.w<-60||screenX>canvas.width+60)return;
+  ctx.save();ctx.fillStyle=plat.color;ctx.strokeStyle='#000';ctx.lineWidth=3;
+  ctx.fillRect(screenX,plat.y,plat.w,plat.h);ctx.strokeRect(screenX,plat.y,plat.w,plat.h);
+  ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=2;ctx.strokeRect(screenX+3,plat.y+3,Math.max(0,plat.w-6),Math.max(0,plat.h-6));ctx.restore();
+};
+const oldDrawPillar=drawPillar;
+drawPillar=function(pillar,screenX){
+  if(!pillar.color){oldDrawPillar(pillar,screenX);return;}
+  const w=pillar.w||34,h=pillar.h||90;if(screenX+w<-50||screenX>canvas.width+50)return;
+  ctx.save();ctx.fillStyle=pillar.color;ctx.strokeStyle='rgba(255,255,255,.65)';ctx.lineWidth=2;
+  ctx.fillRect(screenX,GROUND_Y-h,w,h);ctx.strokeRect(screenX,GROUND_Y-h,w,h);ctx.restore();
+};
+const oldDrawSaw=drawSaw;
+drawSaw=function(saw,screenX){
+  oldDrawSaw(saw,screenX);
+  if(saw.color){ctx.save();ctx.fillStyle=saw.color;ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.arc(screenX,saw.y,(saw.r||22)*.42,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
+};
+const oldDrawCoin=drawCoin;
+drawCoin=function(coin,screenX){
+  if(!coin.color){oldDrawCoin(coin,screenX);return;}
+  if(coin.collected)return;ctx.save();ctx.fillStyle=coin.color;ctx.strokeStyle='#000';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(screenX,coin.y,13,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
+};
 const oldDrawElements=drawLevelElementsInWorld;
 drawLevelElementsInWorld=function(){oldDrawElements();drawRuntimeExtraObjects();};
 const oldTriggerCheck=checkTriggerActivation;
@@ -570,7 +595,7 @@ checkTriggerActivation=function(p,trig,screenX) {
   const targets=allRuntimeObjects().filter(o=>objectGroupList(o).includes(String(trig.group||'1')));
   const duration=Math.max(.05,Number(trig.duration)||1);
   targets.forEach(o=>{
-    if(trig.kind==='move'){runtimeEffects.push({type:'move',object:o,elapsed:0,duration:duration,remaining:duration,fromX:o.x||0,fromY:o.y||0,toX:(o.x||0)+(Number(trig.distance)||0),toY:(o.y||0)+(Number(trig.verticalDistance)||0)});}
+    if(trig.kind==='move'){runtimeEffects.push({type:'move',object:o,elapsed:0,duration:duration,remaining:duration,fromX:o.x||0,fromY:objectCenter(o).y,toX:(o.x||0)+(Number(trig.distance)||0),toY:objectCenter(o).y+(Number(trig.verticalDistance)||0)});}
     if(trig.kind==='scale'){runtimeEffects.push({type:'scale',object:o,elapsed:0,duration:duration,remaining:duration,fromScale:o.scale||1,toScale:Math.max(.1,Math.min(5,Number(trig.scale)||1.5))});}
     if(trig.kind==='color'){o.color=trig.color||'#00e5ff';}
     if(trig.kind==='pulse'){runtimeEffects.push({object:o,remaining:duration,elapsed:0,baseScale:o.scale||1,intensity:Math.max(.05,Number(trig.intensity)||1)});}
