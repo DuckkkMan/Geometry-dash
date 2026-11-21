@@ -105,7 +105,7 @@ let editorClipboard = [];
 try {
   const savedGrid = JSON.parse(localStorage.getItem(GRID_PREF_KEY) || 'null');
   if (savedGrid && typeof savedGrid === 'object') {
-    if (typeof savedGrid.visible === 'boolean') editorShowGrid = savedGrid.visible;
+    editorShowGrid = true;
     if (['soft', 'normal', 'strong'].includes(savedGrid.strength)) gridLineStrength = savedGrid.strength;
   }
 } catch (_) {}
@@ -310,12 +310,22 @@ function renderAssetLibrary() {
   if (!grid) return;
   grid.replaceChildren();
   const cat = EXTRA_CATEGORIES.find(c => c.id === activeCategory) || EXTRA_CATEGORIES[0];
-  const query = ($('editor-asset-search')?.value || '').trim().toLocaleLowerCase();
-  const visibleItems = cat.items.filter(raw => !query || raw[1].toLocaleLowerCase().includes(query) || raw[0].toLocaleLowerCase().includes(query));
   $('editor-category-title').textContent = cat.name;
-  $('editor-asset-count').textContent = visibleItems.length + ' / ' + cat.items.length;
+  $('editor-asset-count').textContent = cat.items.length + ' OBJETOS';
+  const tabs = editorRoot.querySelector('.editor-category-tabs');
+  if (tabs) {
+    tabs.replaceChildren();
+    EXTRA_CATEGORIES.forEach(category => {
+      const tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'editor-category-tab' + (category.id === activeCategory ? ' active' : '');
+      tab.textContent = category.name;
+      tab.addEventListener('click', () => { activeCategory = category.id; renderAssetLibrary(); });
+      tabs.appendChild(tab);
+    });
+  }
 
-  visibleItems.forEach(raw => {
+  cat.items.forEach(raw => {
     const item = ASSET_BY_ID[raw[0]];
     const b = document.createElement('button');
     b.type = 'button';
@@ -353,79 +363,44 @@ function addCategoryPanel() {
   ['editor-panel-assets', 'editor-panel-triggers', 'editor-panel-style'].forEach(id => $(id)?.classList.add('hidden'));
   const panel = document.createElement('section');
   panel.id = 'editor-library';
-  panel.innerHTML = '<div class="editor-library-head"><button id="editor-category-prev" type="button" aria-label="Categoria anterior">◀</button><div><small>CATEGORIA</small><strong id="editor-category-title">Blocks</strong></div><span id="editor-asset-count"></span><button id="editor-category-next" type="button" aria-label="Próxima categoria">▶</button></div><input id="editor-asset-search" class="editor-asset-search" type="search" placeholder="Buscar nesta categoria..." autocomplete="off"><div class="editor-asset-grid"></div><div class="editor-selected-label" id="editor-selected-name">Selecione um objeto</div>';
+  panel.innerHTML = '<div class="editor-library-head"><button id="editor-category-prev" type="button" aria-label="Categoria anterior">◀</button><div><small>OBJETOS</small><strong id="editor-category-title">Blocks</strong></div><span id="editor-asset-count"></span><button id="editor-category-next" type="button" aria-label="Próxima categoria">▶</button></div><div class="editor-category-tabs"></div><div class="editor-asset-grid"></div><div class="editor-selected-label" id="editor-selected-name">Selecione um objeto</div>';
   bottom.appendChild(panel);
   $('editor-category-prev').addEventListener('click', () => changeEditorCategory(-1));
   $('editor-category-next').addEventListener('click', () => changeEditorCategory(1));
-  $('editor-asset-search').addEventListener('input', renderAssetLibrary);
   renderAssetLibrary();
 }
 
 function addEditorCommandBar() {
   const top = editorRoot.querySelector('.editor-topbar');
-  if (!top || $('editor-tool-rail')) return;
-  editorRoot.querySelector('.editor-top-center')?.classList.add('hidden');
-
-  const rail = document.createElement('nav');
-  rail.id = 'editor-tool-rail';
-  rail.innerHTML = '<button type="button" data-tool="place" class="active"><b>＋</b><span>Colocar</span></button><button type="button" data-tool="select"><b>↖</b><span>Editar</span></button><button type="button" data-tool="pan"><b>✋</b><span>Mover</span></button><button type="button" data-tool="erase"><b>⌫</b><span>Apagar</span></button>';
-  editorRoot.appendChild(rail);
-
-  rail.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
-    editorToolMode = b.dataset.tool;
-    $('editor-delete-panel')?.classList.toggle('hidden', editorToolMode !== 'erase');
-    $('editor-inspector')?.classList.toggle('editor-inspector-open', editorToolMode === 'select');
-    syncEditorToolButtons();
-  }));
-
-  const previousSyncEditorToolButtons = syncEditorToolButtons;
-  syncEditorToolButtons = function () {
-    previousSyncEditorToolButtons();
-    rail.querySelectorAll('[data-tool]').forEach(button => {
-      button.classList.toggle('active', button.dataset.tool === editorToolMode);
-    });
-  };
+  if (!top) return;
 
   const del = document.createElement('section');
   del.id = 'editor-delete-panel';
   del.className = 'hidden';
   del.innerHTML = '<strong>APAGAR OBJETOS</strong><div class="editor-delete-modes"><button type="button" data-erase="click" class="active">Clique</button><button type="button" data-erase="drag">Deslize</button></div><label class="editor-clear-slider"><span>Limpar fase</span><input id="editor-clear-swipe" type="range" min="0" max="100" value="0"><small>Deslize até o final para limpar tudo</small></label>';
   editorRoot.appendChild(del);
-
-  del.querySelectorAll('[data-erase]').forEach(b => b.addEventListener('click', () => {
-    eraseGestureMode = b.dataset.erase;
-    del.querySelectorAll('[data-erase]').forEach(x => x.classList.toggle('active', x === b));
+  del.querySelectorAll('[data-erase]').forEach(button => button.addEventListener('click', () => {
+    eraseGestureMode = button.dataset.erase;
+    del.querySelectorAll('[data-erase]').forEach(other => other.classList.toggle('active', other === button));
   }));
-
-  $('editor-clear-swipe').addEventListener('input', e => {
-    if (Number(e.target.value) < 98) return;
+  $('editor-clear-swipe').addEventListener('input', event => {
+    if (Number(event.target.value) < 98) return;
     recordHistory();
-    ['spikes', 'platforms', 'blocks', 'pads', 'orbs', 'saws', 'pillars', 'coins', 'portals', 'triggers', 'decorations', 'structures'].forEach(k => { editorDraft[k] = []; });
+    ['spikes','platforms','blocks','pads','orbs','saws','pillars','coins','portals','triggers','decorations','structures'].forEach(key => { editorDraft[key] = []; });
     selectedObjects = [];
     refreshInspector();
     drawEditorCanvas();
-    e.target.value = 0;
+    event.target.value = 0;
   });
 
-  const undoBtn = document.createElement('button');
-  undoBtn.id = 'editor-undo-btn';
-  undoBtn.type = 'button';
-  undoBtn.className = 'mini-btn';
-  undoBtn.textContent = '↶';
-  undoBtn.title = 'Desfazer';
-  undoBtn.addEventListener('click', undoLocalEditor);
-
-  const redoBtn = document.createElement('button');
-  redoBtn.id = 'editor-redo-btn';
-  redoBtn.type = 'button';
-  redoBtn.className = 'mini-btn';
-  redoBtn.textContent = '↷';
-  redoBtn.title = 'Refazer';
-  redoBtn.addEventListener('click', redoLocalEditor);
-
-  top.querySelector('.editor-top-right')?.prepend(redoBtn, undoBtn);
+  const undo = document.createElement('button');
+  undo.id = 'editor-undo-btn'; undo.type = 'button'; undo.className = 'mini-btn';
+  undo.textContent = '↶'; undo.title = 'Desfazer'; undo.addEventListener('click', undoLocalEditor);
+  const redo = document.createElement('button');
+  redo.id = 'editor-redo-btn'; redo.type = 'button'; redo.className = 'mini-btn';
+  redo.textContent = '↷'; redo.title = 'Refazer'; redo.addEventListener('click', redoLocalEditor);
+  top.querySelector('.editor-top-right')?.prepend(redo, undo);
 }
-
 function addGridSettings() {
   const top = editorRoot.querySelector('.editor-topbar');
   if (!top || $('editor-grid-settings-open')) return;
@@ -537,32 +512,35 @@ function findObjectAt(point) {
 function addAssetAtWorld(x, y) {
   const item = ASSET_BY_ID[selectedAssetId];
   if (!item) return false;
-  const base = { id: makeId(), x: Math.max(gridUnit * Math.ceil(200 / gridUnit), x), y, rotation: 0, scale: 1, groups: [] };
+  const floor = GROUND_Y;
+  const snapX = Math.max(gridUnit * Math.ceil(200 / gridUnit), Math.round(x / gridUnit) * gridUnit);
+  const snapY = Math.max(0, Math.min(floor, floor - Math.round((floor - y) / gridUnit) * gridUnit));
+  const base = { id: makeId(), x: snapX, y: snapY, rotation: 0, scale: 1, groups: [] };
+  const clampTop = (value, height) => Math.max(0, Math.min(floor - height, value));
+  const clampCenter = (value, radius) => Math.max(radius, Math.min(floor - radius, value));
 
   if (item.type === 'spike' || item.type === 'mini_spike' || item.type === 'ceil_spike') {
     editorDraft.spikes.push({
-      x: base.x,
-      y: item.type === 'ceil_spike' ? CEILING_Y : GROUND_Y,
+      x: base.x, y: item.type === 'ceil_spike' ? CEILING_Y : floor,
       sizeType: item.type === 'mini_spike' ? 'mini' : 'normal',
       inverted: item.type === 'ceil_spike'
     });
   } else if (item.type === 'platform') {
-    editorDraft.platforms.push({ x: base.x, y: Math.min(GROUND_Y - 32, y), w: EDITOR_GRID * 2, h: 28 });
+    editorDraft.platforms.push({ x: base.x, y: clampTop(snapY, 28), w: EDITOR_GRID * 2, h: 28 });
   } else if (item.type === 'block') {
-    editorDraft.blocks.push({ x: base.x, y: Math.min(GROUND_Y - BLOCK_SIZE, y), w: BLOCK_SIZE, h: BLOCK_SIZE });
+    editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, BLOCK_SIZE), w: BLOCK_SIZE, h: BLOCK_SIZE });
   } else if (item.type.indexOf('orb_') === 0) {
-    editorDraft.orbs.push({ x: base.x, y: Math.min(GROUND_Y - 24, y), color: selectedAssetId.replace('orb_', ''), used: false });
+    editorDraft.orbs.push({ x: base.x, y: clampCenter(snapY, 18), color: selectedAssetId.replace('orb_', ''), used: false });
   } else if (item.type.indexOf('pad_') === 0) {
     editorDraft.pads.push({ x: base.x, color: selectedAssetId.replace('pad_', ''), cooldown: 0 });
   } else if (item.type === 'portal_cube' || item.type === 'portal_ship' || item.type === 'portal_extra') {
-    const portalType = selectedAssetId.replace('portal_', '');
-    editorDraft.portals.push({ x: base.x, type: portalType, triggered: false });
+    editorDraft.portals.push({ x: base.x, type: selectedAssetId.replace('portal_', ''), triggered: false });
   } else if (item.type === 'saw') {
-    editorDraft.saws.push({ x: base.x, y: Math.min(GROUND_Y - 28, y), r: 22, angle: 0 });
+    editorDraft.saws.push({ x: base.x, y: clampCenter(snapY, 22), r: 22, angle: 0 });
   } else if (item.type === 'pillar') {
     editorDraft.pillars.push({ x: base.x, h: 90, w: 34 });
   } else if (item.type === 'coin') {
-    editorDraft.coins.push({ x: base.x, y: Math.min(GROUND_Y - 24, y), collected: false });
+    editorDraft.coins.push({ x: base.x, y: clampCenter(snapY, 14), collected: false });
   } else if (item.type === 'legacy_trigger') {
     const map = {
       trig_speed_fast: { kind: 'speed_fast' },
@@ -575,7 +553,8 @@ function addAssetAtWorld(x, y) {
     const cfg = map[selectedAssetId];
     if (cfg) editorDraft.triggers.push({ x: base.x, triggered: false, ...cfg });
   } else {
-    editorDraft.decorations.push(Object.assign(base, { kind: selectedAssetId, color: item.color }));
+    const radius = 18 * (base.scale || 1);
+    editorDraft.decorations.push({ ...base, y: clampCenter(snapY, radius), kind: selectedAssetId, color: item.color });
   }
   return true;
 }
@@ -644,66 +623,33 @@ window.addEventListener('pointercancel', () => { selectedDragState = null; });
 // Mantém a grade desenhada exatamente na mesma unidade (44px) e deslocamento (editorScrollX) que o clique
 const oldDrawEditor = drawEditorCanvas;
 drawEditorCanvas = function () {
-  // O renderizador original também desenha a grade. Desative-a temporariamente
-  // para evitar linhas duplicadas e deixar o contraste controlado por esta camada.
-  const showGrid = editorShowGrid;
-  editorShowGrid = false;
-  try {
-    oldDrawEditor();
-  } finally {
-    editorShowGrid = showGrid;
-  }
+  oldDrawEditor();
   if (gameState !== 'EDITOR' || !editorDraft) return;
 
-  // Decorações vetoriais: antes eram salvas no rascunho, mas não tinham renderização.
+  // Decorações do editor usam as mesmas coordenadas lógicas do jogo (900 × 500).
   (editorDraft.decorations || []).forEach(obj => {
     const sx = (Number(obj.x) || 0) - editorScrollX + 80;
-    const sy = Number.isFinite(Number(obj.y)) ? Number(obj.y) : Math.min(editorCanvas.height - 44, GROUND_Y) - 45;
+    const sy = Number.isFinite(Number(obj.y)) ? Number(obj.y) : GROUND_Y - 22;
     const scale = Math.max(0.1, Math.min(5, Number(obj.scale) || 1));
-    if (sx < -50 || sx > editorCanvas.width + 50 || sy < -50 || sy > editorCanvas.height + 50) return;
+    if (sx < -50 || sx > editorCanvas.width + 50 || sy < -50 || sy > GROUND_Y + 50) return;
     eCtx.save();
     eCtx.translate(sx, sy);
     eCtx.rotate(Number(obj.rotation) || 0);
     drawDecorGraphic(eCtx, obj.kind, obj.color || '#7dd3fc', 16 * scale);
     eCtx.restore();
   });
-  if (!editorShowGrid) return;
 
-  const w = editorCanvas.width;
-  const h = editorCanvas.height;
-  const groundY = Math.min(h - 44, GROUND_Y);
-  const alpha = gridLineStrength === 'strong' ? 0.34 : (gridLineStrength === 'soft' ? 0.09 : 0.18);
-
+  // Seleção com contorno amarelo alinhado ao centro real do objeto.
   eCtx.save();
-  eCtx.strokeStyle = `rgba(0, 229, 255, ${alpha})`;
-  eCtx.lineWidth = 1;
-
-  const startX = -((editorScrollX - 80) % gridUnit);
-  for (let gx = startX; gx < w; gx += gridUnit) {
-    eCtx.beginPath();
-    eCtx.moveTo(gx, 0);
-    eCtx.lineTo(gx, groundY);
-    eCtx.stroke();
-  }
-  for (let gy = 0; gy <= groundY; gy += gridUnit) {
-    eCtx.beginPath();
-    eCtx.moveTo(0, gy);
-    eCtx.lineTo(w, gy);
-    eCtx.stroke();
-  }
-
-  // Destaque do objeto selecionado no inspetor
-  getSelectionRecords().forEach(s => {
-    const c = objectCenter(s.obj);
-    const sx = c.x - editorScrollX + 80;
-    eCtx.strokeStyle = '#ffe600';
-    eCtx.lineWidth = 2;
-    eCtx.strokeRect(sx - gridUnit / 2, c.y - gridUnit / 2, gridUnit, gridUnit);
+  eCtx.strokeStyle = '#ffe600';
+  eCtx.lineWidth = 2;
+  getSelectionRecords().forEach(record => {
+    const center = objectCenter(record.obj);
+    const sx = center.x - editorScrollX + 80;
+    eCtx.strokeRect(sx - gridUnit / 2, center.y - gridUnit / 2, gridUnit, gridUnit);
   });
-
   eCtx.restore();
 };
-
 // Cada sessão de edição começa com histórico próprio; limpar também pode ser desfeito.
 const originalOpenEditorWithLevel = openEditorWithLevel;
 openEditorWithLevel = function (level) {
