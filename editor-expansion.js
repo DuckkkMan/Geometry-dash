@@ -384,7 +384,7 @@ placeSelectedAtWorldCoord = function(x,y) {
     recordHistory();addAssetAtWorld(x,y);return;
   }
   if(ASSET_BY_ID[selectedAssetId] && ['orb_blue','orb_red','orb_green','orb_black','orb_purple','orb_cyan','orb_dash','pad_red','pad_blue','pad_green','pad_black'].includes(selectedAssetId)){
-    addAssetAtWorld(x,y);return;
+    recordHistory();addAssetAtWorld(x,y);return;
   }
   recordHistory();oldPlace.call(this,x,y);
 };
@@ -843,6 +843,8 @@ document.addEventListener('keydown',e=>{
   if(gameState!=='EDITOR'||/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
   if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();e.stopImmediatePropagation();undoLocalEditor();}
   else if((e.ctrlKey||e.metaKey)&&e.code==='KeyY'){e.preventDefault();e.stopImmediatePropagation();redoLocalEditor();}
+  else if((e.ctrlKey||e.metaKey)&&e.code==='KeyC'){e.preventDefault();e.stopImmediatePropagation();clipboardObjects=getSelectionRecords().map(s=>({key:s.key,obj:deepClone(s.obj)}));}
+  else if((e.ctrlKey||e.metaKey)&&e.code==='KeyV'&&clipboardObjects.length){e.preventDefault();e.stopImmediatePropagation();recordHistory();const next=clipboardObjects.map(s=>{const o=deepClone(s.obj);o.id=makeId();o.x=(o.x||0)+gridUnit;editorDraft[s.key].push(o);return {key:s.key,obj:o};});setSelection(next);}
 },true);
 function addKeyboardEditorShortcuts() {
   window.addEventListener('keydown',e=>{
