@@ -1818,7 +1818,7 @@ canvas {
 
 
 /* Correção de coordenadas: o editor usa a mesma viewport lógica 900×500 do jogo. */
-#game-container { box-sizing:border-box; width:900px; height:500px; min-width:900px; min-height:500px; }
+#game-container { box-sizing:border-box; width:900px; height:500px; min-width:900px; min-height:500px; border:0; outline:4px solid #000; }
 body { overflow:auto; }
 #level-editor { position:absolute; inset:0; display:flex; }
 #level-editor .editor-main-area {
