@@ -840,7 +840,18 @@ function drawLevelDecoration(item, screenX) {
         for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0] * r, points[i][1] * r);
         ctx.closePath(); ctx.fill(); ctx.stroke();
     };
-    if (family === 'star') {
+    if (item.kind === 'half_block') {
+        poly([[-.82,.05],[.82,.05],[.82,.82],[-.82,.82]]);
+    } else if (item.kind === 'slope') {
+        poly([[-.86,.78],[.86,.78],[.86,-.78]]);
+    } else if (item.kind === 'double_block') {
+        poly([[-.92,-.72],[-.08,-.72],[-.08,.72],[-.92,.72]]);
+        poly([[.08,-.72],[.92,-.72],[.92,.72],[.08,.72]]);
+    } else if (item.kind === 'outlined_block') {
+        ctx.shadowBlur = 0;
+        ctx.strokeRect(-r*.78,-r*.78,r*1.56,r*1.56);
+        ctx.strokeRect(-r*.48,-r*.48,r*.96,r*.96);
+    } else if (family === 'star') {
         const count = 5 + variant % 4, pts = [];
         for (let i = 0; i < count * 2; i++) {
             const a = -Math.PI / 2 + i * Math.PI / count, d = i % 2 ? .48 : 1;
