@@ -596,6 +596,32 @@ drawPortal=function(portal,screenX){
   ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(cx,cy,PORTAL_WIDTH*.25,PORTAL_HEIGHT*.34,0,0,Math.PI*2);ctx.stroke();
   ctx.fillStyle='#fff';ctx.font='900 8px Orbitron,sans-serif';ctx.textAlign='center';ctx.fillText(String(portal.type).toUpperCase(),cx,cy+PORTAL_HEIGHT*.53);ctx.restore();
 };
+const oldPlayerDraw=player.draw;
+player.draw=function(){
+  if(playerMode==='cube'||playerMode==='ship'){oldPlayerDraw.call(this);return;}
+  const cx=this.x+this.size/2,cy=this.y+this.size/2,s=this.size/2;
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(playerMode==='wave'?Math.atan2(this.dy,BASE_GAME_SPEED):this.rotation);
+  ctx.fillStyle=playerSkin.primary;ctx.strokeStyle='#000';ctx.lineWidth=3;
+  if(playerMode==='ball'){
+    ctx.beginPath();ctx.arc(0,0,s*.95,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.strokeStyle=playerSkin.secondary;ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,s*.62,0,Math.PI*1.5);ctx.stroke();
+  }else if(playerMode==='ufo'){
+    ctx.beginPath();ctx.ellipse(0,2,s, s*.48,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.arc(0,-s*.22,s*.48,Math.PI,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle=playerSkin.secondary;ctx.fillRect(-s*.55,s*.12,s*1.1,s*.16);
+  }else if(playerMode==='wave'){
+    ctx.beginPath();ctx.moveTo(s,0);ctx.lineTo(-s,-s*.78);ctx.lineTo(-s,s*.78);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.strokeStyle=playerSkin.secondary;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-s*.35,0);ctx.lineTo(s*.35,0);ctx.stroke();
+  }else if(playerMode==='robot'){
+    ctx.fillRect(-s*.82,-s*.82,s*1.64,s*1.45);ctx.strokeRect(-s*.82,-s*.82,s*1.64,s*1.45);
+    ctx.fillStyle=playerSkin.secondary;ctx.fillRect(-s*.5,-s*.35,s*.28,s*.28);ctx.fillRect(s*.22,-s*.35,s*.28,s*.28);
+    ctx.fillStyle=playerSkin.primary;ctx.fillRect(-s*.58,s*.62,s*.35,s*.42);ctx.fillRect(s*.23,s*.62,s*.35,s*.42);
+  }else if(playerMode==='spider'){
+    ctx.beginPath();for(let i=0;i<8;i++){const a=i*Math.PI/4-Math.PI/8,r=i%2?s*.72:s*.95,x=Math.cos(a)*r,y=Math.sin(a)*r;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.strokeStyle=playerSkin.secondary;ctx.lineWidth=3;for(let i=0;i<4;i++){const y=(i-1.5)*s*.36;ctx.beginPath();ctx.moveTo(-s*.65,y);ctx.lineTo(-s*1.12,y-s*.2);ctx.moveTo(s*.65,y);ctx.lineTo(s*1.12,y-s*.2);ctx.stroke();}
+  }
+  ctx.restore();
+};
 const oldPortalCheck=checkPortalTrigger;
 checkPortalTrigger=function(p,portal,screenX){
   if(portal.triggered)return;
