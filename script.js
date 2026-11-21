@@ -525,9 +525,9 @@ function checkPortalTrigger(p, portal, portalScreenX) {
 
 // === PADS DE PULO (AMARELO E ROSA) ===
 function drawPad(pad, screenX) {
-    const w = 36;
-    const h = 11;
-    const y = GROUND_Y - h;
+    const w = 36 * (pad.scale || 1);
+    const h = 11 * (pad.scale || 1);
+    const y = pad.y === undefined ? GROUND_Y - h : pad.y;
     if (screenX + w < -40 || screenX > canvas.width + 40) return;
 
     const isPink = pad.color === 'pink';
@@ -535,14 +535,17 @@ function drawPad(pad, screenX) {
     const glowColor = isPink ? 'rgba(255, 79, 216, 0.35)' : 'rgba(255, 230, 0, 0.35)';
 
     ctx.save();
+    ctx.globalAlpha = pad.alpha === undefined ? 1 : pad.alpha;
+    ctx.translate(screenX + w/2, y + h/2);
+    ctx.rotate(pad.rotation || 0);
     ctx.fillStyle = glowColor;
-    ctx.fillRect(screenX - 4, y - 8, w + 8, h + 10);
+    ctx.fillRect(-w/2 - 4, -h/2 - 8, w + 8, h + 10);
 
-    ctx.fillStyle = mainColor;
+    ctx.fillStyle = pad.colorHex || mainColor;
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.roundRect(screenX, y, w, h, [6, 6, 2, 2]);
+    ctx.roundRect(-w/2, -h/2, w, h, [6, 6, 2, 2]);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
@@ -553,19 +556,18 @@ function checkPadCollision(p, pad, screenX) {
         pad.cooldown--;
         return;
     }
-    const w = 36;
-    const h = 14;
-    const padTop = GROUND_Y - h;
+    const w = 36 * (pad.scale || 1);
+    const h = 14 * (pad.scale || 1);
+    const padTop = pad.y === undefined ? GROUND_Y - h : pad.y;
 
     const overlaps =
         p.x + p.size > screenX + 3 &&
         p.x < screenX + w - 3 &&
         p.y + p.size >= padTop &&
-        p.y < GROUND_Y;
+        p.y < padTop + h;
 
     if (overlaps) {
         pad.cooldown = 12;
-        playerMode = 'cube';
         p.dy = pad.color === 'pink' ? PAD_PINK_FORCE : PAD_YELLOW_FORCE;
         p.grounded = false;
         playSfx('pad');
@@ -579,28 +581,29 @@ function drawOrb(orb, screenX) {
     if (screenX + radius * 2 < -40 || screenX - radius * 2 > canvas.width + 40) return;
 
     const isPink = orb.color === 'pink';
-    const outerColor = isPink ? '#ff4fd8' : '#ffe600';
+    const outerColor = orb.colorHex || (isPink ? '#ff4fd8' : '#ffe600');
     const innerColor = isPink ? '#ffd1f5' : '#fff8b8';
 
     ctx.save();
-    ctx.globalAlpha = orb.used ? 0.45 : 1;
+    ctx.globalAlpha = (orb.alpha === undefined ? 1 : orb.alpha) * (orb.used ? 0.45 : 1);
+    ctx.translate(screenX,orb.y);ctx.rotate(orb.rotation||0);ctx.scale(orb.scale||1,orb.scale||1);
 
     ctx.fillStyle = isPink ? 'rgba(255, 79, 216, 0.25)' : 'rgba(255, 230, 0, 0.25)';
     ctx.beginPath();
-    ctx.arc(screenX, orb.y, radius + 7, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius + 7, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = outerColor;
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(screenX, orb.y, radius, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = innerColor;
     ctx.beginPath();
-    ctx.arc(screenX, orb.y, radius * 0.45, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius * 0.45, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -631,15 +634,12 @@ function drawPlatform(plat, screenX) {
     if (screenX + plat.w < -60 || screenX > canvas.width + 60) return;
 
     ctx.save();
-    ctx.fillStyle = '#18376b';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    ctx.fillRect(screenX, plat.y, plat.w, plat.h);
-    ctx.strokeRect(screenX, plat.y, plat.w, plat.h);
-
-    ctx.strokeStyle = '#00e5ff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(screenX + 3, plat.y + 3, plat.w - 6, plat.h - 6);
+    const scale=plat.scale||1,w=plat.w*scale,h=plat.h*scale;
+    ctx.save();ctx.globalAlpha=plat.alpha===undefined?1:plat.alpha;
+    ctx.translate(screenX+w/2,plat.y+h/2);ctx.rotate(plat.rotation||0);
+    ctx.fillStyle=plat.color||'#18376b';ctx.strokeStyle='#000';ctx.lineWidth=3;
+    ctx.fillRect(-w/2,-h/2,w,h);ctx.strokeRect(-w/2,-h/2,w,h);
+    ctx.strokeStyle='#00e5ff';ctx.lineWidth=2;ctx.strokeRect(-w/2+3,-h/2+3,w-6,h-6);ctx.restore();
     ctx.restore();
 }
 
@@ -737,21 +737,23 @@ function drawPillar(pillar, screenX) {
 
 function drawCoin(coin, screenX) {
     if (coin.collected) return;
-    const r = 13;
+    const r = 13 * (coin.scale || 1);
     if (screenX + r * 2 < -40 || screenX - r * 2 > canvas.width + 40) return;
 
     ctx.save();
-    ctx.fillStyle = coin.secret ? '#20c9ff' : '#ffd60a';
+    ctx.globalAlpha=coin.alpha===undefined?1:coin.alpha;
+    ctx.translate(screenX,coin.y);ctx.rotate(coin.rotation||0);
+    ctx.fillStyle = coin.secret ? '#20c9ff' : (coin.color || '#ffd60a');
     ctx.strokeStyle = coin.secret ? '#063b73' : '#000';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(screenX, coin.y, r, 0, Math.PI * 2);
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = coin.secret ? '#e8fbff' : '#fff3b0';
     ctx.beginPath();
-    ctx.arc(screenX - 3, coin.y - 3, r * 0.35, 0, Math.PI * 2);
+    ctx.arc(-3, -3, r * 0.35, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 }
