@@ -197,6 +197,7 @@ function writeSaveData() {
 
 const savedData = loadSaveData();
 let controlPlatform = savedData.platform === 'mobile' ? 'mobile' : 'pc';
+let lowPerformanceMode = controlPlatform === 'mobile';
 let playerSkin = savedData.skin || { model: 0, primary: '#ffde00', secondary: '#00e5ff' };
 let levelProgress = savedData.progress || {};
 let levelAttempts = savedData.attempts || {};
@@ -296,6 +297,9 @@ let activePlayableLevel = LEVELS[0];
 let currentLevelIndex = 0;
 
 function applyPlatformSettingsUI() {
+    lowPerformanceMode = controlPlatform === 'mobile';
+    const lowHint = document.getElementById('low-performance-status');
+    if (lowHint) lowHint.textContent = lowPerformanceMode ? 'ATIVADO — efeitos reduzidos para melhorar o desempenho.' : 'Desativado no modo PC.';
     const pcBtn = document.getElementById('mode-pc-btn');
     const mobileBtn = document.getElementById('mode-mobile-btn');
     const hint = document.getElementById('platform-hint');
@@ -1288,6 +1292,7 @@ function drawBackground() {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, GROUND_Y);
 
+    if (lowPerformanceMode) return;
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 2;
     const tileSize = 90;
@@ -1374,6 +1379,7 @@ function drawFinishWall(screenX) {
 }
 
 function spawnEndParticles(x, y, count = 4, burst = false) {
+    if (lowPerformanceMode) return;
     for (let i = 0; i < count; i++) {
         particles.push({
             x: x + Math.random() * 30,
@@ -1392,6 +1398,7 @@ function spawnEndParticles(x, y, count = 4, burst = false) {
 }
 
 function updateParticlesOnly() {
+    if (lowPerformanceMode) { particles.length = 0; return; }
     for (let i = particles.length - 1; i >= 0; i--) {
         const pt = particles[i];
         pt.x += pt.vx;
@@ -1404,6 +1411,7 @@ function updateParticlesOnly() {
 }
 
 function drawParticlesOnly() {
+    if (lowPerformanceMode) return;
     for (let pt of particles) {
         ctx.save();
         ctx.globalAlpha = Math.max(0, pt.alpha);
