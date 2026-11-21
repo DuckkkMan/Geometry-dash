@@ -1919,7 +1919,9 @@ function drawEditorCanvas() {
 
     // Grid alinhada exatamente ao EDITOR_GRID (44px) e editorScrollX
     if (editorShowGrid) {
-        eCtx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+        const gridStrength = window.__editorGridStrength || 'normal';
+        const gridAlpha = gridStrength === 'soft' ? 0.07 : (gridStrength === 'strong' ? 0.24 : 0.14);
+        eCtx.strokeStyle = 'rgba(255, 255, 255, ' + gridAlpha + ')';
         eCtx.lineWidth = 1;
         const startX = -((editorScrollX - 80) % EDITOR_GRID);
         for (let gx = startX; gx < w; gx += EDITOR_GRID) {
