@@ -604,7 +604,7 @@ editorCanvas.addEventListener('pointermove',e=>{
   const p=getEditorWorldCoords(e),dx=p.x-Number(editorCanvas.dataset.lastX),dy=p.y-Number(editorCanvas.dataset.lastY);
   selectedEditorObject.obj.x=Math.max(250,(selectedEditorObject.obj.x||0)+dx);
   if(selectedEditorObject.obj.y!==undefined)selectedEditorObject.obj.y=Math.max(CEILING_Y,Math.min(GROUND_Y-20,selectedEditorObject.obj.y+dy));
-  editorCanvas.dataset.lastX=String(p.x);editorCanvas.dataset.lastY=String(p.y);
+  editorCanvas.dataset.lastX=String(p.x);editorCanvas.dataset.lastY=String(p.y);drawEditorCanvas();syncTransformControls();
 },true);
 editorCanvas.addEventListener('pointerup',()=>{editorCanvas.dataset.moving='0';},true);
 const oldDrawEditor2=drawEditorCanvas;
@@ -938,6 +938,7 @@ drawEditorCanvas=function(){
  });
  syncTransformControls();
 };
+if(!ASSET_PALETTE.some(item=>item.id===editorSelectedItem&&categoryForEditorAsset(item)==='blocks'))editorSelectedItem='block';
 renderPagedAssetCategory();
 setEditorCornerMode('block');
 syncTransformControls();
