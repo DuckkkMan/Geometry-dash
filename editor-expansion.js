@@ -164,18 +164,71 @@ function redoLocalEditor() {
 }
 
 function drawDecorGraphic(targetCtx, kind, color, r) {
+  const parts = String(kind || '').split('_');
+  const family = parts[1] || 'diamond';
+  const variant = Math.max(0, (parseInt(parts[2], 10) || 1) - 1);
+  const rotation = (variant % 5) * Math.PI / 10;
   targetCtx.save();
-  targetCtx.fillStyle = color;
+  targetCtx.rotate(rotation);
+  targetCtx.lineWidth = Math.max(1.5, r * 0.12);
+  targetCtx.lineJoin = 'round';
+  targetCtx.lineCap = 'round';
   targetCtx.strokeStyle = '#06101e';
-  targetCtx.lineWidth = 2;
-  targetCtx.beginPath();
-  targetCtx.moveTo(0, -r);
-  targetCtx.lineTo(r * 0.85, 0);
-  targetCtx.lineTo(0, r);
-  targetCtx.lineTo(-r * 0.85, 0);
-  targetCtx.closePath();
-  targetCtx.fill();
-  targetCtx.stroke();
+  targetCtx.fillStyle = color || '#38bdf8';
+  targetCtx.shadowColor = color || '#38bdf8';
+  targetCtx.shadowBlur = Math.max(2, r * 0.24);
+  const polygon = points => {
+    targetCtx.beginPath();
+    targetCtx.moveTo(points[0][0] * r, points[0][1] * r);
+    for (let i = 1; i < points.length; i++) targetCtx.lineTo(points[i][0] * r, points[i][1] * r);
+    targetCtx.closePath();
+    targetCtx.fill();
+    targetCtx.stroke();
+  };
+  if (family === 'star') {
+    const points = [];
+    const count = 5 + (variant % 4);
+    for (let i = 0; i < count * 2; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / count;
+      const rad = i % 2 ? 0.48 : 1;
+      points.push([Math.cos(a) * rad, Math.sin(a) * rad]);
+    }
+    polygon(points);
+  } else if (family === 'shard') {
+    polygon([[-0.18,-1],[0.72,-0.28],[0.22,1],[-0.7,0.25]]);
+    targetCtx.shadowBlur = 0;
+    targetCtx.strokeStyle = 'rgba(255,255,255,.7)';
+    targetCtx.beginPath(); targetCtx.moveTo(-r*.08,-r*.72); targetCtx.lineTo(r*.12,r*.52); targetCtx.stroke();
+  } else if (family === 'ring' || family === 'orb') {
+    targetCtx.beginPath();
+    targetCtx.arc(0, 0, r * (family === 'ring' ? 0.72 : 0.56), 0, Math.PI * 2);
+    targetCtx.stroke();
+    targetCtx.beginPath();
+    targetCtx.arc(0, 0, r * (family === 'ring' ? 0.4 : 0.24), 0, Math.PI * 2);
+    if (family === 'orb') { targetCtx.fill(); targetCtx.stroke(); } else targetCtx.stroke();
+    if (variant % 2) { targetCtx.beginPath(); targetCtx.arc(0,0,r*.9,Math.PI*.15,Math.PI*1.1); targetCtx.stroke(); }
+  } else if (family === 'arrow' || family === 'chevron') {
+    polygon(family === 'arrow'
+      ? [[-1,-.28],[.18,-.28],[.18,-.72],[1,0],[.18,.72],[.18,.28],[-1,.28]]
+      : [[-.85,-.7],[-.48,-1],[.5,0],[-.48,1],[-.85,.7],[.28,0]]);
+  } else if (family === 'bolt') {
+    polygon([[-.1,-1],[.72,-.16],[.18,-.08],[.36,1],[-.72,.12],[-.16,.08]]);
+  } else if (family === 'hex') {
+    const sides = 6 + (variant % 3) * 2, points = [];
+    for (let i=0;i<sides;i++){const a=-Math.PI/2+i*Math.PI*2/sides;points.push([Math.cos(a)*.86,Math.sin(a)*.86]);}
+    polygon(points);
+    targetCtx.shadowBlur=0; targetCtx.beginPath(); targetCtx.arc(0,0,r*.35,0,Math.PI*2); targetCtx.stroke();
+  } else if (family === 'cross') {
+    const w = .28 + (variant % 3) * .08;
+    polygon([[-w,-1],[w,-1],[w,-w],[1,-w],[1,w],[w,w],[w,1],[-w,1],[-w,w],[-1,w],[-1,-w],[-w,-w]]);
+  } else if (family === 'gear') {
+    const points=[];
+    for(let i=0;i<24;i++){const a=i*Math.PI/12;const rad=i%3===0?.98:(i%3===1?.82:.72);points.push([Math.cos(a)*rad,Math.sin(a)*rad]);}
+    polygon(points);
+    targetCtx.shadowBlur=0; targetCtx.fillStyle='#06101e'; targetCtx.beginPath(); targetCtx.arc(0,0,r*.28,0,Math.PI*2); targetCtx.fill();
+  } else {
+    polygon([[-.75,-.75],[.75,-.75],[.75,.75],[-.75,.75]]);
+  }
   targetCtx.restore();
 }
 
@@ -237,10 +290,12 @@ function renderAssetLibrary() {
   if (!grid) return;
   grid.replaceChildren();
   const cat = EXTRA_CATEGORIES.find(c => c.id === activeCategory) || EXTRA_CATEGORIES[0];
+  const query = ($('editor-asset-search')?.value || '').trim().toLocaleLowerCase();
+  const visibleItems = cat.items.filter(raw => !query || raw[1].toLocaleLowerCase().includes(query) || raw[0].toLocaleLowerCase().includes(query));
   $('editor-category-title').textContent = cat.name;
-  $('editor-asset-count').textContent = cat.items.length + ' OBJETOS';
+  $('editor-asset-count').textContent = visibleItems.length + ' / ' + cat.items.length;
 
-  cat.items.forEach(raw => {
+  visibleItems.forEach(raw => {
     const item = ASSET_BY_ID[raw[0]];
     const b = document.createElement('button');
     b.type = 'button';
@@ -278,10 +333,11 @@ function addCategoryPanel() {
   ['editor-panel-assets', 'editor-panel-triggers', 'editor-panel-style'].forEach(id => $(id)?.classList.add('hidden'));
   const panel = document.createElement('section');
   panel.id = 'editor-library';
-  panel.innerHTML = '<div class="editor-library-head"><button id="editor-category-prev" type="button" aria-label="Categoria anterior">◀</button><div><small>CATEGORIA</small><strong id="editor-category-title">Blocks</strong></div><span id="editor-asset-count"></span><button id="editor-category-next" type="button" aria-label="Próxima categoria">▶</button></div><div class="editor-asset-grid"></div><div class="editor-selected-label" id="editor-selected-name">Selecione um objeto</div>';
+  panel.innerHTML = '<div class="editor-library-head"><button id="editor-category-prev" type="button" aria-label="Categoria anterior">◀</button><div><small>CATEGORIA</small><strong id="editor-category-title">Blocks</strong></div><span id="editor-asset-count"></span><button id="editor-category-next" type="button" aria-label="Próxima categoria">▶</button></div><input id="editor-asset-search" class="editor-asset-search" type="search" placeholder="Buscar nesta categoria..." autocomplete="off"><div class="editor-asset-grid"></div><div class="editor-selected-label" id="editor-selected-name">Selecione um objeto</div>';
   bottom.appendChild(panel);
   $('editor-category-prev').addEventListener('click', () => changeEditorCategory(-1));
   $('editor-category-next').addEventListener('click', () => changeEditorCategory(1));
+  $('editor-asset-search').addEventListener('input', renderAssetLibrary);
   renderAssetLibrary();
 }
 
@@ -553,7 +609,21 @@ drawEditorCanvas = function () {
   } finally {
     editorShowGrid = showGrid;
   }
-  if (gameState !== 'EDITOR' || !editorDraft || !editorShowGrid) return;
+  if (gameState !== 'EDITOR' || !editorDraft) return;
+
+  // Decorações vetoriais: antes eram salvas no rascunho, mas não tinham renderização.
+  (editorDraft.decorations || []).forEach(obj => {
+    const sx = (Number(obj.x) || 0) - editorScrollX + 80;
+    const sy = Number.isFinite(Number(obj.y)) ? Number(obj.y) : Math.min(editorCanvas.height - 44, GROUND_Y) - 45;
+    const scale = Math.max(0.1, Math.min(5, Number(obj.scale) || 1));
+    if (sx < -50 || sx > editorCanvas.width + 50 || sy < -50 || sy > editorCanvas.height + 50) return;
+    eCtx.save();
+    eCtx.translate(sx, sy);
+    eCtx.rotate(Number(obj.rotation) || 0);
+    drawDecorGraphic(eCtx, obj.kind, obj.color || '#7dd3fc', 16 * scale);
+    eCtx.restore();
+  });
+  if (!editorShowGrid) return;
 
   const w = editorCanvas.width;
   const h = editorCanvas.height;
