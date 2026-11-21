@@ -213,8 +213,13 @@ function addEditorCommandBar() {
   const top=editorRoot.querySelector('.editor-topbar');
   if(!top||$('editor-command-bar'))return;
   const bar=document.createElement('div');bar.id='editor-command-bar';bar.className='editor-command-bar';
-  bar.innerHTML='<div class="editor-command-tools"><button data-tool="place" class="editor-command-btn active">PLACE</button><button data-tool="select" class="editor-command-btn">MOVE / SELECT</button><button data-tool="erase" class="editor-command-btn">DELETE</button><button data-tool="pan" class="editor-command-btn">HAND</button></div><div class="editor-command-actions"><button id="editor-duplicate-btn">DUPLICATE</button><button id="editor-mirror-x-btn">FLIP X</button><button id="editor-mirror-y-btn">FLIP Y</button><button id="editor-group-btn">GROUP</button><button id="editor-ungroup-btn">UNGROUP</button><button id="editor-select-group-btn">SELECT GROUP</button><button id="editor-copy-props-btn">COPY PROPS</button><button id="editor-paste-props-btn">PASTE PROPS</button><label class="editor-zoom-control">ZOOM <input id="editor-zoom-range" type="range" min="0.55" max="1.8" step="0.05" value="1"><span id="editor-zoom-label">100%</span></label></div>';
+  bar.innerHTML='<div class="editor-command-tools"><button data-tool="place" class="editor-command-btn active">PLACE</button><button data-tool="select" class="editor-command-btn">MOVE / SELECT</button><button data-tool="erase" class="editor-command-btn">DELETE</button><button data-tool="pan" class="editor-command-btn">HAND</button></div><div class="editor-command-actions"><button id="editor-duplicate-btn">DUPLICATE</button><button id="editor-mirror-x-btn">FLIP X</button><button id="editor-mirror-y-btn">FLIP Y</button><button id="editor-group-btn">GROUP</button><button id="editor-ungroup-btn">UNGROUP</button><button id="editor-select-group-btn">SELECT GROUP</button><button id="editor-copy-props-btn">COPY PROPS</button><button id="editor-paste-props-btn">PASTE PROPS</button><label class="editor-zoom-control">ZOOM <input id="editor-zoom-range" type="range" min="0.55" max="1.8" step="0.05" value="1"><span id="editor-zoom-label">100%</span></label><label class="editor-snap-control"><input id="editor-snap-toggle" type="checkbox" checked> SNAP</label><label class="editor-grid-size-control">GRID <input id="editor-grid-size" type="number" min="8" max="100" step="1" value="38"></label></div>';
   top.insertAdjacentElement('afterend',bar);
+  ['editor-copy-btn','editor-paste-btn'].forEach(id=>{
+    const old=$(id);if(!old)return;const fresh=old.cloneNode(true);old.replaceWith(fresh);
+    if(id==='editor-copy-btn')fresh.addEventListener('click',()=>{clipboardObjects=getSelectionRecords().map(s=>({key:s.key,obj:deepClone(s.obj)}));});
+    else fresh.addEventListener('click',()=>{if(!clipboardObjects.length)return;recordHistory();const next=clipboardObjects.map(s=>{const o=deepClone(s.obj);o.id=makeId();o.x=(o.x||0)+gridUnit;editorDraft[s.key].push(o);return {key:s.key,obj:o};});setSelection(next);});
+  });
   bar.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{
     editorToolMode=b.dataset.tool;syncEditorToolButtons();bar.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));
   }));
@@ -228,6 +233,8 @@ function addEditorCommandBar() {
   $('editor-copy-props-btn').addEventListener('click',()=>{const s=getSelectionRecords()[0];if(s)propertyClipboard={rotation:s.obj.rotation||0,scale:s.obj.scale||1,color:s.obj.color||null,groups:objectGroupList(s.obj)};});
   $('editor-paste-props-btn').addEventListener('click',()=>{if(!propertyClipboard)return;transformSelection(o=>{o.rotation=propertyClipboard.rotation;o.scale=propertyClipboard.scale;if(propertyClipboard.color)o.color=propertyClipboard.color;assignGroups(o,propertyClipboard.groups.join(', '));});});
   $('editor-zoom-range').addEventListener('input',()=>{editorZoom=Number($('editor-zoom-range').value)||1;$('editor-zoom-label').textContent=Math.round(editorZoom*100)+'%';drawEditorCanvas();});
+  $('editor-snap-toggle').addEventListener('change',()=>{snapEnabled=$('editor-snap-toggle').checked;});
+  $('editor-grid-size').addEventListener('change',()=>{gridUnit=Math.max(8,Math.min(100,Number($('editor-grid-size').value)||38));$('editor-grid-size').value=gridUnit;drawEditorCanvas();});
 }
 function addInspector() {
   const bottom=editorRoot.querySelector('.editor-bottom-panel');
