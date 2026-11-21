@@ -354,6 +354,32 @@ placeSelectedAtWorldCoord = function(x,y) {
   }
   oldPlace.call(this,x,y);
 };
+const oldEditAtPointer=editAtEditorPointer;
+editAtEditorPointer=function(pointerEvent){
+  const point=getEditorWorldCoords(pointerEvent);expandEditorLevelIfNeeded(point.x);
+  if(editorToolMode==='erase'){
+    if(!lastEditorDragPoint)eraseAtWorldCoord(point.x,point.y);
+    else{
+      const dx=point.x-lastEditorDragPoint.x,dy=point.y-lastEditorDragPoint.y;
+      const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/gridUnit));
+      for(let i=1;i<=steps;i++)eraseAtWorldCoord(lastEditorDragPoint.x+dx*i/steps,lastEditorDragPoint.y+dy*i/steps);
+    }
+  }else if(editorToolMode==='place'&&editorSelectedItem!=='platform'){
+    if(!lastEditorDragPoint)placeSelectedAtWorldCoord(point.x,point.y);
+    else{
+      const dx=point.x-lastEditorDragPoint.x,dy=point.y-lastEditorDragPoint.y,dist=Math.hypot(dx,dy);
+      if(dist>=gridUnit*.65){
+        const steps=Math.max(1,Math.ceil(dist/gridUnit));
+        for(let i=1;i<=steps;i++){
+          let x=lastEditorDragPoint.x+dx*i/steps,y=lastEditorDragPoint.y+dy*i/steps;
+          if(snapEnabled){x=Math.round(x/gridUnit)*gridUnit;y=Math.round(y/gridUnit)*gridUnit;}
+          placeSelectedAtWorldCoord(x,y);
+        }
+      }
+    }
+  }
+  lastEditorDragPoint=point;
+};
 const oldErase = eraseAtWorldCoord;
 eraseAtWorldCoord = function(x,y) {
   oldErase(x,y);
