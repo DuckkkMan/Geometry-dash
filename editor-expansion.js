@@ -550,7 +550,7 @@ startAttempt=function(countNewAttempt) {
   activePillars.forEach(o=>{if(o.scale&&o.scale!==1)applyObjectScale(o,o.scale);});
   activeOrbs.forEach(o=>{if(o.scale&&o.scale!==1)applyObjectScale(o,o.scale);});
   activePads.forEach(o=>{if(o.scale&&o.scale!==1)applyObjectScale(o,o.scale);});
-  activeSpikes.forEach(o=>{const src=(activePlayableLevel.spikes||[]).find(s=>s.x===o.x);if(src){o.groups=deepClone(src.groups||[]);o.scale=src.scale||1;if(o.scale!==1)applyObjectScale(o,o.scale);}});
+  activeSpikes.forEach(o=>{const src=(activePlayableLevel.spikes||[]).find(s=>s.x===o.x);if(src){o.groups=deepClone(src.groups||[]);o.color=src.color||null;o.rotation=src.rotation||0;o.scale=src.scale||1;if(o.scale!==1)applyObjectScale(o,o.scale);}});
   runtimeEffects=[];
   if(activePlayableLevel.initialMode)playerMode=activePlayableLevel.initialMode;
   const multiplier=Number(activePlayableLevel.initialSpeed)||1;
