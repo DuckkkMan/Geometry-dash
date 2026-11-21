@@ -1678,7 +1678,7 @@ function loop() {
 
 // === EDITOR DE FASES (GRID + ASSETS + TRIGGERS + BG/GROUND + CRIAÇÕES) ===
 const EDITOR_GRID = 38;
-const EDITOR_GROUND_Y = 270;
+const EDITOR_GROUND_Y = 264;
 const EDITOR_SCALE_Y = EDITOR_GROUND_Y / GROUND_Y;
 
 let editorToolMode = 'place'; // 'place' | 'erase' | 'pan'
@@ -2071,7 +2071,7 @@ function drawEditorCanvas() {
         const sx = toSX(block.x);
         const sy = toSY(block.y);
         const width = (block.w || BLOCK_SIZE);
-        const height = (block.h || BLOCK_SIZE) * EDITOR_SCALE_Y;
+        const height = (block.h || BLOCK_SIZE);
         eCtx.fillStyle = '#2475bd';
         eCtx.strokeStyle = '#ffffff';
         eCtx.lineWidth = 2;
