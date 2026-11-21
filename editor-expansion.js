@@ -920,6 +920,29 @@ const oldRenderPalettes=renderEditorPalettes;
 renderEditorPalettes=function(){oldRenderPalettes();renderAssetLibrary();};
 const oldSyncTools=syncEditorToolButtons;
 syncEditorToolButtons=function(){oldSyncTools();const bar=$('editor-command-bar');if(bar)bar.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===editorToolMode));};
+
+function installGameWindowResize(){
+  const container=$('game-container'),handle=$('game-resize-handle');
+  if(!container||!handle||handle.dataset.ready)return;
+  handle.dataset.ready='1';
+  let startX=0,startWidth=container.getBoundingClientRect().width,active=false;
+  handle.addEventListener('pointerdown',e=>{
+    e.preventDefault();e.stopPropagation();active=true;startX=e.clientX;
+    startWidth=container.getBoundingClientRect().width;
+    handle.setPointerCapture?.(e.pointerId);
+  });
+  handle.addEventListener('pointermove',e=>{
+    if(!active)return;
+    const maxWidth=Math.max(480,Math.min(window.innerWidth-18,(window.innerHeight-18)*1.8));
+    const width=Math.max(480,Math.min(maxWidth,startWidth+e.clientX-startX));
+    container.style.width=width+'px';
+    container.style.height=(width*5/9)+'px';
+  });
+  const stop=()=>{active=false;};
+  handle.addEventListener('pointerup',stop);
+  handle.addEventListener('pointercancel',stop);
+}
+
 addCategoryPanel();addEditorCommandBar();addInspector();addAdvancedTriggerEditor();installSelectionInput();addKeyboardEditorShortcuts();installGameWindowResize();
 ensureDraftSchema(editorDraft);
 renderAssetLibrary();
