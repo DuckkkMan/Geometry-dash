@@ -643,7 +643,8 @@ checkTriggerActivation=function(p,trig,screenX) {
   if(trig.kind==='speed'){
     const multiplier=Number(trig.speedMultiplier);
     const custom=Number(trig.customSpeed);
-    currentGameSpeed=BASE_GAME_SPEED*(multiplier===99?(Number.isFinite(custom)?custom:1):(Number.isFinite(multiplier)?multiplier:1));
+    const target=BASE_GAME_SPEED*(multiplier===99?(Number.isFinite(custom)?custom:1):(Number.isFinite(multiplier)?multiplier:1));
+    runtimeEffects.push({type:'speed',elapsed:0,duration:duration,remaining:duration,fromSpeed:currentGameSpeed,toSpeed:target});
   }
 };
 function allRuntimeObjects() {
@@ -664,6 +665,10 @@ loop=function() {
     if(effect.type==='scale'){
       applyObjectScale(effect.object,effect.fromScale+(effect.toScale-effect.fromScale)*progress);
       if(effect.remaining<=0){applyObjectScale(effect.object,effect.toScale);return false;}return true;
+    }
+    if(effect.type==='speed'){
+      currentGameSpeed=effect.fromSpeed+(effect.toSpeed-effect.fromSpeed)*progress;
+      if(effect.remaining<=0){currentGameSpeed=effect.toSpeed;return false;}return true;
     }
     const pulse=1+Math.sin(effect.elapsed*Math.PI*4)*.12*effect.intensity;
     applyObjectScale(effect.object,effect.baseScale*pulse);
