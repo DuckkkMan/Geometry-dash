@@ -1013,7 +1013,9 @@ placeSelectedAtWorldCoord=function(x,y){
     if(raw===null)return;
     mult=Number(raw);
     if(!Number.isFinite(mult)||mult===0){alert('Informe uma velocidade diferente de zero.');return;}
-    obj.label='CUSTOM '+mult+'x';
+    const customName=prompt('Nome que aparecerá na fase:','CUSTOM '+mult+'x');
+    if(customName===null)return;
+    obj.label=customName.trim()||('CUSTOM '+mult+'x');
    }
    obj.kind='speed_custom';obj.multiplier=mult;obj.label=obj.label||cfg.label;
   } else if(cfg.id==='trig_bg_custom'){
