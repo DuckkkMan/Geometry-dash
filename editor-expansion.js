@@ -699,6 +699,12 @@ drawSaw=function(saw,screenX){
   const base=saw.angle||0;saw.angle=base+(saw.rotation||0);oldDrawSaw(saw,screenX);saw.angle=base;
   if(saw.color){ctx.save();ctx.fillStyle=saw.color;ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.arc(screenX,saw.y,(saw.r||22)*.42,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
 };
+const oldCheckCoin=checkCoinTrigger;
+checkCoinTrigger=function(p,coin,screenX){
+  if(!coin.radius){oldCheckCoin(p,coin,screenX);return;}
+  if(coin.collected)return;const dx=p.x+p.size/2-screenX,dy=p.y+p.size/2-coin.y,hit=p.size*.55+coin.radius;
+  if(dx*dx+dy*dy<=hit*hit){coin.collected=true;playSfx('coin');spawnEndParticles(screenX,coin.y,12,true);}
+};
 const oldDrawCoin=drawCoin;
 drawCoin=function(coin,screenX){
   if(coin.collected)return;const r=coin.radius||13;if(screenX+r*2<-40||screenX-r*2>canvas.width+40)return;
