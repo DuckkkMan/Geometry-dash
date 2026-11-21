@@ -128,15 +128,30 @@ function allEditorArrays(draft) {
     .map(key => ({ key, items: Array.isArray(draft[key]) ? draft[key] : [] }));
 }
 
-function objectCenter(obj) {
-  let y = obj.y;
-  if (y === undefined) {
-    if (obj.cooldown !== undefined) y = GROUND_Y - 5;
-    else if (obj.h !== undefined) y = GROUND_Y - (Number(obj.h) || 90) / 2;
-    else if (obj.type) y = GROUND_Y - PORTAL_HEIGHT / 2;
-    else y = GROUND_Y - 45;
+function objectCenter(obj, key) {
+  const x = Number(obj.x) || 0;
+  const y = Number.isFinite(Number(obj.y)) ? Number(obj.y) : null;
+  const w = Number(obj.w) || (key === 'spikes' ? (obj.sizeType === 'mini' ? MINI_SPIKE_W : BLOCK_SIZE) : 0);
+  const h = Number(obj.h) || (key === 'spikes' ? (obj.sizeType === 'mini' ? MINI_SPIKE_H : BLOCK_SIZE) : 0);
+
+  // Coordenadas armazenadas como canto superior esquerdo precisam de centro geométrico.
+  if (key === 'blocks' || key === 'platforms') {
+    return { x: x + w / 2, y: (y === null ? GROUND_Y - (h || BLOCK_SIZE) : y) + (h || BLOCK_SIZE) / 2 };
   }
-  return { x: Number(obj.x) || 0, y: Number(y) };
+  if (key === 'pillars') return { x: x + (w || 34) / 2, y: GROUND_Y - (Number(obj.h) || 90) / 2 };
+  if (key === 'spikes') {
+    const height = h || BLOCK_SIZE;
+    const baseY = obj.inverted ? CEILING_Y : GROUND_Y;
+    return { x: x + (w || BLOCK_SIZE) / 2, y: baseY + (obj.inverted ? height / 2 : -height / 2) };
+  }
+  if (key === 'pads') return { x: x + 18, y: GROUND_Y - 5 };
+  if (key === 'portals') return { x: x + PORTAL_WIDTH / 2, y: GROUND_Y - 50 };
+  if (key === 'triggers') return { x: x + 12, y: GROUND_Y - 50 };
+  if (y !== null) return { x, y };
+  if (obj.cooldown !== undefined) return { x: x + 18, y: GROUND_Y - 5 };
+  if (obj.h !== undefined) return { x: x + (w || 34) / 2, y: GROUND_Y - (Number(obj.h) || 90) / 2 };
+  if (obj.type) return { x: x + PORTAL_WIDTH / 2, y: GROUND_Y - PORTAL_HEIGHT / 2 };
+  return { x, y: GROUND_Y - 45 };
 }
 
 function objectGroupList(obj) {
@@ -517,7 +532,7 @@ function findObjectAt(point) {
   let found = null;
   let best = Infinity;
   allEditorArrays(editorDraft).forEach(group => group.items.forEach(obj => {
-    const p = objectCenter(obj);
+    const p = objectCenter(obj, group.key);
     const dist = Math.hypot(point.x - p.x, point.y - p.y);
     const radius = Math.max(30, (obj.w || obj.r || 40) * (obj.scale || 1) * 0.65);
     if (dist < radius && dist < best) {
@@ -599,7 +614,7 @@ editAtEditorPointer = function (pointerEvent) {
       selectedObjects = hit ? [hit] : [];
       selectedDragState = hit ? {
         key: hit.key, obj: hit.obj, startX: point.x, startY: point.y,
-        objectX: Number(hit.obj.x) || 0, objectY: Number.isFinite(Number(hit.obj.y)) ? Number(hit.obj.y) : objectCenter(hit.obj).y,
+        objectX: Number(hit.obj.x) || 0, objectY: Number.isFinite(Number(hit.obj.y)) ? Number(hit.obj.y) : objectCenter(hit.obj, hit.key).y,
         moved: false
       } : { empty: true };
       refreshInspector();
@@ -663,9 +678,11 @@ drawEditorCanvas = function () {
   eCtx.strokeStyle = '#ffe600';
   eCtx.lineWidth = 2;
   getSelectionRecords().forEach(record => {
-    const center = objectCenter(record.obj);
+    const center = objectCenter(record.obj, record.key);
     const sx = center.x - editorScrollX + 80;
-    eCtx.strokeRect(sx - gridUnit / 2, center.y - gridUnit / 2, gridUnit, gridUnit);
+    const boxW = Math.max(gridUnit, Number(record.obj.w) || gridUnit);
+    const boxH = Math.max(gridUnit, Number(record.obj.h) || gridUnit);
+    eCtx.strokeRect(sx - boxW / 2, center.y - boxH / 2, boxW, boxH);
   });
   eCtx.restore();
 };
