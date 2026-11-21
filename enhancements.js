@@ -1,4 +1,4 @@
-/* Geometry Dash Web - expansão principal v1.0
+/* Geometry Dash Web - expansão principal v1.2
    Modos, portais procedurais, garagem multi-ícone, editor avançado e trilha.
    Sem bibliotecas externas. */
 (() => {
