@@ -1173,3 +1173,10 @@ canvas {
  #level-editor .editor-top-center{gap:5px}
  #level-editor .mini-btn{white-space:nowrap}
 }
+
+@media(max-width:700px){
+ #skin-garage{overflow-y:auto;justify-content:flex-start;align-items:center;padding:58px 8px 18px;touch-action:pan-y}
+ #skin-garage .garage-box{width:100%;max-width:560px;padding:14px 12px;margin:0 auto;flex:0 0 auto}
+ #skin-garage .mode-skin-panel{margin-top:8px}
+ #skin-garage .preview-stage{margin-bottom:8px}
+}
