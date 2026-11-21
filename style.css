@@ -1602,3 +1602,19 @@ canvas {
   #editor-tool-rail{top:50px}
   #editor-delete-panel{top:220px;left:66px;width:min(190px,calc(100% - 74px))}
 }
+
+
+/* Grid settings — one cell is always exactly one gameplay cube */
+#editor-grid-settings-open{width:30px;height:28px;margin-right:5px;border:2px solid #030914;border-radius:6px;background:#244875;color:#fff;font-size:16px;cursor:pointer}
+#editor-grid-settings-panel{position:absolute;z-index:48;right:10px;top:50px;width:min(260px,calc(100% - 20px));padding:11px;border:2px solid #315b80;border-radius:9px;background:linear-gradient(160deg,#173653,#071629);color:#eaf8ff;box-shadow:0 10px 28px #000b;font:800 9px Orbitron,sans-serif}
+#editor-grid-settings-panel.hidden{display:none!important}
+.grid-settings-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;color:#8cecff}
+.grid-settings-head strong{font-size:10px}
+.grid-settings-head button{width:24px;height:24px;border:1px solid #456783;border-radius:5px;background:#10243b;color:#fff;font-size:18px;cursor:pointer}
+.grid-settings-cell{display:flex;flex-direction:column;gap:4px;padding:9px;margin-bottom:8px;border:1px solid #31516d;border-radius:6px;background:#0a1b2d}
+.grid-settings-cell b{color:#ffe58a;font-size:10px}
+.grid-settings-cell small{color:#91b7d0;font:600 8px sans-serif}
+.grid-settings-option{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 2px;color:#d9edff}
+.grid-settings-option input[type=checkbox]{accent-color:#9dff00;width:15px;height:15px}
+.grid-settings-option select{max-width:115px;padding:5px;border:1px solid #345775;border-radius:5px;background:#061326;color:#fff;font:700 9px Orbitron,sans-serif}
+@media(max-width:700px){#editor-grid-settings-panel{right:5px;top:46px;width:min(235px,calc(100% - 10px))}}
