@@ -1684,11 +1684,30 @@ function openEditorWithLevel(lvl) {
     editorDraft = JSON.parse(JSON.stringify(lvl || createEmptyEditorDraft()));
     if (!editorDraft.id) editorDraft.id = 'lvl_' + Date.now();
     editorScrollX = 0;
-    syncStyleInputsFromDraft();
-    syncEditorToolButtons();
-    renderEditorPalettes();
+
+    // Abrir a tela primeiro: uma falha na paleta ou em um painel não pode
+    // impedir que o editor inteiro desapareça.
     showOverlay(levelEditor, 'EDITOR');
-    drawEditorCanvas();
+    if (levelEditor) {
+        levelEditor.classList.remove('hidden');
+        levelEditor.style.display = 'flex';
+        levelEditor.style.visibility = 'visible';
+        levelEditor.style.opacity = '1';
+        levelEditor.style.pointerEvents = 'auto';
+    }
+
+    const safeEditorSetup = (label, callback) => {
+        try {
+            callback();
+        } catch (error) {
+            console.error('[Editor] Falha ao preparar ' + label + ':', error);
+        }
+    };
+
+    safeEditorSetup('configurações visuais', syncStyleInputsFromDraft);
+    safeEditorSetup('ferramentas', syncEditorToolButtons);
+    safeEditorSetup('paleta de objetos', renderEditorPalettes);
+    safeEditorSetup('desenho da fase', drawEditorCanvas);
 }
 
 function saveEditorDraftToCustomLevels() {
