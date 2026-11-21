@@ -716,18 +716,22 @@ function checkSawCollision(p, saw, screenX) {
 }
 
 function drawPillar(pillar, screenX) {
-    const w = pillar.w || 34;
-    const h = pillar.h || 90;
+    const w = (pillar.w || 34) * (pillar.scale || 1);
+    const h = (pillar.h || 90) * (pillar.scale || 1);
+    const bottom = pillar.y === undefined ? GROUND_Y : pillar.y;
     if (screenX + w < -50 || screenX > canvas.width + 50) return;
 
     ctx.save();
+    ctx.globalAlpha = pillar.alpha === undefined ? 1 : pillar.alpha;
+    ctx.translate(screenX + w/2, bottom - h/2);
+    ctx.rotate(pillar.rotation || 0);
     ctx.fillStyle = pillar.color || '#64748b';
     ctx.strokeStyle = '#050b16';
     ctx.lineWidth = 3;
-    ctx.fillRect(screenX, GROUND_Y - h, w, h);
-    ctx.strokeRect(screenX, GROUND_Y - h, w, h);
+    ctx.fillRect(-w/2, -h/2, w, h);
+    ctx.strokeRect(-w/2, -h/2, w, h);
     ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.fillRect(screenX + 4, GROUND_Y - h + 4, Math.max(3,w * 0.18), h - 8);
+    ctx.fillRect(-w/2 + 4, -h/2 + 4, Math.max(3,w * 0.18), h - 8);
     ctx.restore();
 }
 
@@ -1559,8 +1563,9 @@ function loop() {
             const sx = pillar.x - levelDistance + 160;
             const w = pillar.w || 34;
             const h = pillar.h || 90;
+            const pillarBottom = pillar.y === undefined ? GROUND_Y : pillar.y;
             if (player.x + player.size - 4 > sx && player.x + 4 < sx + w &&
-                player.y + player.size - 4 > GROUND_Y - h && player.y + 4 < GROUND_Y) {
+                player.y + player.size - 4 > pillarBottom - h && player.y + 4 < pillarBottom) {
                 triggerDeath();
                 break;
             }
@@ -2069,35 +2074,32 @@ function drawEditorCanvas() {
 
     editorDraft.pillars.forEach(pi => {
         const sx = toSX(pi.x);
-        const h = (pi.h || 90) * EDITOR_SCALE_Y;
-        eCtx.fillStyle = 'rgba(255,255,255,0.2)';
-        eCtx.fillRect(sx, EDITOR_GROUND_Y - h, 24, h);
+        const bottom = pi.y === undefined ? EDITOR_GROUND_Y : toSY(pi.y);
+        const h = (pi.h || 90) * EDITOR_SCALE_Y * (pi.scale || 1);
+        eCtx.save();eCtx.globalAlpha=pi.alpha===undefined?1:pi.alpha;
+        eCtx.translate(sx+(pi.w||34)/2,bottom-h/2);eCtx.rotate(pi.rotation||0);
+        eCtx.fillStyle=pi.color||'#64748b';eCtx.strokeStyle='#07101d';eCtx.lineWidth=2;
+        eCtx.fillRect(-(pi.w||34)*(pi.scale||1)/2,-h/2,(pi.w||34)*(pi.scale||1),h);
+        eCtx.strokeRect(-(pi.w||34)*(pi.scale||1)/2,-h/2,(pi.w||34)*(pi.scale||1),h);eCtx.restore();
     });
 
     editorDraft.platforms.forEach(pl => {
-        const sx = toSX(pl.x);
-        const sy = toSY(pl.y);
-        const width = Math.max(EDITOR_GRID, pl.w);
-        const height = Math.max(12, (pl.h || 26) * EDITOR_SCALE_Y);
-        eCtx.fillStyle = '#00e5ff';
-        eCtx.strokeStyle = '#000';
-        eCtx.lineWidth = 2;
-        eCtx.fillRect(sx, sy, width, height);
-        eCtx.strokeRect(sx, sy, width, height);
+        const sx=toSX(pl.x),sy=toSY(pl.y),scale=pl.scale||1;
+        const width=Math.max(EDITOR_GRID,pl.w)*scale,height=Math.max(12,(pl.h||26)*EDITOR_SCALE_Y)*scale;
+        eCtx.save();eCtx.globalAlpha=pl.alpha===undefined?1:pl.alpha;
+        eCtx.translate(sx+width/2,sy+height/2);eCtx.rotate(pl.rotation||0);
+        eCtx.fillStyle=pl.color||'#00e5ff';eCtx.strokeStyle='#000';eCtx.lineWidth=2;
+        eCtx.fillRect(-width/2,-height/2,width,height);eCtx.strokeRect(-width/2,-height/2,width,height);eCtx.restore();
     });
 
     (editorDraft.blocks || []).forEach(block => {
-        const sx = toSX(block.x);
-        const sy = toSY(block.y);
-        const width = (block.w || BLOCK_SIZE);
-        const height = (block.h || BLOCK_SIZE);
-        eCtx.fillStyle = '#2475bd';
-        eCtx.strokeStyle = '#ffffff';
-        eCtx.lineWidth = 2;
-        eCtx.fillRect(sx, sy, width, height);
-        eCtx.strokeRect(sx, sy, width, height);
-        eCtx.strokeStyle = 'rgba(255,255,255,0.35)';
-        eCtx.strokeRect(sx + 5, sy + 5, width - 10, Math.max(5, height - 10));
+        const sx=toSX(block.x),sy=toSY(block.y),scale=block.scale||1;
+        const width=(block.w||BLOCK_SIZE)*scale,height=(block.h||BLOCK_SIZE)*scale;
+        eCtx.save();eCtx.globalAlpha=block.alpha===undefined?1:block.alpha;
+        eCtx.translate(sx+width/2,sy+height/2);eCtx.rotate(block.rotation||0);
+        eCtx.fillStyle=block.color||'#2475bd';eCtx.strokeStyle='#ffffff';eCtx.lineWidth=2;
+        eCtx.fillRect(-width/2,-height/2,width,height);eCtx.strokeRect(-width/2,-height/2,width,height);
+        eCtx.strokeStyle='rgba(255,255,255,0.35)';eCtx.strokeRect(-width/2+5,-height/2+5,Math.max(5,width-10),Math.max(5,height-10));eCtx.restore();
     });
 
     editorDraft.spikes.forEach(sp => {
@@ -2122,32 +2124,27 @@ function drawEditorCanvas() {
     });
 
     editorDraft.pads.forEach(pd => {
-        const sx = toSX(pd.x);
-        eCtx.fillStyle = pd.color === 'pink' ? '#ff4fd8' : '#ffe600';
-        eCtx.fillRect(sx, EDITOR_GROUND_Y - 8, 26, 8);
+        const sx=toSX(pd.x),y=pd.y===undefined?EDITOR_GROUND_Y-8:toSY(pd.y),scale=pd.scale||1;
+        eCtx.save();eCtx.globalAlpha=pd.alpha===undefined?1:pd.alpha;eCtx.translate(sx+13,y+4);eCtx.rotate(pd.rotation||0);
+        eCtx.fillStyle=pd.colorHex|| (pd.color==='pink'?'#ff4fd8':'#ffe600');eCtx.fillRect(-13*scale,-4*scale,26*scale,8*scale);eCtx.restore();
     });
 
     editorDraft.orbs.forEach(ob => {
         const sx = toSX(ob.x);
         const sy = toSY(ob.y);
-        eCtx.fillStyle = ob.color === 'pink' ? '#ff4fd8' : '#ffe600';
-        eCtx.beginPath();
-        eCtx.arc(sx, sy, 11, 0, Math.PI * 2);
-        eCtx.fill();
+        eCtx.save();eCtx.globalAlpha=ob.alpha===undefined?1:ob.alpha;
+        eCtx.translate(sx,sy);eCtx.rotate(ob.rotation||0);eCtx.fillStyle=ob.colorHex||(ob.color==='pink'?'#ff4fd8':'#ffe600');
+        eCtx.beginPath();eCtx.arc(0,0,11*(ob.scale||1),0,Math.PI*2);eCtx.fill();eCtx.restore();
     });
 
     editorDraft.saws.forEach(sw => {
-        eCtx.fillStyle = '#94a3b8';
-        eCtx.beginPath();
-        eCtx.arc(toSX(sw.x), toSY(sw.y), 14, 0, Math.PI * 2);
-        eCtx.fill();
+        eCtx.save();eCtx.globalAlpha=sw.alpha===undefined?1:sw.alpha;eCtx.translate(toSX(sw.x),toSY(sw.y));eCtx.rotate(sw.rotation||0);
+        eCtx.fillStyle=sw.color||'#94a3b8';eCtx.beginPath();eCtx.arc(0,0,14*(sw.scale||1),0,Math.PI*2);eCtx.fill();eCtx.restore();
     });
 
     editorDraft.coins.forEach(co => {
-        eCtx.fillStyle = '#ffd60a';
-        eCtx.beginPath();
-        eCtx.arc(toSX(co.x), toSY(co.y), 9, 0, Math.PI * 2);
-        eCtx.fill();
+        eCtx.save();eCtx.globalAlpha=co.alpha===undefined?1:co.alpha;eCtx.translate(toSX(co.x),toSY(co.y));eCtx.rotate(co.rotation||0);
+        eCtx.fillStyle=co.secret?'#20c9ff':(co.color||'#ffd60a');eCtx.beginPath();eCtx.arc(0,0,9*(co.scale||1),0,Math.PI*2);eCtx.fill();eCtx.restore();
     });
 
     editorDraft.portals.forEach(pt => {
@@ -2158,9 +2155,9 @@ function drawEditorCanvas() {
     });
 
     editorDraft.triggers.forEach(tr => {
-        const sx = toSX(tr.x);
-        eCtx.strokeStyle = '#ffe600';
-        eCtx.strokeRect(sx, 30, 16, EDITOR_GROUND_Y - 30);
+        const sx=toSX(tr.x),sy=tr.y===undefined?30:toSY(tr.y);
+        eCtx.save();eCtx.globalAlpha=tr.alpha===undefined?1:tr.alpha;eCtx.translate(sx+8,sy);eCtx.rotate(tr.rotation||0);
+        eCtx.strokeStyle=tr.color||'#ffe600';eCtx.lineWidth=2*(tr.scale||1);eCtx.strokeRect(-8,0,16,(EDITOR_GROUND_Y-sy)*(tr.scale||1));eCtx.restore();
     });
 
     const finX = toSX(finishX);
