@@ -2024,17 +2024,16 @@ function drawEditorCanvas() {
         eCtx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
         eCtx.lineWidth = 1;
         const startGridX = -(editorScrollX % EDITOR_GRID);
-        for (let gx = startGridX; gx < editorCanvas.width; gx += EDITOR_GRID) {
-            eCtx.beginPath();
-            eCtx.moveTo(gx, 0);
-            eCtx.lineTo(gx, EDITOR_GROUND_Y);
-            eCtx.stroke();
+        const gridStepY = EDITOR_GRID * EDITOR_SCALE_Y;
+        for (let gx = startGridX, col = Math.round(editorScrollX / EDITOR_GRID); gx < editorCanvas.width; gx += EDITOR_GRID, col++) {
+            eCtx.strokeStyle = col % 4 === 0 ? 'rgba(80,205,255,0.30)' : 'rgba(255,255,255,0.12)';
+            eCtx.lineWidth = col % 4 === 0 ? 1.4 : 1;
+            eCtx.beginPath(); eCtx.moveTo(gx, 0); eCtx.lineTo(gx, EDITOR_GROUND_Y); eCtx.stroke();
         }
-        for (let gy = 0; gy <= EDITOR_GROUND_Y; gy += EDITOR_GRID) {
-            eCtx.beginPath();
-            eCtx.moveTo(0, gy);
-            eCtx.lineTo(editorCanvas.width, gy);
-            eCtx.stroke();
+        for (let gy = 0, row = 0; gy <= EDITOR_GROUND_Y; gy += gridStepY, row++) {
+            eCtx.strokeStyle = row % 4 === 0 ? 'rgba(80,205,255,0.30)' : 'rgba(255,255,255,0.12)';
+            eCtx.lineWidth = row % 4 === 0 ? 1.4 : 1;
+            eCtx.beginPath(); eCtx.moveTo(0, gy); eCtx.lineTo(editorCanvas.width, gy); eCtx.stroke();
         }
     }
 
