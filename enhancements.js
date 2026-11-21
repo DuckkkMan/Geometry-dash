@@ -269,8 +269,17 @@ drawEditorCanvas=function() {
   editorDraft.portals.forEach(pt=>{
     const sx=pt.x-editorScrollX+80, cy=EDITOR_GROUND_Y-38;
     const color=portalColor(mapPortalMode(pt.type));
-    eCtx.save();eCtx.shadowColor=color;eCtx.shadowBlur=10;eCtx.strokeStyle=color;eCtx.lineWidth=4;
-    eCtx.beginPath();eCtx.ellipse(sx+16,cy,12,30,0,0,Math.PI*2);eCtx.stroke();eCtx.restore();
+    const bg=eCtx.createLinearGradient(0,0,0,EDITOR_GROUND_Y);
+    bg.addColorStop(0,document.getElementById('style-bg-top').value);
+    bg.addColorStop(1,document.getElementById('style-bg-bottom').value);
+    eCtx.save();
+    // Apaga o retângulo antigo do editor e desenha o portal oval diretamente.
+    eCtx.fillStyle=bg;eCtx.fillRect(sx-2,EDITOR_GROUND_Y-80,36,82);
+    eCtx.shadowColor=color;eCtx.shadowBlur=12;eCtx.strokeStyle=color;eCtx.lineWidth=5;
+    eCtx.beginPath();eCtx.ellipse(sx+16,cy,12,30,0,0,Math.PI*2);eCtx.stroke();
+    eCtx.shadowBlur=4;eCtx.strokeStyle='#ffffff';eCtx.lineWidth=1.5;
+    eCtx.beginPath();eCtx.ellipse(sx+16,cy,7,24,0,0,Math.PI*2);eCtx.stroke();
+    eCtx.restore();
   });
 };
 renderEditorPalettes();
@@ -463,7 +472,7 @@ syncEditorToolButtons=function(){oldSyncTools();if(selectToolBtn)selectToolBtn.c
 // Extra triggers: slow speed, reverse gravity, and background color preset.
 TRIGGER_PALETTE.push(
   {id:'trig_speed_slow',label:'VEL 0.75x',color:'#60a5fa'},
-  {id:'trig_gravity_flip',label:'GRAV FLIP',color:'#f472b6'},
+  {id:'trig_gravity_flip',label:'BALL/SPIDER FLIP',color:'#f472b6'},
   {id:'trig_bg_cyan',label:'BG CYAN',color:'#06b6d4'}
 );
 const oldPlace3=placeSelectedAtWorldCoord;
