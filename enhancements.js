@@ -607,19 +607,7 @@ editorCanvas.addEventListener('pointermove',e=>{
   editorCanvas.dataset.lastX=String(p.x);editorCanvas.dataset.lastY=String(p.y);
 },true);
 editorCanvas.addEventListener('pointerup',()=>{editorCanvas.dataset.moving='0';},true);
-const oldDrawEditor2=drawEditorCanvas;
-drawEditorCanvas=function(){
-  oldDrawEditor2();
-  // Guia visual permanente do personagem inicial no editor.
-  const guideX=160-editorScrollX+80, guideY=(GROUND_Y-BLOCK_SIZE)*EDITOR_SCALE_Y+22;
-  eCtx.save();eCtx.strokeStyle='rgba(255,255,255,.65)';eCtx.setLineDash([5,5]);eCtx.lineWidth=2;
-  eCtx.beginPath();eCtx.moveTo(guideX-70,guideY);eCtx.lineTo(guideX+2,guideY);eCtx.stroke();eCtx.setLineDash([]);
-  drawModeIcon(eCtx,'cube',guideX-22,guideY-22,44,0,modeSkins.cube);eCtx.restore();
-  if(selectedEditorObject){
-    const o=selectedEditorObject.obj,sx=o.x-editorScrollX+80,sy=(o.y===undefined?GROUND_Y-40:o.y)*EDITOR_SCALE_Y;
-    eCtx.save();eCtx.strokeStyle='#fff';eCtx.lineWidth=2;eCtx.setLineDash([5,4]);eCtx.strokeRect(sx-9,sy-22,Math.max(34,(o.w||30)+18),44);eCtx.restore();
-  }
-};
+// Editor rendering is owned by editor-expansion.js; no legacy player/spawn overlay.
 const clearLevelButton=document.getElementById('editor-clear-btn');
 if(clearLevelButton)clearLevelButton.addEventListener('click',()=>snapshotEditor(),true);
 window.addEventListener('keydown',e=>{
