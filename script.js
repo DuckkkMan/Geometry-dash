@@ -188,7 +188,8 @@ function writeSaveData() {
             skin: playerSkin,
             progress: levelProgress,
             attempts: levelAttempts,
-            customLevels: customLevels
+            customLevels: customLevels,
+            secretCoins: Array.from(secretCoins || [])
         }));
     } catch (e) {
         console.warn('Erro ao salvar no navegador:', e);
@@ -196,6 +197,7 @@ function writeSaveData() {
 }
 
 const savedData = loadSaveData();
+let secretCoins = new Set(Array.isArray(savedData.secretCoins) ? savedData.secretCoins : []);
 let controlPlatform = savedData.platform === 'mobile' ? 'mobile' : 'pc';
 let playerSkin = savedData.skin || { model: 0, primary: '#ffde00', secondary: '#00e5ff' };
 let levelProgress = savedData.progress || {};
@@ -617,7 +619,6 @@ function checkOrbTrigger(p, orb, screenX) {
     if (dx * dx + dy * dy <= hitDist * hitDist) {
         orb.used = true;
         jumpJustPressed = false;
-        playerMode = 'cube';
         p.dy = orb.color === 'pink' ? ORB_PINK_FORCE : ORB_YELLOW_FORCE;
         p.grounded = false;
         playSfx('pad');
@@ -720,11 +721,13 @@ function drawPillar(pillar, screenX) {
     if (screenX + w < -50 || screenX > canvas.width + 50) return;
 
     ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
-    ctx.lineWidth = 2;
+    ctx.fillStyle = pillar.color || '#64748b';
+    ctx.strokeStyle = '#050b16';
+    ctx.lineWidth = 3;
     ctx.fillRect(screenX, GROUND_Y - h, w, h);
     ctx.strokeRect(screenX, GROUND_Y - h, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(screenX + 4, GROUND_Y - h + 4, Math.max(3,w * 0.18), h - 8);
     ctx.restore();
 }
 
@@ -734,15 +737,15 @@ function drawCoin(coin, screenX) {
     if (screenX + r * 2 < -40 || screenX - r * 2 > canvas.width + 40) return;
 
     ctx.save();
-    ctx.fillStyle = '#ffd60a';
-    ctx.strokeStyle = '#000';
+    ctx.fillStyle = coin.secret ? '#20c9ff' : '#ffd60a';
+    ctx.strokeStyle = coin.secret ? '#063b73' : '#000';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.arc(screenX, coin.y, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#fff3b0';
+    ctx.fillStyle = coin.secret ? '#e8fbff' : '#fff3b0';
     ctx.beginPath();
     ctx.arc(screenX - 3, coin.y - 3, r * 0.35, 0, Math.PI * 2);
     ctx.fill();
@@ -758,6 +761,12 @@ function checkCoinTrigger(p, coin, screenX) {
     const hitDist = p.size * 0.55 + 14;
     if (dx * dx + dy * dy <= hitDist * hitDist) {
         coin.collected = true;
+        if (coin.secret) {
+            const coinKey = `${activePlayableLevel.name}:${coin.id || coin.x}`;
+            secretCoins.add(coinKey);
+            writeSaveData();
+            window.updateSecretCoinCounter?.();
+        }
         playSfx('coin');
         spawnEndParticles(screenX, coin.y, 12, true);
     }
@@ -1134,7 +1143,7 @@ function startAttempt(countNewAttempt = true) {
     activeOrbs = (lvl.orbs || []).map(ob => ({ ...ob, used: false }));
     activeSaws = (lvl.saws || []).map(sw => ({ ...sw, angle: 0 }));
     activePillars = (lvl.pillars || []).map(pi => ({ ...pi }));
-    activeCoins = (lvl.coins || []).map(co => ({ ...co, collected: false }));
+    activeCoins = (lvl.coins || []).map(co => ({ ...co, collected: Boolean(co.secret && secretCoins.has(`${lvl.name}:${co.id || co.x}`)) }));
     activeTriggers = (lvl.triggers || []).map(tr => ({ ...tr, triggered: false }));
     activePortals = (lvl.portals || []).map(pt => ({ ...pt, triggered: false }));
 
@@ -1544,6 +1553,17 @@ function loop() {
         for (let co of activeCoins) {
             const screenX = co.x - levelDistance + 160;
             checkCoinTrigger(player, co, screenX);
+        }
+
+        for (let pillar of activePillars) {
+            const sx = pillar.x - levelDistance + 160;
+            const w = pillar.w || 34;
+            const h = pillar.h || 90;
+            if (player.x + player.size - 4 > sx && player.x + 4 < sx + w &&
+                player.y + player.size - 4 > GROUND_Y - h && player.y + 4 < GROUND_Y) {
+                triggerDeath();
+                break;
+            }
         }
 
         for (let sw of activeSaws) {
@@ -2070,7 +2090,7 @@ function drawEditorCanvas() {
         const sx = toSX(block.x);
         const sy = toSY(block.y);
         const width = (block.w || BLOCK_SIZE);
-        const height = (block.h || BLOCK_SIZE) * EDITOR_SCALE_Y;
+        const height = (block.h || BLOCK_SIZE);
         eCtx.fillStyle = '#2475bd';
         eCtx.strokeStyle = '#ffffff';
         eCtx.lineWidth = 2;
