@@ -570,8 +570,8 @@ checkTriggerActivation=function(p,trig,screenX) {
   const targets=allRuntimeObjects().filter(o=>objectGroupList(o).includes(String(trig.group||'1')));
   const duration=Math.max(.05,Number(trig.duration)||1);
   targets.forEach(o=>{
-    if(trig.kind==='move'){o.x=(o.x||0)+(Number(trig.distance)||0);if(o.y!==undefined)o.y+=Number(trig.verticalDistance)||0;}
-    if(trig.kind==='scale'){applyObjectScale(o,Math.max(.1,Math.min(5,Number(trig.scale)||1.5)));}
+    if(trig.kind==='move'){runtimeEffects.push({type:'move',object:o,elapsed:0,duration:duration,remaining:duration,fromX:o.x||0,fromY:o.y||0,toX:(o.x||0)+(Number(trig.distance)||0),toY:(o.y||0)+(Number(trig.verticalDistance)||0)});}
+    if(trig.kind==='scale'){runtimeEffects.push({type:'scale',object:o,elapsed:0,duration:duration,remaining:duration,fromScale:o.scale||1,toScale:Math.max(.1,Math.min(5,Number(trig.scale)||1.5))});}
     if(trig.kind==='color'){o.color=trig.color||'#00e5ff';}
     if(trig.kind==='pulse'){runtimeEffects.push({object:o,remaining:duration,elapsed:0,baseScale:o.scale||1,intensity:Math.max(.05,Number(trig.intensity)||1)});}
   });
