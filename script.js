@@ -180,7 +180,10 @@ const STORAGE_KEY = 'gd_web_save_v07';
 function loadSaveData() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+        }
     } catch (e) {
         console.warn('Erro ao carregar save local:', e);
     }
@@ -210,9 +213,16 @@ function writeSaveData() {
 const savedData = loadSaveData();
 let controlPlatform = savedData.platform === 'mobile' ? 'mobile' : 'pc';
 let lowPerformanceMode = controlPlatform === 'mobile';
-let playerSkin = savedData.skin || { model: 0, primary: '#ffde00', secondary: '#00e5ff' };
-let levelProgress = savedData.progress || {};
-let levelAttempts = savedData.attempts || {};
+const storedSkin = savedData.skin && typeof savedData.skin === 'object' ? savedData.skin : {};
+const isValidHexColor = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+let playerSkin = {
+    model: Number.isInteger(Number(storedSkin.model)) ? Math.max(0, Math.min(7, Number(storedSkin.model))) : 0,
+    primary: isValidHexColor(storedSkin.primary) ? storedSkin.primary : '#ffde00',
+    secondary: isValidHexColor(storedSkin.secondary) ? storedSkin.secondary : '#00e5ff'
+};
+const isSaveRecord = value => value && typeof value === 'object' && !Array.isArray(value);
+let levelProgress = isSaveRecord(savedData.progress) ? savedData.progress : {};
+let levelAttempts = isSaveRecord(savedData.attempts) ? savedData.attempts : {};
 let customLevels = Array.isArray(savedData.customLevels) ? savedData.customLevels : [];
 
 const COLORS = ['#ffde00', '#7fff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff'];
@@ -2031,7 +2041,7 @@ function bindEvents() {
     // Estilo da fase
     ['style-bg-top', 'style-bg-bottom', 'style-ground-fill', 'style-ground-grid', 'style-finish-x', 'editor-level-title', 'editor-level-diff'].forEach(id => {
         const el = document.getElementById(id);
-        if (!el || !editorDraft) return;
+        if (!el) return;
         el.addEventListener('input', () => {
             if (!editorDraft) return;
             if (id === 'style-bg-top') editorDraft.bgTop = el.value;
