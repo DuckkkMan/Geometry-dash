@@ -797,4 +797,149 @@ renderEditorPalettes = function() {
 };
 renderEditorPalettes();
 
+
+/* === EDITOR 2.0: CATEGORIAS, FERRAMENTAS NO CANTO E TRANSFORMACAO === */
+const EXTRA_ASSETS = [
+ {id:'block_wide',label:'BLOCO LARGO',color:'#38bdf8',w:76,h:44},
+ {id:'block_tall',label:'BLOCO ALTO',color:'#60a5fa',w:44,h:76},
+ {id:'block_small',label:'BLOCO PEQUENO',color:'#7dd3fc',w:28,h:28},
+ {id:'block_big',label:'BLOCO GRANDE',color:'#2563eb',w:76,h:76},
+ {id:'block_thin',label:'BLOCO FINO',color:'#0ea5e9',w:76,h:22},
+ {id:'block_step',label:'BLOCO ESCADA',color:'#818cf8',w:58,h:36},
+ {id:'block_dark',label:'BLOCO ESCURO',color:'#475569',w:44,h:44},
+ {id:'block_neon',label:'BLOCO NEON',color:'#22d3ee',w:44,h:44},
+ {id:'block_pink',label:'BLOCO ROSA',color:'#ec4899',w:44,h:44},
+ {id:'block_gold',label:'BLOCO DOURADO',color:'#f59e0b',w:44,h:44},
+ {id:'block_glass',label:'BLOCO VIDRO',color:'#a5f3fc',w:58,h:44},
+ {id:'block_long',label:'PLATAFORMA LONGA',color:'#14b8a6',w:120,h:22},
+ {id:'spike_double',label:'ESPINHOS DUPLOS',color:'#fb7185'},
+ {id:'spike_triple',label:'ESPINHOS TRIPLOS',color:'#e11d48'},
+ {id:'saw_large',label:'SERRA GRANDE',color:'#cbd5e1'},
+ {id:'pillar_tall',label:'PILAR ALTO',color:'#94a3b8'},
+ {id:'pillar_short',label:'PILAR BAIXO',color:'#64748b'},
+ {id:'coin_blue',label:'MOEDA AZUL',color:'#38bdf8'}
+];
+EXTRA_ASSETS.forEach(a=>{if(!ASSET_PALETTE.some(x=>x.id===a.id))ASSET_PALETTE.push(a);});
+const EDITOR_CATEGORIES=[
+ {id:'blocks',title:'BLOCOS E PLATAFORMAS'},
+ {id:'spikes',title:'ESPINHOS'},
+ {id:'pads',title:'PADS DE IMPULSO'},
+ {id:'orbs',title:'ORBS DE PULO'},
+ {id:'portals',title:'PORTAIS'},
+ {id:'decor',title:'DECORAÇÃO E OBSTÁCULOS'}
+];
+let editorCategoryIndex=0;
+let editorCornerMode='block';
+function categoryForEditorAsset(item){
+ const id=item.id;
+ if(id==='block'||id==='platform'||id.startsWith('block_'))return 'blocks';
+ if(id.includes('spike'))return 'spikes';
+ if(id.startsWith('pad_'))return 'pads';
+ if(id.startsWith('orb_'))return 'orbs';
+ if(id.startsWith('portal_'))return 'portals';
+ return 'decor';
+}
+function renderPagedAssetCategory(){
+ const cat=EDITOR_CATEGORIES[editorCategoryIndex];
+ const title=document.getElementById('asset-category-title');
+ const count=document.getElementById('asset-category-count');
+ const palette=document.getElementById('editor-palette');
+ if(!palette)return;
+ title.textContent=cat.title;
+ const items=ASSET_PALETTE.filter(item=>categoryForEditorAsset(item)===cat.id);
+ count.textContent=(editorCategoryIndex+1)+' / '+EDITOR_CATEGORIES.length+'  •  '+items.length+' OBJETOS';
+ palette.innerHTML='';
+ items.forEach(item=>{
+  const btn=document.createElement('button');btn.type='button';
+  btn.className='asset-card'+(editorSelectedItem===item.id?' selected':'');
+  btn.title=item.label;
+  const preview=document.createElement('span');preview.className='asset-preview';
+  preview.style.background='linear-gradient(145deg,#ffffff55,'+item.color+')';preview.style.borderColor=item.color;
+  preview.textContent=item.id.includes('spike')?'▲':item.id.startsWith('portal_')?'◉':item.id.startsWith('pad_')?'⌑':item.id.startsWith('orb_')?'●':item.id.startsWith('block')||item.id==='block'?'▦':item.id.includes('saw')?'✹':'◆';
+  const label=document.createElement('span');label.textContent=item.label;btn.append(preview,label);
+  btn.addEventListener('click',()=>{editorSelectedItem=item.id;editorToolMode='place';setEditorCornerMode('block');renderPagedAssetCategory();});
+  palette.appendChild(btn);
+ });
+}
+function setEditorCornerMode(mode){
+ editorCornerMode=mode;
+ document.querySelectorAll('.editor-mode-btn').forEach(b=>b.classList.toggle('active',b.id==='editor-mode-'+mode));
+ document.getElementById('editor-transform-panel')?.classList.toggle('hidden',mode!=='edit');
+ if(mode==='block')editorToolMode='place';
+ if(mode==='edit')editorToolMode='select';
+ if(mode==='delete')editorToolMode='erase';
+ syncEditorToolButtons();drawEditorCanvas();
+}
+document.getElementById('asset-category-prev')?.addEventListener('click',()=>{editorCategoryIndex=(editorCategoryIndex+EDITOR_CATEGORIES.length-1)%EDITOR_CATEGORIES.length;renderPagedAssetCategory();});
+document.getElementById('asset-category-next')?.addEventListener('click',()=>{editorCategoryIndex=(editorCategoryIndex+1)%EDITOR_CATEGORIES.length;renderPagedAssetCategory();});
+document.getElementById('editor-mode-block')?.addEventListener('click',()=>setEditorCornerMode('block'));
+document.getElementById('editor-mode-edit')?.addEventListener('click',()=>setEditorCornerMode('edit'));
+document.getElementById('editor-mode-delete')?.addEventListener('click',()=>setEditorCornerMode('delete'));
+
+function syncTransformControls(){
+ const obj=selectedEditorObject?.obj;
+ const rot=document.getElementById('transform-rotation'),scale=document.getElementById('transform-scale');
+ if(!rot||!scale)return;
+ rot.value=String(Math.round((obj?.rotation||0)*180/Math.PI));
+ scale.value=String(Math.round((obj?.scale||1)*100));
+ document.getElementById('transform-rotation-value').textContent=rot.value+'°';
+ document.getElementById('transform-scale-value').textContent=scale.value+'%';
+ document.getElementById('editor-transform-panel')?.classList.toggle('no-selection',!obj);
+}
+function changeSelectedObject(fn){
+ if(!selectedEditorObject?.obj){syncTransformControls();return;}
+ snapshotEditor();fn(selectedEditorObject.obj);drawEditorCanvas();syncTransformControls();
+}
+[['transform-left',-EDITOR_GRID,0],['transform-right',EDITOR_GRID,0],['transform-up',0,-EDITOR_GRID],['transform-down',0,EDITOR_GRID]].forEach(([id,dx,dy])=>{
+ document.getElementById(id)?.addEventListener('click',()=>changeSelectedObject(o=>{o.x=Math.max(0,(o.x||0)+dx);if(o.y!==undefined)o.y=Math.max(CEILING_Y,Math.min(GROUND_Y-12,o.y+dy));}));
+});
+document.getElementById('transform-rotation')?.addEventListener('input',e=>{
+ if(!selectedEditorObject?.obj)return;
+ selectedEditorObject.obj.rotation=Number(e.target.value)*Math.PI/180;
+ document.getElementById('transform-rotation-value').textContent=e.target.value+'°';drawEditorCanvas();
+});
+document.getElementById('transform-scale')?.addEventListener('input',e=>{
+ if(!selectedEditorObject?.obj)return;
+ selectedEditorObject.obj.scale=Number(e.target.value)/100;
+ document.getElementById('transform-scale-value').textContent=e.target.value+'%';drawEditorCanvas();
+});
+document.getElementById('transform-rotation')?.addEventListener('change',()=>snapshotEditor());
+document.getElementById('transform-scale')?.addEventListener('change',()=>snapshotEditor());
+document.getElementById('transform-reset')?.addEventListener('click',()=>changeSelectedObject(o=>{o.rotation=0;o.scale=1;}));
+
+const originalPlaceForNewAssets=placeSelectedAtWorldCoord;
+placeSelectedAtWorldCoord=function(x,y){
+ const item=EXTRA_ASSETS.find(a=>a.id===editorSelectedItem);
+ if(item){
+  const px=Math.max(260,Math.min(editorDraft.finishX-120,x));
+  if(item.id.startsWith('block_'))editorDraft.blocks.push({x:px,y:Math.max(CEILING_Y,Math.min(GROUND_Y-(item.h||44),y-(item.h||44)/2)),w:item.w||44,h:item.h||44,color:item.color,rotation:0,scale:1,variant:item.id});
+  else if(item.id==='spike_double'||item.id==='spike_triple'){for(let i=0;i<(item.id==='spike_double'?2:3);i++)editorDraft.spikes.push({x:px+i*26,y:GROUND_Y,sizeType:'normal',inverted:false});}
+  else if(item.id==='saw_large')editorDraft.saws.push({x:px,y:Math.min(GROUND_Y-35,y),r:34,angle:0});
+  else if(item.id==='pillar_tall'||item.id==='pillar_short')editorDraft.pillars.push({x:px,h:item.id==='pillar_tall'?145:55,w:34});
+  else if(item.id==='coin_blue')editorDraft.coins.push({x:px,y:Math.min(GROUND_Y-30,y),collected:false,color:'#38bdf8'});
+  return;
+ }
+ originalPlaceForNewAssets(x,y);
+};
+
+// Mostra rotação e escala também nos blocos personalizados no editor.
+const drawEditorBeforeTransform=drawEditorCanvas;
+drawEditorCanvas=function(){
+ drawEditorBeforeTransform();
+ if(gameState!=='EDITOR')return;
+ (editorDraft.blocks||[]).forEach(b=>{
+  if(!b.rotation&&!b.scale)return;
+  const baseW=b.w||BLOCK_SIZE,baseH=b.h||BLOCK_SIZE;
+  const sx=b.x-editorScrollX+80+baseW/2,sy=((b.y||0)+baseH/2)*EDITOR_SCALE_Y;
+  const w=baseW*(b.scale||1),h=baseH*(b.scale||1)*EDITOR_SCALE_Y;
+  eCtx.save();eCtx.translate(sx,sy);eCtx.rotate(b.rotation||0);
+  eCtx.fillStyle=b.color||'#2475bd';eCtx.strokeStyle='#fff';eCtx.lineWidth=2;
+  eCtx.fillRect(-w/2,-h/2,w,h);eCtx.strokeRect(-w/2,-h/2,w,h);eCtx.restore();
+ });
+ syncTransformControls();
+};
+renderPagedAssetCategory();
+setEditorCornerMode('block');
+syncTransformControls();
+
 })();
