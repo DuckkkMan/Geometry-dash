@@ -22,7 +22,7 @@
                 <button id="practice-toggle-btn" class="hud-chip" type="button" title="Modo Prática">PRÁTICA: OFF</button>
                 <button id="checkpoint-btn" class="hud-chip hidden" type="button" title="Marcar Checkpoint">CKPT</button>
             </div>
-            <button id="pause-menu-btn" title="Pausar">II</button>
+            <button id="pause-menu-btn" type="button" title="Pausar">II</button>
         </div>
 
         <!-- MENU DE PAUSE -->
@@ -31,16 +31,16 @@
                 <h2>PAUSED</h2>
                 <p id="pause-level-name">Spike Rush</p>
                 <div class="win-buttons">
-                    <button id="resume-btn" class="gd-btn green">▶</button>
-                    <button id="pause-restart-btn" class="gd-btn yellow">↻</button>
-                    <button id="pause-exit-menu-btn" class="gd-btn blue">MENU</button>
+                    <button id="resume-btn" class="gd-btn green" type="button">▶</button>
+                    <button id="pause-restart-btn" class="gd-btn yellow" type="button">↻</button>
+                    <button id="pause-exit-menu-btn" class="gd-btn blue" type="button">MENU</button>
                 </div>
             </div>
         </div>
 
         <!-- TELA INICIAL (MENU PRINCIPAL) -->
         <div id="main-menu" class="overlay">
-            <button id="settings-btn" class="corner-settings-btn" aria-label="Configurações" title="Configurações">⚙</button>
+            <button id="settings-btn" class="corner-settings-btn" type="button" aria-label="Configurações" title="Configurações">⚙</button>
 
             <div class="logo-container">
                 <h1 class="gd-title">GEOMETRY<br><span>DASH</span></h1>
@@ -48,15 +48,15 @@
             </div>
 
             <div class="menu-buttons-row">
-                <button id="skin-btn" class="side-btn" aria-label="Skins" title="Skins">
+                <button id="skin-btn" class="side-btn" type="button" aria-label="Skins" title="Skins">
                     <canvas id="skin-btn-icon" width="44" height="44"></canvas>
                 </button>
 
-                <button id="play-btn" aria-label="Jogar" title="Jogar">
+                <button id="play-btn" type="button" aria-label="Jogar" title="Jogar">
                     <div class="play-triangle"></div>
                 </button>
 
-                <button id="editor-btn" class="side-btn editor-main-btn" aria-label="Editor" title="Editor de Fases">
+                <button id="editor-btn" class="side-btn editor-main-btn" type="button" aria-label="Editor" title="Editor de Fases">
                     <span class="hammer-icon">🛠</span>
                 </button>
             </div>
@@ -64,7 +64,7 @@
 
         <!-- SUBMENU DO EDITOR: CRIAR OU CRIAÇÕES -->
         <div id="editor-hub" class="overlay hidden">
-            <button id="back-from-editor-hub" class="corner-back-btn">←</button>
+            <button id="back-from-editor-hub" class="corner-back-btn" type="button">←</button>
 
             <div class="editor-hub-box">
                 <h2>EDITOR</h2>
@@ -77,9 +77,9 @@
             </div>
         </div>
 
-        <!-- LISTA DE CRIAÇÕES (JOGAR, EDITAR, RENOMEAR, DIFICULDADE, APAGAR) -->
+        <!-- LISTA DE CRIAÇÕES -->
         <div id="creations-screen" class="overlay hidden">
-            <button id="back-from-creations" class="corner-back-btn">←</button>
+            <button id="back-from-creations" class="corner-back-btn" type="button">←</button>
 
             <div class="creations-box">
                 <div class="creations-header">
@@ -91,7 +91,7 @@
             </div>
         </div>
 
-        <!-- EDITOR DE FASES COMPLETO (GRID + PALETA + TRIGGERS + BG/GROUND + TESTE) -->
+        <!-- EDITOR DE FASES -->
         <div id="level-editor" class="overlay hidden">
             <div class="editor-topbar">
                 <div class="editor-top-left">
@@ -168,7 +168,7 @@
 
         <!-- CONFIGURAÇÕES (PC / CELULAR) -->
         <div id="settings-screen" class="overlay hidden">
-            <button id="back-from-settings" class="corner-back-btn">←</button>
+            <button id="back-from-settings" class="corner-back-btn" type="button">←</button>
 
             <div class="settings-box">
                 <h2>CONFIGURAÇÕES</h2>
@@ -180,17 +180,21 @@
                 </div>
 
                 <p id="platform-hint" class="platform-hint">Modo PC: clique/espaço para pular/voar e botão II para pausar.</p>
-                <div class="low-performance-setting"><strong>DESEMPENHO</strong><span id="low-performance-status">Desativado no modo PC.</span><small>Ao selecionar CELULAR, o jogo reduz automaticamente os efeitos visuais e partículas.</small></div>
+                <div class="low-performance-setting">
+                    <strong>DESEMPENHO</strong>
+                    <span id="low-performance-status">Desativado no modo PC.</span>
+                    <small>Ao selecionar CELULAR, o jogo reduz automaticamente os efeitos visuais e partículas.</small>
+                </div>
             </div>
         </div>
 
         <!-- SELEÇÃO DE FASES -->
         <div id="level-select" class="overlay hidden">
-            <button id="back-from-levels" class="corner-back-btn">←</button>
-            
+            <button id="back-from-levels" class="corner-back-btn" type="button">←</button>
+
             <div class="level-carousel">
-                <button id="prev-level" class="arrow-btn">‹</button>
-                
+                <button id="prev-level" class="arrow-btn" type="button">‹</button>
+
                 <div id="level-card" class="level-card">
                     <div class="level-header">
                         <div class="difficulty-face" id="level-diff-face"></div>
@@ -204,18 +208,18 @@
                     </div>
                 </div>
 
-                <button id="next-level" class="arrow-btn">›</button>
+                <button id="next-level" class="arrow-btn" type="button">›</button>
             </div>
             <p class="hint-text">Clique no cartão da fase para iniciar</p>
         </div>
 
         <!-- GARAGEM DE SKINS -->
         <div id="skin-garage" class="overlay hidden">
-            <button id="back-from-skins" class="corner-back-btn">←</button>
-            
+            <button id="back-from-skins" class="corner-back-btn" type="button">←</button>
+
             <div class="garage-box">
                 <h2>ICON KIT</h2>
-                
+
                 <div class="preview-stage">
                     <canvas id="skin-preview" width="80" height="80"></canvas>
                 </div>
@@ -240,8 +244,8 @@
                 <h2>LEVEL COMPLETE!</h2>
                 <p id="win-level-name">Spike Rush • 100%</p>
                 <div class="win-buttons">
-                    <button id="replay-btn" class="gd-btn green">↻</button>
-                    <button id="win-menu-btn" class="gd-btn blue">MENU</button>
+                    <button id="replay-btn" class="gd-btn green" type="button">↻</button>
+                    <button id="win-menu-btn" class="gd-btn blue" type="button">MENU</button>
                 </div>
             </div>
         </div>
