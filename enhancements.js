@@ -249,7 +249,7 @@ function drawProceduralPortal(portal, screenX) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.shadowColor = color;
-  ctx.shadowBlur = 24;
+  ctx.shadowBlur = lowPerformanceMode ? 8 : 24;
   ctx.translate(cx, cy);
   ctx.scale(pulse, 1);
   ctx.strokeStyle = color;
@@ -408,7 +408,7 @@ startAttempt = function (countNewAttempt = true) {
 
 const originalLoop = loop;
 function drawPlayerTrail() {
-  if (activeTrail.length < 2) return;
+  if (lowPerformanceMode || activeTrail.length < 2) return;
   ctx.save();
   ctx.beginPath();
   activeTrail.forEach((pt, i) => {
@@ -432,7 +432,7 @@ function drawPlayerTrail() {
 }
 
 loop = function () {
-  if (gameState === 'PLAYING') {
+  if (gameState === 'PLAYING' && !lowPerformanceMode) {
     if (trailTick++ % 2 === 0) {
       activeTrail.push({ x: levelDistance, y: player.y + player.size / 2 });
       if (activeTrail.length > 1500) activeTrail.splice(0, 300);
