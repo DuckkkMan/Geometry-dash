@@ -2023,8 +2023,8 @@ function drawEditorCanvas() {
     if (editorShowGrid) {
         eCtx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
         eCtx.lineWidth = 1;
-        const startGridX = -(editorScrollX % EDITOR_GRID);
-        const gridStepY = EDITOR_GRID * EDITOR_SCALE_Y;
+        const startGridX = 80 - (editorScrollX % EDITOR_GRID);
+        const gridStepY = EDITOR_GRID;
         for (let gx = startGridX, col = Math.round(editorScrollX / EDITOR_GRID); gx < editorCanvas.width; gx += EDITOR_GRID, col++) {
             eCtx.strokeStyle = col % 4 === 0 ? 'rgba(80,205,255,0.30)' : 'rgba(255,255,255,0.12)';
             eCtx.lineWidth = col % 4 === 0 ? 1.4 : 1;
@@ -2173,7 +2173,7 @@ function getEditorWorldCoords(pointerEvent) {
 
     if (editorShowGrid) {
         worldX = Math.round(worldX / EDITOR_GRID) * EDITOR_GRID;
-        worldY = Math.round(worldY / EDITOR_GRID) * EDITOR_GRID;
+        worldY = Math.round(worldY / (EDITOR_GRID / EDITOR_SCALE_Y)) * (EDITOR_GRID / EDITOR_SCALE_Y);
     }
 
     return { x: worldX, y: worldY };
