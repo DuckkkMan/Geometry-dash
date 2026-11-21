@@ -482,12 +482,7 @@ drawEditorCanvas = function() {
     const o=s.obj,x=o.x-editorScrollX+80,y=(o.y===undefined?GROUND_Y-40:o.y)*EDITOR_SCALE_Y,scale=o.scale||1;
     eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);eCtx.scale(o.flipX?-1:1,o.flipY?-1:1);eCtx.strokeStyle='#fff';eCtx.lineWidth=2;eCtx.setLineDash([5,4]);eCtx.strokeRect(-24*scale,-24*scale,48*scale,48*scale);eCtx.restore();
   });
-  // Spawn block: fixed at the beginning of every custom level.
-  eCtx.save();
-  eCtx.fillStyle='rgba(255,55,65,.38)';eCtx.strokeStyle='rgba(255,85,95,.95)';eCtx.lineWidth=2;
-  const spawnScreenX=80-editorScrollX;
-  if(spawnScreenX>-50&&spawnScreenX<editorCanvas.width+50){eCtx.fillRect(spawnScreenX,EDITOR_GROUND_Y-44,44,44);eCtx.strokeRect(spawnScreenX,EDITOR_GROUND_Y-44,44,44);
-  eCtx.fillStyle='#fff';eCtx.font='900 9px Orbitron,sans-serif';eCtx.textAlign='center';eCtx.fillText('SPAWN',spawnScreenX+22,EDITOR_GROUND_Y-51);}
+  // The editor begins at the first grid cell; no decorative spawn object is rendered.
   const finishScreenX=editorDraft.finishX-editorScrollX+80;
   eCtx.fillStyle='rgba(0,255,170,.14)';eCtx.fillRect(finishScreenX-5,0,10,EDITOR_GROUND_Y);
   eCtx.strokeStyle='#00ffaa';eCtx.lineWidth=3;eCtx.beginPath();eCtx.moveTo(finishScreenX,0);eCtx.lineTo(finishScreenX,EDITOR_GROUND_Y);eCtx.stroke();
