@@ -81,6 +81,10 @@ let dragState = null;
 let snapEnabled = true;
 let gridUnit = 38;
 let editorZoom = 1;
+const zoomBuffer=document.createElement('canvas');zoomBuffer.width=editorCanvas.width;zoomBuffer.height=editorCanvas.height;
+const zoomBufferCtx=zoomBuffer.getContext('2d');
+function zoomOffsetX(){return (editorCanvas.width-editorCanvas.width*editorZoom)/2;}
+function zoomOffsetY(){return (editorCanvas.height-editorCanvas.height*editorZoom)/2;}
 let stageSettingsOpen = false;
 let extraRuntimeObjects = [];
 let runtimeEffects = [];
@@ -352,7 +356,7 @@ getEditorWorldCoords = function(e) {
   const rect=editorCanvas.getBoundingClientRect();
   const sx=editorCanvas.width/Math.max(1,rect.width),sy=editorCanvas.height/Math.max(1,rect.height);
   const rawX=(e.clientX-rect.left)*sx,rawY=(e.clientY-rect.top)*sy;
-  const logicalX=(rawX-80*(1-editorZoom))/editorZoom,logicalY=rawY/editorZoom;
+  const logicalX=(rawX-zoomOffsetX())/editorZoom,logicalY=(rawY-zoomOffsetY())/editorZoom;
   let x=logicalX+editorScrollX-80,y=logicalY/EDITOR_SCALE_Y;
   if(snapEnabled){x=Math.round(x/gridUnit)*gridUnit;y=Math.round(y/gridUnit)*gridUnit;}
   return {x,y};
@@ -361,11 +365,14 @@ const oldDrawEditor = drawEditorCanvas;
 drawEditorCanvas = function() {
   if(gameState!=='EDITOR'){oldDrawEditor();return;}
   eCtx.setTransform(1,0,0,1,0,0);eCtx.clearRect(0,0,editorCanvas.width,editorCanvas.height);
-  eCtx.save();eCtx.translate(80*(1-editorZoom),0);eCtx.scale(editorZoom,editorZoom);
-  const show=editorShowGrid;editorShowGrid=false;
-  oldDrawEditor();
-  editorShowGrid=show;
-  eCtx.save();
+  const show=editorShowGrid;editorShowGrid=false;oldDrawEditor();editorShowGrid=show;
+  if(editorZoom!==1){
+    zoomBufferCtx.clearRect(0,0,zoomBuffer.width,zoomBuffer.height);
+    zoomBufferCtx.drawImage(editorCanvas,0,0);
+    eCtx.setTransform(1,0,0,1,0,0);eCtx.clearRect(0,0,editorCanvas.width,editorCanvas.height);
+    eCtx.drawImage(zoomBuffer,zoomOffsetX(),zoomOffsetY(),editorCanvas.width*editorZoom,editorCanvas.height*editorZoom);
+  }
+  eCtx.save();eCtx.translate(zoomOffsetX(),zoomOffsetY());eCtx.scale(editorZoom,editorZoom);
   if(show){
     for(let x=Math.ceil((editorScrollX-80)/gridUnit)*gridUnit;x<editorScrollX+editorCanvas.width-80;x+=gridUnit){
       const sx=x-editorScrollX+80;eCtx.strokeStyle=(Math.round(x/gridUnit)%4===0)?'rgba(255,255,255,.22)':'rgba(255,255,255,.09)';
@@ -389,7 +396,7 @@ drawEditorCanvas = function() {
 function drawExtraEditorObject(o,kind) {
   const x=(o.x||0)-editorScrollX+80,y=(o.y===undefined?GROUND_Y-45:o.y)*EDITOR_SCALE_Y,s=(o.scale||1)*24;
   if(x<-80||x>editorCanvas.width+80)return;
-  eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);
+  eCtx.save();eCtx.translate(x,y);eCtx.rotate(o.rotation||0);eCtx.scale(o.flipX?-1:1,o.flipY?-1:1);
   if(kind==='trigger'){
     eCtx.fillStyle='rgba(5,15,35,.8)';eCtx.strokeStyle=o.color||'#38bdf8';eCtx.lineWidth=3;
     eCtx.fillRect(-12,-30,24,60);eCtx.strokeRect(-12,-30,24,60);
