@@ -798,6 +798,7 @@ renderEditorPalettes = function() {
 renderEditorPalettes();
 
 
+/* TRIGGERS CATEGORIA RESTAURADA: a lista vem de TRIGGER_PALETTE e usa o mesmo navegador por setas. */
 /* === EDITOR 2.0: CATEGORIAS, FERRAMENTAS NO CANTO E TRANSFORMACAO === */
 const EXTRA_ASSETS = [
  {id:'block_wide',label:'BLOCO LARGO',color:'#38bdf8',w:76,h:44},
@@ -826,7 +827,8 @@ const EDITOR_CATEGORIES=[
  {id:'pads',title:'PADS DE IMPULSO'},
  {id:'orbs',title:'ORBS DE PULO'},
  {id:'portals',title:'PORTAIS'},
- {id:'decor',title:'DECORAÇÃO E OBSTÁCULOS'}
+ {id:'decor',title:'DECORAÇÃO E OBSTÁCULOS'},
+ {id:'triggers',title:'TRIGGERS E EFEITOS'}
 ];
 let editorCategoryIndex=0;
 let editorCornerMode='block';
@@ -837,6 +839,7 @@ function categoryForEditorAsset(item){
  if(id.startsWith('pad_'))return 'pads';
  if(id.startsWith('orb_'))return 'orbs';
  if(id.startsWith('portal_'))return 'portals';
+ if(id.startsWith('trig_'))return 'triggers';
  return 'decor';
 }
 function renderPagedAssetCategory(){
@@ -846,7 +849,7 @@ function renderPagedAssetCategory(){
  const palette=document.getElementById('editor-palette');
  if(!palette)return;
  title.textContent=cat.title;
- const items=ASSET_PALETTE.filter(item=>categoryForEditorAsset(item)===cat.id);
+ const items=cat.id==='triggers'?TRIGGER_PALETTE:ASSET_PALETTE.filter(item=>categoryForEditorAsset(item)===cat.id);
  count.textContent=(editorCategoryIndex+1)+' / '+EDITOR_CATEGORIES.length+'  •  '+items.length+' OBJETOS';
  palette.innerHTML='';
  items.forEach(item=>{
@@ -855,7 +858,7 @@ function renderPagedAssetCategory(){
   btn.title=item.label;
   const preview=document.createElement('span');preview.className='asset-preview';
   preview.style.background='linear-gradient(145deg,#ffffff55,'+item.color+')';preview.style.borderColor=item.color;
-  preview.textContent=item.id.includes('spike')?'▲':item.id.startsWith('portal_')?'◉':item.id.startsWith('pad_')?'⌑':item.id.startsWith('orb_')?'●':item.id.startsWith('block')||item.id==='block'?'▦':item.id.includes('saw')?'✹':'◆';
+  preview.textContent=item.id.startsWith('trig_')?'⚡':item.id.includes('spike')?'▲':item.id.startsWith('portal_')?'◉':item.id.startsWith('pad_')?'⌑':item.id.startsWith('orb_')?'●':item.id.startsWith('block')||item.id==='block'?'▦':item.id.includes('saw')?'✹':'◆';
   const label=document.createElement('span');label.textContent=item.label;btn.append(preview,label);
   btn.addEventListener('click',()=>{editorSelectedItem=item.id;editorToolMode='place';setEditorCornerMode('block');renderPagedAssetCategory();});
   palette.appendChild(btn);
