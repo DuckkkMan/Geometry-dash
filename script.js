@@ -1616,7 +1616,7 @@ function renderCreationsList() {
 // === EDITOR BASE (SEM CONFLITO DE ESCALA/GRID) ===
 const EDITOR_GRID = BLOCK_SIZE;
 const EDITOR_SCALE_Y = 1;
-const EDITOR_GROUND_Y = 260;
+const EDITOR_GROUND_Y = GROUND_Y;
 
 let editorDraft = null;
 let editorScrollX = 0;
