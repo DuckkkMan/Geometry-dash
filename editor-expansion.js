@@ -272,6 +272,8 @@ function applyObjectScale(obj,scale) {
   if(obj.r!==undefined){if(obj._baseR===undefined)obj._baseR=obj.r;obj.r=obj._baseR*scale;}
   if(obj.radius!==undefined){if(obj._baseRadius===undefined)obj._baseRadius=obj.radius;obj.radius=obj._baseRadius*scale;}
   if(obj.width!==undefined){if(obj._baseWidth===undefined)obj._baseWidth=obj.width;obj.width=obj._baseWidth*scale;}
+  if(obj.cooldown!==undefined){if(obj._baseWidth===undefined)obj._baseWidth=36;if(obj._baseHeight===undefined)obj._baseHeight=11;obj.width=obj._baseWidth*scale;obj.height=obj._baseHeight*scale;}
+  if(obj.used!==undefined&&obj.color){if(obj._baseRadius===undefined)obj._baseRadius=17;obj.radius=obj._baseRadius*scale;}
   if(obj.height!==undefined){if(obj._baseHeight===undefined)obj._baseHeight=obj.height;obj.height=obj._baseHeight*scale;}
 }
 function transformSelection(fn) {
@@ -420,7 +422,12 @@ startAttempt=function(countNewAttempt) {
   ensureDraftSchema(activePlayableLevel);
   oldStartAttempt(countNewAttempt);
   extraRuntimeObjects=deepClone(activePlayableLevel.decorations||[]).concat(deepClone(activePlayableLevel.structures||[]));
-  activeSpikes.forEach(o=>{const src=(activePlayableLevel.spikes||[]).find(s=>s.x===o.x);if(src){o.groups=deepClone(src.groups||[]);o.scale=src.scale||1;}});
+  activePlatforms.forEach(o=>{if(o.scale&&o.scale!==1)applyObjectScale(o,o.scale);});
+  activeSaws.forEach(o=>{if(o.scale&&o.scale!==1)applyObjectScale(o,o.scale);});
+  activePillars.forEach(o=>{if(o.scale&&o.scale!==1)applyObjectScale(o,o.scale);});
+  activeOrbs.forEach(o=>{if(o.scale&&o.scale!==1)applyObjectScale(o,o.scale);});
+  activePads.forEach(o=>{if(o.scale&&o.scale!==1)applyObjectScale(o,o.scale);});
+  activeSpikes.forEach(o=>{const src=(activePlayableLevel.spikes||[]).find(s=>s.x===o.x);if(src){o.groups=deepClone(src.groups||[]);o.scale=src.scale||1;if(o.scale!==1)applyObjectScale(o,o.scale);}});
   runtimeEffects=[];
   if(activePlayableLevel.initialMode)playerMode=activePlayableLevel.initialMode;
   const multiplier=Number(activePlayableLevel.initialSpeed)||1;
@@ -438,17 +445,15 @@ drawOrb=function(orb,screenX){
 };
 const oldCheckOrb=checkOrbTrigger;
 checkOrbTrigger=function(p,orb,screenX){
-  const color=orb.color;if(!color||color==='yellow'||color==='pink'){oldCheckOrb(p,orb,screenX);return;}
-  const was=orb.used;orb.color=(color==='red'||color==='purple')?'pink':'yellow';oldCheckOrb(p,orb,screenX);orb.color=color;
-  if(!was&&orb.used){
-    if(color==='blue'){gravityMultiplier*=-1;p.dy=0;}
-    else if(color==='red')p.dy=-27;
-    else if(color==='green')p.dy=-14;
-    else if(color==='black')p.dy=11;
-    else if(color==='purple')p.dy=-21;
-    else if(color==='cyan')p.dy=-18;
-    else if(color==='dash'){p.dy=-19;currentGameSpeed=Math.min(BASE_GAME_SPEED*1.5,currentGameSpeed*1.15);}
-  }
+  if(orb.used||(!isHoldingJump&&!jumpJustPressed))return;
+  const radius=Number(orb.radius)||17,pcx=p.x+p.size/2,pcy=p.y+p.size/2,dx=pcx-screenX,dy=pcy-orb.y;
+  if(dx*dx+dy*dy>(p.size*.65+radius+1)*(p.size*.65+radius+1))return;
+  orb.used=true;jumpJustPressed=false;playerMode='cube';p.grounded=false;
+  const force={yellow:-17.5,pink:-22.5,blue:-16,red:-27,green:-14,black:11,purple:-21,cyan:-18,dash:-19};
+  p.dy=force[orb.color]===undefined?-17.5:force[orb.color];
+  if(orb.color==='blue')gravityMultiplier*=-1;
+  if(orb.color==='dash')currentGameSpeed=Math.min(BASE_GAME_SPEED*1.5,currentGameSpeed*1.15);
+  playSfx('pad');spawnEndParticles(screenX,orb.y,12,true);
 };
 const PAD_COLOR_MAP={yellow:'#ffe600',pink:'#ff4fd8',red:'#ef4444',blue:'#38bdf8',green:'#22c55e',black:'#475569'};
 const oldDrawPad=drawPad;
@@ -461,14 +466,15 @@ drawPad=function(pad,screenX){
 };
 const oldCheckPad=checkPadCollision;
 checkPadCollision=function(p,pad,screenX){
-  const color=pad.color;if(!color||color==='yellow'||color==='pink'){oldCheckPad(p,pad,screenX);return;}
-  const was=pad.cooldown;pad.color=(color==='red'||color==='black')?'pink':'yellow';oldCheckPad(p,pad,screenX);pad.color=color;
-  if((was||0)<=0&&pad.cooldown>0){
-    if(color==='red')p.dy=-29;
-    else if(color==='blue'){gravityMultiplier*=-1;p.dy=-16;}
-    else if(color==='green')p.dy=-17;
-    else if(color==='black')p.dy=12;
-  }
+  if(pad.cooldown>0){pad.cooldown--;return;}
+  const w=Number(pad.width)||36,h=Number(pad.height)||14,padTop=GROUND_Y-h;
+  const overlaps=p.x+p.size>screenX+3&&p.x<screenX+w-3&&p.y+p.size>=padTop&&p.y<GROUND_Y;
+  if(!overlaps)return;
+  pad.cooldown=12;playerMode='cube';p.grounded=false;
+  const force={yellow:PAD_YELLOW_FORCE,pink:PAD_PINK_FORCE,red:-29,blue:-16,green:-17,black:12};
+  p.dy=force[pad.color]===undefined?PAD_YELLOW_FORCE:force[pad.color];
+  if(pad.color==='blue')gravityMultiplier*=-1;
+  playSfx('pad');spawnEndParticles(screenX+w/2,padTop,10,true);
 };
 const oldDrawElements=drawLevelElementsInWorld;
 drawLevelElementsInWorld=function(){oldDrawElements();drawRuntimeExtraObjects();};
@@ -501,7 +507,7 @@ loop=function() {
     effect.elapsed+=dt;effect.remaining-=dt;
     const pulse=1+Math.sin(effect.elapsed*Math.PI*4)*.12*effect.intensity;
     effect.object.scale=effect.baseScale*pulse;
-    if(effect.remaining<=0){effect.object.scale=effect.baseScale;return false;}return true;
+    if(effect.remaining<=0){applyObjectScale(effect.object,effect.baseScale);return false;}return true;
   });
   if(gameState==='PLAYING'&&currentGameSpeed<0&&levelDistance<=0)currentGameSpeed=0;
   oldLoop();
