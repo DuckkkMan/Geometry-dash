@@ -416,6 +416,7 @@ eraseAtWorldCoord=function(x,y){snapshotEditor();oldErase(x,y);};
 const oldPlace2=placeSelectedAtWorldCoord;
 placeSelectedAtWorldCoord=function(x,y){snapshotEditor();oldPlace2(x,y);};
 editorCanvas.addEventListener('pointerdown',e=>{
+  if(gameState==='EDITOR'&&editorToolMode==='place'&&editorSelectedItem==='platform')snapshotEditor();
   if(gameState!=='EDITOR'||editorToolMode!=='select')return;
   e.preventDefault();e.stopImmediatePropagation();
   const p=getEditorWorldCoords(e);selectedEditorObject=locateEditorObject(p);
@@ -443,6 +444,8 @@ drawEditorCanvas=function(){
     eCtx.save();eCtx.strokeStyle='#fff';eCtx.lineWidth=2;eCtx.setLineDash([5,4]);eCtx.strokeRect(sx-9,sy-22,Math.max(34,(o.w||30)+18),44);eCtx.restore();
   }
 };
+const clearLevelButton=document.getElementById('editor-clear-btn');
+if(clearLevelButton)clearLevelButton.addEventListener('click',()=>snapshotEditor(),true);
 window.addEventListener('keydown',e=>{
   if(gameState!=='EDITOR')return;
   if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();undoEditor();}
