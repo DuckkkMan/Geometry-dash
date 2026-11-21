@@ -8,7 +8,7 @@ Protótipo de navegador inspirado em jogos de plataforma de ritmo, feito com HTM
 - Sete modos jogáveis: Cube, Ship, Ball, UFO, Wave, Robot e Spider.
 - Portais desenhados em tempo real no Canvas, com brilho, anéis e partículas.
 - Garagem com oito variações de ícone por modo e paletas de cores.
-- Editor refinado com 133 objetos vetoriais em 19 categorias, busca de assets, espinhos, blocos, plataformas, pads, orbs, serras, moedas, triggers, portais e decorações.
+- Editor refinado com 133 objetos vetoriais em categorias, sem campo de pesquisa, espinhos, blocos, plataformas, pads, orbs, serras, moedas, triggers, portais e decorações.
 - Ferramentas de seleção com arraste alinhado à grade, mover câmera, apagar, copiar/colar/duplicar e histórico de desfazer/refazer.
 - Importação e exportação de fases em JSON.
 - Modo prática, checkpoints, progresso e trilha do jogador.
@@ -20,7 +20,7 @@ Protótipo de navegador inspirado em jogos de plataforma de ritmo, feito com HTM
 - **PC:** Espaço, seta para cima ou clique para jogar; Esc/P pausa.
 - **Celular:** toque para jogar; segurar por alguns segundos pausa.
 - **Editor:** arraste para colocar elementos; use MÃO/MOVER para navegar; SELECIONAR para mover objetos.
-- **Editor (atalhos):** Ctrl+Z desfazer, Ctrl+Y ou Ctrl+Shift+Z refazer, Ctrl+C copiar, Ctrl+V colar, Ctrl+D duplicar, Ctrl+X recortar, Esc desmarcar e Delete apagar a seleção. Arraste um objeto selecionado para movê-lo na grade. Use o inspetor para ajustar posição, rotação, escala e grupos.
+- **Editor (atalhos):** Ctrl+Z desfazer, Ctrl+Y ou Ctrl+Shift+Z refazer, Ctrl+C copiar, Ctrl+V colar, Ctrl+D duplicar, Ctrl+X recortar, Esc desmarcar e Delete apagar a seleção. Arraste um objeto selecionado para movê-lo na grade. A grade usa células de 44 px e fica alinhada ao chão. Use o inspetor para ajustar posição, rotação, escala e grupos.
 
 ## Executar
 
