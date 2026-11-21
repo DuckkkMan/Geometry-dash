@@ -101,6 +101,7 @@ let activePads = [];
 let activeOrbs = [];
 let activeSaws = [];
 let activePillars = [];
+let activeDecorations = [];
 let activeCoins = [];
 let activeTriggers = [];
 let activePortals = [];
@@ -815,6 +816,65 @@ function checkSawCollision(p, saw, screenX) {
     return dx * dx + dy * dy <= minDist * minDist;
 }
 
+
+function drawLevelDecoration(item, screenX) {
+    const y = Number.isFinite(Number(item.y)) ? Number(item.y) : GROUND_Y - 45;
+    const scale = Math.max(0.1, Math.min(5, Number(item.scale) || 1));
+    const r = 16 * scale;
+    if (screenX < -r - 20 || screenX > canvas.width + r + 20 || y < -r - 20 || y > canvas.height + r + 20) return;
+    const parts = String(item.kind || '').split('_');
+    const family = parts[1] || 'diamond';
+    const variant = Math.max(0, (parseInt(parts[2], 10) || 1) - 1);
+    ctx.save();
+    ctx.translate(screenX, y);
+    ctx.rotate((Number(item.rotation) || 0) + (variant % 5) * Math.PI / 10);
+    ctx.lineWidth = Math.max(1.5, r * 0.12);
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#06101e';
+    ctx.fillStyle = item.color || '#7dd3fc';
+    ctx.shadowColor = item.color || '#7dd3fc';
+    ctx.shadowBlur = lowPerformanceMode ? 2 : Math.max(3, r * 0.22);
+    const poly = points => {
+        ctx.beginPath();
+        ctx.moveTo(points[0][0] * r, points[0][1] * r);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0] * r, points[i][1] * r);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+    };
+    if (family === 'star') {
+        const count = 5 + variant % 4, pts = [];
+        for (let i = 0; i < count * 2; i++) {
+            const a = -Math.PI / 2 + i * Math.PI / count, d = i % 2 ? .48 : 1;
+            pts.push([Math.cos(a) * d, Math.sin(a) * d]);
+        }
+        poly(pts);
+    } else if (family === 'shard') {
+        poly([[-.18,-1],[.72,-.28],[.22,1],[-.7,.25]]);
+    } else if (family === 'ring' || family === 'orb') {
+        ctx.beginPath(); ctx.arc(0,0,r*(family === 'ring' ? .72 : .56),0,Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0,0,r*(family === 'ring' ? .4 : .24),0,Math.PI*2);
+        if (family === 'orb') { ctx.fill(); ctx.stroke(); } else ctx.stroke();
+    } else if (family === 'arrow') {
+        poly([[-1,-.28],[.18,-.28],[.18,-.72],[1,0],[.18,.72],[.18,.28],[-1,.28]]);
+    } else if (family === 'chevron') {
+        poly([[-.85,-.7],[-.48,-1],[.5,0],[-.48,1],[-.85,.7],[.28,0]]);
+    } else if (family === 'bolt') {
+        poly([[-.1,-1],[.72,-.16],[.18,-.08],[.36,1],[-.72,.12],[-.16,.08]]);
+    } else if (family === 'hex') {
+        const count = 6 + (variant % 3) * 2, pts = [];
+        for (let i=0;i<count;i++){const a=-Math.PI/2+i*Math.PI*2/count;pts.push([Math.cos(a)*.86,Math.sin(a)*.86]);}
+        poly(pts);
+    } else if (family === 'cross') {
+        const w=.28+(variant%3)*.08;
+        poly([[-w,-1],[w,-1],[w,-w],[1,-w],[1,w],[w,w],[w,1],[-w,1],[-w,w],[-1,w],[-1,-w],[-w,-w]]);
+    } else if (family === 'gear') {
+        const pts=[]; for(let i=0;i<24;i++){const a=i*Math.PI/12,d=i%3===0?.98:(i%3===1?.82:.72);pts.push([Math.cos(a)*d,Math.sin(a)*d]);}
+        poly(pts); ctx.shadowBlur=0; ctx.fillStyle='#06101e'; ctx.beginPath();ctx.arc(0,0,r*.28,0,Math.PI*2);ctx.fill();
+    } else {
+        poly([[-.75,-.75],[.75,-.75],[.75,.75],[-.75,.75]]);
+    }
+    ctx.restore();
+}
+
 function drawPillar(pillar, screenX) {
     const w = pillar.w || 34;
     const h = pillar.h || 90;
@@ -1042,6 +1102,7 @@ function cloneLevelEntities(lvl) {
     activeOrbs = (lvl.orbs || []).map(o => ({ ...o, used: false }));
     activeSaws = (lvl.saws || []).map(o => ({ ...o, angle: o.angle || 0 }));
     activePillars = (lvl.pillars || []).map(o => ({ ...o }));
+    activeDecorations = (lvl.decorations || []).map(o => ({ ...o }));
     activeCoins = (lvl.coins || []).map(o => ({ ...o, collected: false }));
     activeTriggers = (lvl.triggers || []).map(o => ({ ...o, triggered: false }));
     activePortals = (lvl.portals || []).map(o => ({ ...o, triggered: false }));
@@ -1225,6 +1286,7 @@ function drawLevelElementsInWorld() {
     const camOffset = levelDistance - player.x;
 
     activePillars.forEach(pil => drawPillar(pil, pil.x - camOffset));
+    activeDecorations.forEach(item => drawLevelDecoration(item, item.x - camOffset));
     activePlatforms.forEach(plat => drawPlatform(plat, plat.x - camOffset));
     activeBlocks.forEach(blk => drawPlatform(blk, blk.x - camOffset));
     activePads.forEach(pad => drawPad(pad, pad.x - camOffset));
