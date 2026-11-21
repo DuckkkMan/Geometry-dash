@@ -287,12 +287,12 @@ function addGridSettings() {
   top.querySelector('.editor-top-right')?.prepend(button);
   const panel=document.createElement('section');
   panel.id='editor-grid-settings-panel';panel.className='hidden';
-  panel.innerHTML='<div class="grid-settings-head"><strong>GRADE DO EDITOR</strong><button type="button" id="editor-grid-settings-close" aria-label="Fechar">×</button></div><div class="grid-settings-cell"><span>Tamanho da célula</span><b>44 × 44 px · 1 CUBO</b><small>Fixo para manter o alinhamento idêntico ao jogo.</small></div><label class="grid-settings-option"><input id="grid-setting-visible" type="checkbox" checked><span>Mostrar grade</span></label><label class="grid-settings-option"><input id="grid-setting-snap" type="checkbox" checked><span>Encaixar objetos na grade</span></label><label class="grid-settings-option"><span>Contraste das linhas</span><select id="grid-setting-strength"><option value="soft">Suave</option><option value="normal" selected>Normal</option><option value="strong">Forte</option></select></label>';
+  panel.innerHTML='<div class="grid-settings-head"><strong>GRADE DO EDITOR</strong><button type="button" id="editor-grid-settings-close" aria-label="Fechar">×</button></div><div class="grid-settings-cell"><span>Tamanho da célula</span><b>44 × 44 px · 1 CUBO</b><small>Fixo para manter o alinhamento idêntico ao jogo.</small></div><label class="grid-settings-option"><input id="grid-setting-visible" type="checkbox" checked><span>Mostrar grade</span></label><label class="grid-settings-option"><input id="grid-setting-snap" type="checkbox" checked disabled><span>Encaixe 1×1 obrigatório</span></label><label class="grid-settings-option"><span>Contraste das linhas</span><select id="grid-setting-strength"><option value="soft">Suave</option><option value="normal" selected>Normal</option><option value="strong">Forte</option></select></label>';
   editorRoot.appendChild(panel);
   const saved=(()=>{try{return JSON.parse(localStorage.getItem('gd-editor-grid-settings')||'{}')}catch(_){return {}}})();
-  editorShowGrid=saved.visible!==false;snapEnabled=saved.snap!==false;
+  editorShowGrid=saved.visible!==false;snapEnabled=true;
   gridLineStrength=['soft','normal','strong'].includes(saved.strength)?saved.strength:'normal';
-  $('grid-setting-visible').checked=editorShowGrid;$('grid-setting-snap').checked=snapEnabled;
+  $('grid-setting-visible').checked=editorShowGrid;$('grid-setting-snap').checked=true;
   $('grid-setting-strength').value=gridLineStrength;
   const save=()=>{
     try{localStorage.setItem('gd-editor-grid-settings',JSON.stringify({visible:editorShowGrid,snap:snapEnabled,strength:gridLineStrength}));}catch(_){}
@@ -301,7 +301,7 @@ function addGridSettings() {
   button.addEventListener('click',()=>{gridSettingsOpen=!gridSettingsOpen;panel.classList.toggle('hidden',!gridSettingsOpen);});
   $('editor-grid-settings-close').addEventListener('click',()=>{gridSettingsOpen=false;panel.classList.add('hidden');});
   $('grid-setting-visible').addEventListener('change',ev=>{editorShowGrid=ev.target.checked;save();});
-  $('grid-setting-snap').addEventListener('change',ev=>{snapEnabled=ev.target.checked;save();});
+  $('grid-setting-snap').addEventListener('change',()=>{snapEnabled=true;$('grid-setting-snap').checked=true;save();});
   $('grid-setting-strength').addEventListener('change',ev=>{gridLineStrength=ev.target.value;save();});
 }
 function addInspector() {
@@ -339,8 +339,8 @@ function applyInspector() {
   const rot=Number($('inspect-rotation').value),scale=Number($('inspect-scale').value)/100;
   const first=records[0].obj,dx=Number.isFinite(x)?x-(first.x||0):0,dy=Number.isFinite(y)?y-(first.y===undefined?GROUND_Y-45:first.y):0;
   records.forEach(s=>{
-    if(Number.isFinite(x))s.obj.x=(s.obj.x||0)+dx;
-    if(Number.isFinite(y))s.obj.y=(s.obj.y===undefined?GROUND_Y-45:s.obj.y)+dy;
+    if(Number.isFinite(x))s.obj.x=Math.round(((s.obj.x||0)+dx)/(gridUnit/2))*(gridUnit/2);
+    if(Number.isFinite(y))s.obj.y=Math.round(((s.obj.y===undefined?GROUND_Y-45:s.obj.y)+dy)/(gridUnit/(2*EDITOR_SCALE_Y)))*(gridUnit/(2*EDITOR_SCALE_Y));
     if(Number.isFinite(rot))s.obj.rotation=rot*Math.PI/180;
     if(Number.isFinite(scale))applyObjectScale(s.obj,Math.max(.1,Math.min(5,scale)));
     assignGroups(s.obj,$('inspect-groups').value);
@@ -458,13 +458,15 @@ eraseAtWorldCoord = function(x,y) {
   recordHistory();oldErase(x,y);updateAutoFinish();
   ['decorations','structures'].forEach(key=>{editorDraft[key]=(editorDraft[key]||[]).filter(o=>Math.hypot((o.x||0)-x,(o.y||0)-y)>Math.max(24,(o.scale||1)*28));});
 };
-getEditorWorldCoords = function(e) {
+getEditorWorldCoords = function(e, fineEdit=false) {
   const rect=editorCanvas.getBoundingClientRect();
   const sx=editorCanvas.width/Math.max(1,rect.width),sy=editorCanvas.height/Math.max(1,rect.height);
   const rawX=(e.clientX-rect.left)*sx,rawY=(e.clientY-rect.top)*sy;
   const logicalX=(rawX-zoomOffsetX())/editorZoom,logicalY=(rawY-zoomOffsetY())/editorZoom;
   let x=logicalX+editorScrollX-80,y=logicalY/EDITOR_SCALE_Y;
-  if(snapEnabled){x=Math.round(x/gridUnit)*gridUnit;y=Math.round(y/(gridUnit/EDITOR_SCALE_Y))*(gridUnit/EDITOR_SCALE_Y);}
+  const step=fineEdit?gridUnit/2:gridUnit;
+  x=Math.round(x/step)*step;
+  y=Math.round(y/(step/EDITOR_SCALE_Y))*(step/EDITOR_SCALE_Y);
   return {x,y};
 };
 function updateAutoFinish(){
@@ -895,7 +897,7 @@ function installSelectionInput() {
   document.addEventListener('pointerdown',e=>{
     if(e.target!==editorCanvas||gameState!=='EDITOR'||editorToolMode!=='select')return;
     e.preventDefault();e.stopImmediatePropagation();
-    const p=getEditorWorldCoords(e),found=findObjectAt(p),multi=e.shiftKey||e.ctrlKey||e.metaKey;
+    const p=getEditorWorldCoords(e,false),found=findObjectAt(p),multi=e.shiftKey||e.ctrlKey||e.metaKey;
     if(!found){if(!multi)setSelection([]);return;}
     let next=getSelectionRecords();
     if(multi&&next.some(s=>s.obj===found.obj))next=next.filter(s=>s.obj!==found.obj);
@@ -908,8 +910,12 @@ function installSelectionInput() {
   },true);
   editorCanvas.addEventListener('pointermove',e=>{
     if(!dragState||dragState.pointerId!==e.pointerId)return;
-    const p=getEditorWorldCoords(e),dx=p.x-dragState.lastX,dy=p.y-dragState.lastY;
-    dragState.items.forEach(s=>{s.obj.x=(s.obj.x||0)+dx;if(s.obj.y!==undefined)s.obj.y+=dy;});
+    const p=getEditorWorldCoords(e,Boolean(e.shiftKey)),dx=p.x-dragState.lastX,dy=p.y-dragState.lastY;
+    const step=e.shiftKey?gridUnit/2:gridUnit;
+    dragState.items.forEach(s=>{
+      s.obj.x=Math.round(((s.obj.x||0)+dx)/step)*step;
+      if(s.obj.y!==undefined)s.obj.y=Math.round((s.obj.y+dy)/(step/EDITOR_SCALE_Y))*(step/EDITOR_SCALE_Y);
+    });
     dragState.lastX=p.x;dragState.lastY=p.y;refreshInspector();drawEditorCanvas();
   },true);
   const end=()=>{dragState=null;updateAutoFinish();drawEditorCanvas();};
@@ -929,7 +935,7 @@ function addKeyboardEditorShortcuts() {
     if(e.key==='Delete'&&getSelectionRecords().length){recordHistory();getSelectionRecords().forEach(s=>{const a=editorDraft[s.key],i=a.indexOf(s.obj);if(i>=0)a.splice(i,1);});setSelection([]);}
     if(e.key==='Escape')setSelection([]);
     if(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key==='ArrowUp'||e.key==='ArrowDown'){
-      const delta=e.shiftKey?1:gridUnit;if(!getSelectionRecords().length)return;e.preventDefault();recordHistory();
+      const delta=e.shiftKey?gridUnit/2:gridUnit;if(!getSelectionRecords().length)return;e.preventDefault();recordHistory();
       getSelectionRecords().forEach(s=>{if(e.key==='ArrowLeft')s.obj.x-=delta;if(e.key==='ArrowRight')s.obj.x+=delta;if(e.key==='ArrowUp')s.obj.y=(s.obj.y||0)-delta;if(e.key==='ArrowDown')s.obj.y=(s.obj.y||0)+delta;});drawEditorCanvas();refreshInspector();
     }
   });
