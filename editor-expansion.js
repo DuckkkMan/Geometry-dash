@@ -100,6 +100,7 @@ let gridLineStrength = 'normal';
 let gridSettingsOpen = false;
 let eraseGestureMode = 'click';
 let selectedDragState = null;
+let editorClipboard = [];
 
 try {
   const savedGrid = JSON.parse(localStorage.getItem(GRID_PREF_KEY) || 'null');
@@ -726,6 +727,54 @@ document.addEventListener('keydown', event => {
 
   const key = event.key.toLowerCase();
   const modifier = event.ctrlKey || event.metaKey;
+  if (modifier && key === 'c') {
+    const records = getSelectionRecords();
+    if (!records.length) return;
+    editorClipboard = records.map(record => ({ key: record.key, obj: JSON.parse(JSON.stringify(record.obj)) }));
+    event.preventDefault();
+    return;
+  }
+  if (modifier && (key === 'v' || key === 'd')) {
+    if (key === 'd' && getSelectionRecords().length) {
+      editorClipboard = getSelectionRecords().map(record => ({ key: record.key, obj: JSON.parse(JSON.stringify(record.obj)) }));
+    }
+    if (!editorClipboard.length) return;
+    event.preventDefault();
+    recordHistory();
+    selectedObjects = editorClipboard.map(entry => {
+      const obj = JSON.parse(JSON.stringify(entry.obj));
+      obj.id = makeId();
+      obj.x = Math.max(0, (Number(obj.x) || 0) + gridUnit);
+      if (obj.y !== undefined) obj.y = Number(obj.y) + gridUnit;
+      (editorDraft[entry.key] || (editorDraft[entry.key] = [])).push(obj);
+      return { key: entry.key, obj };
+    });
+    refreshInspector();
+    drawEditorCanvas();
+    return;
+  }
+  if (modifier && key === 'x') {
+    const records = getSelectionRecords();
+    if (!records.length) return;
+    editorClipboard = records.map(record => ({ key: record.key, obj: JSON.parse(JSON.stringify(record.obj)) }));
+    event.preventDefault();
+    recordHistory();
+    records.forEach(record => {
+      const list = editorDraft[record.key], index = list.indexOf(record.obj);
+      if (index >= 0) list.splice(index, 1);
+    });
+    selectedObjects = [];
+    refreshInspector();
+    drawEditorCanvas();
+    return;
+  }
+  if (key === 'escape') {
+    selectedObjects = [];
+    selectedDragState = null;
+    refreshInspector();
+    drawEditorCanvas();
+    return;
+  }
   if (modifier && key === 'z') {
     event.preventDefault();
     if (event.shiftKey) redoLocalEditor();
