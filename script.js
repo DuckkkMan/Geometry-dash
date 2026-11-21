@@ -1694,7 +1694,7 @@ function getEditorWorldCoords(e, fineEdit = false) {
 
 function placeSelectedAtWorldCoord(x, y) {
     if (!editorDraft) return;
-    const clampedX = Math.max(200, x);
+    const clampedX = Math.max(EDITOR_GRID * Math.ceil(200 / EDITOR_GRID), x);
     const snapY = Math.round(y / EDITOR_GRID) * EDITOR_GRID;
 
     if (editorSelectedItem === 'spike') {
@@ -1802,7 +1802,7 @@ function drawEditorCanvas() {
             eCtx.lineTo(gx, groundY);
             eCtx.stroke();
         }
-        for (let gy = groundY; gy > 0; gy -= EDITOR_GRID) {
+        for (let gy = 0; gy <= groundY; gy += EDITOR_GRID) {
             eCtx.beginPath();
             eCtx.moveTo(0, gy);
             eCtx.lineTo(w, gy);
