@@ -215,12 +215,15 @@ player.draw=function() {
   if(playerMode==='ship') { drawShipPlayer(ctx,this.x,this.y,this.size,this.dy,modeSkins.ship); return; }
   drawModeIcon(ctx,playerMode,this.x,this.y,this.size,this.rotation,modeSkins[playerMode]);
 };
+const originalSaveCheckpoint=saveCheckpointAtCurrentState;
+saveCheckpointAtCurrentState=function(){originalSaveCheckpoint();if(activeCheckpoint)activeCheckpoint.modeGravity=modeGravity;};
 const originalStartAttempt=startAttempt;
 startAttempt=function(countNewAttempt=true) {
   activeTrail=[];
   trailTick=0;
   modeGravity=1;
   originalStartAttempt(countNewAttempt);
+  if(isPracticeMode&&activeCheckpoint&&Number.isFinite(activeCheckpoint.modeGravity))modeGravity=activeCheckpoint.modeGravity;
   activeTrail.push({x:levelDistance,y:player.y+player.size/2});
 };
 const originalLoop=loop;
