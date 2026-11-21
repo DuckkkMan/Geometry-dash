@@ -109,8 +109,10 @@ try {
     if (['soft', 'normal', 'strong'].includes(savedGrid.strength)) gridLineStrength = savedGrid.strength;
   }
 } catch (_) {}
+window.__editorGridStrength = gridLineStrength;
 
 function persistGridSettings() {
+  window.__editorGridStrength = gridLineStrength;
   try {
     localStorage.setItem(GRID_PREF_KEY, JSON.stringify({
       visible: Boolean(editorShowGrid),
@@ -402,6 +404,8 @@ function addEditorCommandBar() {
     previousToolSync();
     selectButton.classList.toggle('active', editorToolMode === 'select');
     $('editor-inspector')?.classList.toggle('editor-inspector-open', editorToolMode === 'select');
+    const gridCheckbox = $('grid-setting-visible');
+    if (gridCheckbox) gridCheckbox.checked = Boolean(editorShowGrid);
   };
   selectButton.addEventListener('click', () => {
     editorToolMode = 'select';
@@ -468,6 +472,12 @@ function addGridSettings() {
     persistGridSettings();
     syncEditorToolButtons();
     drawEditorCanvas();
+  });
+  // O botão GRID: ON/OFF também salva a preferência e mantém o painel sincronizado.
+  $('editor-grid-btn')?.addEventListener('click', () => {
+    persistGridSettings();
+    const gridCheckbox = $('grid-setting-visible');
+    if (gridCheckbox) gridCheckbox.checked = Boolean(editorShowGrid);
   });
   $('grid-setting-strength').addEventListener('change', ev => {
     gridLineStrength = ev.target.value;
