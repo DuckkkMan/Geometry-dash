@@ -83,7 +83,9 @@ let localHistoryLock=false;
 let inspectorLock = false;
 let dragState = null;
 let snapEnabled = true;
-let gridUnit = 44;
+const gridUnit = BLOCK_SIZE;
+let gridLineStrength = 'normal';
+let gridSettingsOpen = false;
 let editorZoom = 1;
 const zoomBuffer=document.createElement('canvas');zoomBuffer.width=editorCanvas.width;zoomBuffer.height=editorCanvas.height;
 const zoomBufferCtx=zoomBuffer.getContext('2d');
@@ -276,6 +278,32 @@ function addEditorCommandBar() {
   if(undo)undo.addEventListener('click',undoLocalEditor);
   if(redo)redo.addEventListener('click',redoLocalEditor);
 }
+function addGridSettings() {
+  const top=editorRoot.querySelector('.editor-topbar');
+  if(!top||$('editor-grid-settings-open'))return;
+  const button=document.createElement('button');
+  button.id='editor-grid-settings-open';button.type='button';button.textContent='▦';
+  button.title='Configurações da grade';button.setAttribute('aria-label','Configurações da grade');
+  top.querySelector('.editor-top-right')?.prepend(button);
+  const panel=document.createElement('section');
+  panel.id='editor-grid-settings-panel';panel.className='hidden';
+  panel.innerHTML='<div class="grid-settings-head"><strong>GRADE DO EDITOR</strong><button type="button" id="editor-grid-settings-close" aria-label="Fechar">×</button></div><div class="grid-settings-cell"><span>Tamanho da célula</span><b>44 × 44 px · 1 CUBO</b><small>Fixo para manter o alinhamento idêntico ao jogo.</small></div><label class="grid-settings-option"><input id="grid-setting-visible" type="checkbox" checked><span>Mostrar grade</span></label><label class="grid-settings-option"><input id="grid-setting-snap" type="checkbox" checked><span>Encaixar objetos na grade</span></label><label class="grid-settings-option"><span>Contraste das linhas</span><select id="grid-setting-strength"><option value="soft">Suave</option><option value="normal" selected>Normal</option><option value="strong">Forte</option></select></label>';
+  editorRoot.appendChild(panel);
+  const saved=(()=>{try{return JSON.parse(localStorage.getItem('gd-editor-grid-settings')||'{}')}catch(_){return {}}})();
+  editorShowGrid=saved.visible!==false;snapEnabled=saved.snap!==false;
+  gridLineStrength=['soft','normal','strong'].includes(saved.strength)?saved.strength:'normal';
+  $('grid-setting-visible').checked=editorShowGrid;$('grid-setting-snap').checked=snapEnabled;
+  $('grid-setting-strength').value=gridLineStrength;
+  const save=()=>{
+    try{localStorage.setItem('gd-editor-grid-settings',JSON.stringify({visible:editorShowGrid,snap:snapEnabled,strength:gridLineStrength}));}catch(_){}
+    syncEditorToolButtons();drawEditorCanvas();
+  };
+  button.addEventListener('click',()=>{gridSettingsOpen=!gridSettingsOpen;panel.classList.toggle('hidden',!gridSettingsOpen);});
+  $('editor-grid-settings-close').addEventListener('click',()=>{gridSettingsOpen=false;panel.classList.add('hidden');});
+  $('grid-setting-visible').addEventListener('change',ev=>{editorShowGrid=ev.target.checked;save();});
+  $('grid-setting-snap').addEventListener('change',ev=>{snapEnabled=ev.target.checked;save();});
+  $('grid-setting-strength').addEventListener('change',ev=>{gridLineStrength=ev.target.value;save();});
+}
 function addInspector() {
   const bottom=editorRoot.querySelector('.editor-bottom-panel');
   if(!bottom||$('editor-inspector'))return;
@@ -465,14 +493,16 @@ drawEditorCanvas = function() {
   }
   eCtx.save();eCtx.translate(zoomOffsetX(),zoomOffsetY());eCtx.scale(editorZoom,editorZoom);
   if(show){
+    const alpha=gridLineStrength==='strong'?{minor:.2,major:.38}:gridLineStrength==='soft'?{minor:.045,major:.12}:{minor:.09,major:.22};
     for(let x=Math.ceil((editorScrollX-80)/gridUnit)*gridUnit;x<editorScrollX+editorCanvas.width-80;x+=gridUnit){
-      const sx=x-editorScrollX+80;eCtx.strokeStyle=(Math.round(x/gridUnit)%4===0)?'rgba(255,255,255,.22)':'rgba(255,255,255,.09)';
-      eCtx.lineWidth=(Math.round(x/gridUnit)%4===0)?1.4:1;eCtx.beginPath();eCtx.moveTo(sx,0);eCtx.lineTo(sx,EDITOR_GROUND_Y);eCtx.stroke();
+      const sx=x-editorScrollX+80,major=Math.round(x/gridUnit)%4===0;
+      eCtx.strokeStyle=major?`rgba(255,255,255,${alpha.major})`:`rgba(255,255,255,${alpha.minor})`;
+      eCtx.lineWidth=major?1.4:1;eCtx.beginPath();eCtx.moveTo(sx,0);eCtx.lineTo(sx,EDITOR_GROUND_Y);eCtx.stroke();
     }
-    const stepY=gridUnit;
-    for(let y=0;y<=EDITOR_GROUND_Y;y+=stepY){
-      eCtx.strokeStyle=(Math.round(y/stepY)%4===0)?'rgba(255,255,255,.2)':'rgba(255,255,255,.08)';
-      eCtx.lineWidth=(Math.round(y/stepY)%4===0)?1.4:1;eCtx.beginPath();eCtx.moveTo(0,y);eCtx.lineTo(editorCanvas.width,y);eCtx.stroke();
+    for(let y=0;y<=EDITOR_GROUND_Y;y+=gridUnit){
+      const major=Math.round(y/gridUnit)%4===0;
+      eCtx.strokeStyle=major?`rgba(255,255,255,${alpha.major})`:`rgba(255,255,255,${alpha.minor})`;
+      eCtx.lineWidth=major?1.4:1;eCtx.beginPath();eCtx.moveTo(0,y);eCtx.lineTo(editorCanvas.width,y);eCtx.stroke();
     }
   }
   (editorDraft.decorations||[]).forEach(o=>drawExtraEditorObject(o,'decoration'));
@@ -939,7 +969,7 @@ function installGameWindowResize(){
   handle.addEventListener('pointercancel',stop);
 }
 
-addCategoryPanel();addEditorCommandBar();addInspector();addAdvancedTriggerEditor();installSelectionInput();addKeyboardEditorShortcuts();installGameWindowResize();
+addCategoryPanel();addEditorCommandBar();addGridSettings();addInspector();addAdvancedTriggerEditor();installSelectionInput();addKeyboardEditorShortcuts();installGameWindowResize();
 ensureDraftSchema(editorDraft);
 renderAssetLibrary();
 })();
