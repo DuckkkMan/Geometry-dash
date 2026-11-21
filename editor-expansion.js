@@ -374,6 +374,25 @@ function addEditorCommandBar() {
   const top = editorRoot.querySelector('.editor-topbar');
   if (!top) return;
 
+  // Ferramenta de seleção fica junto aos controles originais, não numa barra lateral.
+  const selectButton = document.createElement('button');
+  selectButton.id = 'tool-select-btn';
+  selectButton.type = 'button';
+  selectButton.className = 'mini-btn';
+  selectButton.textContent = 'SELECIONAR';
+  selectButton.title = 'Selecionar e mover objetos';
+  top.querySelector('.editor-top-center')?.appendChild(selectButton);
+  const previousToolSync = syncEditorToolButtons;
+  syncEditorToolButtons = function () {
+    previousToolSync();
+    selectButton.classList.toggle('active', editorToolMode === 'select');
+    $('editor-inspector')?.classList.toggle('editor-inspector-open', editorToolMode === 'select');
+  };
+  selectButton.addEventListener('click', () => {
+    editorToolMode = 'select';
+    syncEditorToolButtons();
+  });
+
   const del = document.createElement('section');
   del.id = 'editor-delete-panel';
   del.className = 'hidden';
