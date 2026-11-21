@@ -1086,4 +1086,13 @@ drawTriggerMarker=function(trig,screenX){
  syncTransformControls=function(){oldSync();const o=selectedEditorObject?.obj;if(!o)return;color.value=o.colorHex||o.color||'#2475bd';alpha.value=String(Math.round((o.alpha===undefined?1:o.alpha)*100));alphaValue.textContent=alpha.value+'%';};
 })();
 
+
+const hudCoinCounter=menuCoinCounter.cloneNode(true);
+hudCoinCounter.style.position='absolute';
+hudCoinCounter.style.top='42px';
+hudCoinCounter.style.left='18px';
+hudCoinCounter.style.zIndex='20';
+document.getElementById('hud')?.appendChild(hudCoinCounter);
+updateSecretCoinCounter();
+
 })();
