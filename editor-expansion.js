@@ -73,7 +73,7 @@ const ASSET_BY_ID = {};
 EXTRA_CATEGORIES.forEach(cat => cat.items.forEach(item => ASSET_BY_ID[item[0]] = {id:item[0],label:item[1],type:item[2],color:item[3],category:cat.id}));
 
 let activeCategory = 'blocks';
-let selectedAssetId = editorSelectedItem || 'spike';
+let selectedAssetId = 'block';editorSelectedItem='block';
 let selectedObjects = [];
 let clipboardObjects = [];
 let inspectorLock = false;
@@ -590,8 +590,18 @@ loop=function() {
   const now=performance.now(),dt=lastFrameAt?Math.min(.05,(now-lastFrameAt)/1000):1/60;lastFrameAt=now;
   runtimeEffects=runtimeEffects.filter(effect=>{
     effect.elapsed+=dt;effect.remaining-=dt;
+    const progress=Math.min(1,effect.elapsed/Math.max(.001,effect.duration||1));
+    if(effect.type==='move'){
+      effect.object.x=effect.fromX+(effect.toX-effect.fromX)*progress;
+      if(effect.object.y!==undefined||effect.toY!==effect.fromY)effect.object.y=effect.fromY+(effect.toY-effect.fromY)*progress;
+      if(effect.remaining<=0){effect.object.x=effect.toX;effect.object.y=effect.toY;return false;}return true;
+    }
+    if(effect.type==='scale'){
+      applyObjectScale(effect.object,effect.fromScale+(effect.toScale-effect.fromScale)*progress);
+      if(effect.remaining<=0){applyObjectScale(effect.object,effect.toScale);return false;}return true;
+    }
     const pulse=1+Math.sin(effect.elapsed*Math.PI*4)*.12*effect.intensity;
-    effect.object.scale=effect.baseScale*pulse;
+    applyObjectScale(effect.object,effect.baseScale*pulse);
     if(effect.remaining<=0){applyObjectScale(effect.object,effect.baseScale);return false;}return true;
   });
   if(gameState==='PLAYING'&&currentGameSpeed<0&&levelDistance<=0)currentGameSpeed=0;
