@@ -1481,3 +1481,9 @@ canvas {
 .editor-snap-control input{accent-color:#9dff00}
 .editor-grid-size-control input{width:43px;padding:4px;border:1px solid #345775;border-radius:4px;background:#061326;color:#fff;font:700 10px monospace}
 @media(max-width:700px){.editor-zoom-control input{width:55px}.editor-grid-size-control input{width:36px}}
+
+/* Keep legacy tool buttons available through shortcuts while the new tool strip lives below the canvas. */
+#level-editor #tool-place-btn,#level-editor #tool-erase-btn,#level-editor #tool-pan-btn,#level-editor #tool-select-btn{display:none!important}
+#level-editor .editor-command-bar{order:0;flex:0 0 auto}
+#level-editor .editor-tabs{order:1;flex:0 0 auto}
+#level-editor #editor-library,#level-editor #editor-panel-assets,#level-editor #editor-panel-triggers,#level-editor #editor-panel-style{order:2;min-height:0;overflow:hidden}
