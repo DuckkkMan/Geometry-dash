@@ -105,7 +105,7 @@ let editorClipboard = [];
 try {
   const savedGrid = JSON.parse(localStorage.getItem(GRID_PREF_KEY) || 'null');
   if (savedGrid && typeof savedGrid === 'object') {
-    editorShowGrid = true;
+    editorShowGrid = savedGrid.visible !== false;
     if (['soft', 'normal', 'strong'].includes(savedGrid.strength)) gridLineStrength = savedGrid.strength;
   }
 } catch (_) {}
@@ -498,6 +498,7 @@ function refreshInspector() {
   ['inspect-x', 'inspect-y', 'inspect-rotation', 'inspect-scale', 'inspect-groups'].forEach(id => {
     if ($(id)) $(id).disabled = !first;
   });
+  if ($('inspect-y')) $('inspect-y').disabled = !first || ['spikes', 'pads', 'pillars', 'portals', 'triggers'].includes(first.key);
   if (!first) return;
   $('inspect-x').value = Math.round(first.obj.x || 0);
   $('inspect-y').value = Math.round(first.obj.y === undefined ? GROUND_Y - 45 : first.obj.y);
@@ -520,7 +521,9 @@ function applyInspector() {
 
   records.forEach(s => {
     if (Number.isFinite(x)) s.obj.x = Math.round(((s.obj.x || 0) + dx) / gridUnit) * gridUnit;
-    if (Number.isFinite(y)) s.obj.y = Math.round(((s.obj.y === undefined ? GROUND_Y - 45 : s.obj.y) + dy) / gridUnit) * gridUnit;
+    if (Number.isFinite(y) && !['spikes', 'pads', 'pillars', 'portals', 'triggers'].includes(s.key)) {
+      s.obj.y = Math.round(((s.obj.y === undefined ? GROUND_Y - 45 : s.obj.y) + dy) / gridUnit) * gridUnit;
+    }
     if (Number.isFinite(rot)) s.obj.rotation = (rot * Math.PI) / 180;
     if (Number.isFinite(scale)) s.obj.scale = Math.max(0.1, Math.min(5, scale));
     assignGroups(s.obj, $('inspect-groups').value);
@@ -630,7 +633,7 @@ editAtEditorPointer = function (pointerEvent) {
     }
     const obj = selectedDragState.obj;
     obj.x = Math.max(0, Math.round((selectedDragState.objectX + dx) / gridUnit) * gridUnit);
-    if (obj.y !== undefined || ['blocks','platforms','orbs','saws','coins','spikes','decorations'].includes(selectedDragState.key)) {
+    if (obj.y !== undefined || ['blocks','platforms','orbs','saws','coins','decorations'].includes(selectedDragState.key)) {
       obj.y = Math.round((selectedDragState.objectY + dy) / gridUnit) * gridUnit;
     }
     refreshInspector();
