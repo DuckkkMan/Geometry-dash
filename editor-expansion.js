@@ -62,6 +62,24 @@ const EXTRA_CATEGORIES = [
   ]}
 ];
 
+
+/* Biblioteca vetorial adicional: 100 peças originais, leves e sem downloads externos. */
+const EXTRA_DECORATION_FAMILIES = [
+  ['star','Stars'],['shard','Crystals'],['ring','Rings'],['arrow','Arrows'],
+  ['bolt','Energy'],['hex','Hexagons'],['cross','Crosses'],['chevron','Chevrons'],
+  ['gear','Gears'],['orb','Ornaments']
+];
+const EXTRA_ASSET_COLORS = ['#ffe066','#ff9f1c','#ff6b6b','#f06595','#cc5de8','#845ef7','#5c7cfa','#339af0','#22b8cf','#20c997'];
+EXTRA_DECORATION_FAMILIES.forEach(([family, label], familyIndex) => {
+  const items = [];
+  for (let variant = 0; variant < 10; variant++) {
+    const id = 'deco_' + family + '_' + String(variant + 1).padStart(2, '0');
+    items.push([id, label + ' ' + String(variant + 1).padStart(2, '0'), 'decoration',
+      EXTRA_ASSET_COLORS[(variant + familyIndex * 2) % EXTRA_ASSET_COLORS.length]]);
+  }
+  EXTRA_CATEGORIES.push({ id: 'extra_' + family, name: label, icon: '✦', items });
+});
+
 const ASSET_BY_ID = {};
 EXTRA_CATEGORIES.forEach(cat => {
   cat.items.forEach(item => {
