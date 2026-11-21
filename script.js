@@ -210,7 +210,7 @@ const LEVELS = [
         name: 'Spike Rush',
         difficulty: 'EASY',
         stars: 1,
-        faceKey: 'azul',
+        faceKey: 'maligno',
         bgTop: '#0038a8',
         bgBottom: '#0066ff',
         groundFill: '#001d5c',
@@ -275,8 +275,8 @@ const LEVELS = [
         ],
         orbs: [
             { x: 1580, y: GROUND_Y - 110, color: 'yellow', used: false },
-            { x: 2190, y: GROUND_Y - 125, color: 'pink', used: false },
-            { x: 3480, y: GROUND_Y - 105, color: 'yellow', used: false }
+            { x: 2190, y: GROUND_Y - 125, color: 'pink', used: true },
+            { x: 3480, y: GROUND_Y - 10, color: 'yellow', used: false }
         ],
         saws: [{ x: 1620, y: GROUND_Y - 165, r: 22, angle: 0 }],
         pillars: [{ x: 2680, h: 90, w: 34 }],
