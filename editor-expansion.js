@@ -75,7 +75,11 @@ EXTRA_CATEGORIES.forEach(cat => cat.items.forEach(item => ASSET_BY_ID[item[0]] =
 let activeCategory = 'blocks';
 let selectedAssetId = 'block';editorSelectedItem='block';
 let selectedObjects = [];
+let selectedEditorObject = null;
 let clipboardObjects = [];
+let localUndoStack=[];
+let localRedoStack=[];
+let localHistoryLock=false;
 let inspectorLock = false;
 let dragState = null;
 let snapEnabled = true;
@@ -128,7 +132,25 @@ function assignGroups(obj, value) {
   delete obj.group;
 }
 function recordHistory() {
-  if (typeof snapshotEditor === 'function') snapshotEditor();
+  if(localHistoryLock||!editorDraft)return;
+  localUndoStack.push(JSON.stringify(editorDraft));
+  if(localUndoStack.length>80)localUndoStack.shift();
+  localRedoStack.length=0;
+}
+function restoreLocalSnapshot(raw) {
+  if(!raw)return;
+  localHistoryLock=true;
+  try{editorDraft=JSON.parse(raw);ensureDraftSchema(editorDraft);}finally{localHistoryLock=false;}
+  selectedObjects=[];selectedEditorObject=null;
+  syncStyleInputsFromDraft();refreshInspector();renderEditorPalettes();drawEditorCanvas();
+}
+function undoLocalEditor() {
+  if(!localUndoStack.length)return;
+  localRedoStack.push(JSON.stringify(editorDraft));restoreLocalSnapshot(localUndoStack.pop());
+}
+function redoLocalEditor() {
+  if(!localRedoStack.length)return;
+  localUndoStack.push(JSON.stringify(editorDraft));restoreLocalSnapshot(localRedoStack.pop());
 }
 function addCategoryPanel() {
   const bottom = editorRoot.querySelector('.editor-bottom-panel');
@@ -224,10 +246,12 @@ function addEditorCommandBar() {
   const bar=document.createElement('div');bar.id='editor-command-bar';bar.className='editor-command-bar';
   bar.innerHTML='<div class="editor-command-tools"><button data-tool="place" class="editor-command-btn active">PLACE</button><button data-tool="select" class="editor-command-btn">MOVE / SELECT</button><button data-tool="erase" class="editor-command-btn">DELETE</button><button data-tool="pan" class="editor-command-btn">HAND</button></div><div class="editor-command-actions"><button id="editor-duplicate-btn">DUPLICATE</button><button id="editor-mirror-x-btn">FLIP X</button><button id="editor-mirror-y-btn">FLIP Y</button><button id="editor-group-btn">GROUP</button><button id="editor-ungroup-btn">UNGROUP</button><button id="editor-select-group-btn">SELECT GROUP</button><button id="editor-copy-props-btn">COPY PROPS</button><button id="editor-paste-props-btn">PASTE PROPS</button><label class="editor-zoom-control">ZOOM <input id="editor-zoom-range" type="range" min="0.55" max="1.8" step="0.05" value="1"><span id="editor-zoom-label">100%</span></label><label class="editor-snap-control"><input id="editor-snap-toggle" type="checkbox" checked> SNAP</label><label class="editor-grid-size-control">GRID <input id="editor-grid-size" type="number" min="8" max="100" step="1" value="38"></label></div>';
   const bottom=editorRoot.querySelector('.editor-bottom-panel');if(bottom)bottom.insertBefore(bar,bottom.firstChild);else top.insertAdjacentElement('afterend',bar);
-  ['editor-copy-btn','editor-paste-btn'].forEach(id=>{
+  ['editor-copy-btn','editor-paste-btn','editor-undo-btn','editor-redo-btn'].forEach(id=>{
     const old=$(id);if(!old)return;const fresh=old.cloneNode(true);old.replaceWith(fresh);
     if(id==='editor-copy-btn')fresh.addEventListener('click',()=>{clipboardObjects=getSelectionRecords().map(s=>({key:s.key,obj:deepClone(s.obj)}));});
-    else fresh.addEventListener('click',()=>{if(!clipboardObjects.length)return;recordHistory();const next=clipboardObjects.map(s=>{const o=deepClone(s.obj);o.id=makeId();o.x=(o.x||0)+gridUnit;editorDraft[s.key].push(o);return {key:s.key,obj:o};});setSelection(next);});
+    else if(id==='editor-paste-btn')fresh.addEventListener('click',()=>{if(!clipboardObjects.length)return;recordHistory();const next=clipboardObjects.map(s=>{const o=deepClone(s.obj);o.id=makeId();o.x=(o.x||0)+gridUnit;editorDraft[s.key].push(o);return {key:s.key,obj:o};});setSelection(next);});
+    else if(id==='editor-undo-btn')fresh.addEventListener('click',undoLocalEditor);
+    else fresh.addEventListener('click',redoLocalEditor);
   });
   bar.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{
     editorToolMode=b.dataset.tool;syncEditorToolButtons();bar.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));
@@ -362,7 +386,7 @@ placeSelectedAtWorldCoord = function(x,y) {
   if(ASSET_BY_ID[selectedAssetId] && ['orb_blue','orb_red','orb_green','orb_black','orb_purple','orb_cyan','orb_dash','pad_red','pad_blue','pad_green','pad_black'].includes(selectedAssetId)){
     addAssetAtWorld(x,y);return;
   }
-  oldPlace.call(this,x,y);
+  recordHistory();oldPlace.call(this,x,y);
 };
 const oldEditAtPointer=editAtEditorPointer;
 editAtEditorPointer=function(pointerEvent){
@@ -392,7 +416,7 @@ editAtEditorPointer=function(pointerEvent){
 };
 const oldErase = eraseAtWorldCoord;
 eraseAtWorldCoord = function(x,y) {
-  oldErase(x,y);
+  recordHistory();oldErase(x,y);
   ['decorations','structures'].forEach(key=>{editorDraft[key]=(editorDraft[key]||[]).filter(o=>Math.hypot((o.x||0)-x,(o.y||0)-y)>Math.max(24,(o.scale||1)*28));});
 };
 getEditorWorldCoords = function(e) {
@@ -815,6 +839,11 @@ function installSelectionInput() {
   const end=()=>{dragState=null;};
   editorCanvas.addEventListener('pointerup',end,true);editorCanvas.addEventListener('pointercancel',end,true);
 }
+document.addEventListener('keydown',e=>{
+  if(gameState!=='EDITOR'||/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
+  if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();e.stopImmediatePropagation();undoLocalEditor();}
+  else if((e.ctrlKey||e.metaKey)&&e.code==='KeyY'){e.preventDefault();e.stopImmediatePropagation();redoLocalEditor();}
+},true);
 function addKeyboardEditorShortcuts() {
   window.addEventListener('keydown',e=>{
     if(gameState!=='EDITOR'||/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
@@ -827,10 +856,15 @@ function addKeyboardEditorShortcuts() {
     }
   });
 }
+const clearButton=$('editor-clear-btn');
+if(clearButton)clearButton.addEventListener('click',recordHistory,true);
+document.addEventListener('pointerdown',e=>{
+  if(e.target===editorCanvas&&gameState==='EDITOR'&&editorToolMode==='place'&&editorSelectedItem==='platform')recordHistory();
+},true);
 const oldSave=saveEditorDraftToCreations;
 saveEditorDraftToCreations=function(){ensureDraftSchema(editorDraft);oldSave();};
 const oldOpen=openEditorWithLevel;
-openEditorWithLevel=function(level){oldOpen(level);ensureDraftSchema(editorDraft);selectedObjects=[];selectedEditorObject=null;refreshInspector();};
+openEditorWithLevel=function(level){oldOpen(level);ensureDraftSchema(editorDraft);selectedObjects=[];selectedEditorObject=null;localUndoStack=[];localRedoStack=[];refreshInspector();};
 const oldRenderPalettes=renderEditorPalettes;
 renderEditorPalettes=function(){oldRenderPalettes();renderAssetLibrary();};
 const oldSyncTools=syncEditorToolButtons;
