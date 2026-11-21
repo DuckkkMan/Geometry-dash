@@ -235,7 +235,7 @@ function showEditorLibrary(show){
   const panel=$('editor-library');
   if(panel)panel.classList.toggle('hidden',!show);
 }
-let eraseGestureMode='drag';
+let eraseGestureMode='click';
 function addEditorCommandBar() {
   const top=editorRoot.querySelector('.editor-topbar');
   if(!top||$('editor-tool-rail'))return;
@@ -361,7 +361,7 @@ function addAssetAtWorld(x,y) {
     editorDraft.spikes.push({x:base.x,y:item.type==='ceil_spike'?CEILING_Y:GROUND_Y,sizeType:item.type==='mini_spike'?'mini':'normal',inverted:item.type==='ceil_spike',groups:[]});
   } else if(item.type==='block') {
     if(selectedAssetId==='platform')editorDraft.platforms.push({x:base.x,y:Math.min(GROUND_Y-36,y),w:EDITOR_GRID,h:26,groups:[]});
-    else editorDraft.blocks.push({x:base.x,y:Math.min(GROUND_Y-BLOCK_SIZE,Math.max(CEILING_Y,y-BLOCK_SIZE/2)),w:BLOCK_SIZE,h:BLOCK_SIZE,groups:[]});
+    else editorDraft.blocks.push({x:base.x,y:Math.min(GROUND_Y-BLOCK_SIZE,Math.max(CEILING_Y,y)),w:BLOCK_SIZE,h:BLOCK_SIZE,groups:[]});
   } else if(item.type.indexOf('orb_')===0) {
     editorDraft.orbs.push({x:base.x,y:Math.min(GROUND_Y-30,y),color:color,used:false,groups:[]});
   } else if(item.type.indexOf('pad_')===0) {
@@ -485,8 +485,9 @@ drawEditorCanvas = function() {
   // Spawn block: fixed at the beginning of every custom level.
   eCtx.save();
   eCtx.fillStyle='rgba(255,55,65,.38)';eCtx.strokeStyle='rgba(255,85,95,.95)';eCtx.lineWidth=2;
-  eCtx.fillRect(80,EDITOR_GROUND_Y-44,44,44);eCtx.strokeRect(80,EDITOR_GROUND_Y-44,44,44);
-  eCtx.fillStyle='#fff';eCtx.font='900 9px Orbitron,sans-serif';eCtx.textAlign='center';eCtx.fillText('SPAWN',102,EDITOR_GROUND_Y-51);
+  const spawnScreenX=80-editorScrollX;
+  if(spawnScreenX>-50&&spawnScreenX<editorCanvas.width+50){eCtx.fillRect(spawnScreenX,EDITOR_GROUND_Y-44,44,44);eCtx.strokeRect(spawnScreenX,EDITOR_GROUND_Y-44,44,44);
+  eCtx.fillStyle='#fff';eCtx.font='900 9px Orbitron,sans-serif';eCtx.textAlign='center';eCtx.fillText('SPAWN',spawnScreenX+22,EDITOR_GROUND_Y-51);}
   const finishScreenX=editorDraft.finishX-editorScrollX+80;
   eCtx.fillStyle='rgba(0,255,170,.14)';eCtx.fillRect(finishScreenX-5,0,10,EDITOR_GROUND_Y);
   eCtx.strokeStyle='#00ffaa';eCtx.lineWidth=3;eCtx.beginPath();eCtx.moveTo(finishScreenX,0);eCtx.lineTo(finishScreenX,EDITOR_GROUND_Y);eCtx.stroke();
