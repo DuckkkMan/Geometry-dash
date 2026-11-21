@@ -313,7 +313,7 @@ function addAssetAtWorld(x,y) {
   } else if(item.type==='portal_cube'||item.type==='portal_ship') {
     editorDraft.portals.push({x:base.x,type:item.type==='portal_cube'?'cube':'ship',triggered:false,groups:[]});
   } else if(item.type==='portal_extra') {
-    editorDraft.decorations.push(Object.assign(base,{kind:'portal',variant:selectedAssetId,color:item.color,gameplay:false}));
+    const portalType=selectedAssetId.replace('portal_','');editorDraft.portals.push({x:base.x,type:portalType,triggered:false,groups:[]});
   } else if(item.type==='saw') {
     editorDraft.saws.push({x:base.x,y:Math.min(GROUND_Y-30,y),r:22,angle:0,groups:[]});
   } else if(item.type==='pillar') {
@@ -475,6 +475,44 @@ checkPadCollision=function(p,pad,screenX){
   p.dy=force[pad.color]===undefined?PAD_YELLOW_FORCE:force[pad.color];
   if(pad.color==='blue')gravityMultiplier*=-1;
   playSfx('pad');spawnEndParticles(screenX+w/2,padTop,10,true);
+};
+
+const oldPlayerUpdate=player.update;
+player.update=function(){
+  if(playerMode==='cube'||playerMode==='ship'){oldPlayerUpdate.call(this);return;}
+  this.prevY=this.y;
+  if(playerMode==='wave'){
+    this.dy=(isHoldingJump?-7.2:7.2)*(gravityMultiplier<0?-1:1);
+    this.y+=this.dy;
+  } else if(playerMode==='ball'){
+    if(jumpJustPressed){gravityMultiplier*=-1;this.dy=0;jumpJustPressed=false;playSfx('jump');}
+    this.dy+=GRAVITY*gravityMultiplier;this.y+=this.dy;
+  } else if(playerMode==='ufo'){
+    if(jumpJustPressed){this.dy=-13.5*gravityMultiplier;jumpJustPressed=false;playSfx('jump');}
+    this.dy+=GRAVITY*gravityMultiplier;this.y+=this.dy;
+  } else if(playerMode==='robot'){
+    if(jumpJustPressed&&this.grounded){this.dy=-17.5*gravityMultiplier;this.grounded=false;jumpJustPressed=false;playSfx('jump');}
+    else if(isHoldingJump&&this.dy<0)this.dy-=.18*gravityMultiplier;
+    this.dy+=GRAVITY*gravityMultiplier;this.y+=this.dy;
+  } else if(playerMode==='spider'){
+    if(jumpJustPressed){gravityMultiplier*=-1;this.y=gravityMultiplier>0?GROUND_Y-this.size:CEILING_Y;this.dy=0;this.grounded=true;jumpJustPressed=false;playSfx('portal');}
+    else {this.dy+=GRAVITY*gravityMultiplier;this.y+=this.dy;}
+  }
+  if(this.y+this.size>=GROUND_Y){this.y=GROUND_Y-this.size;if(this.dy>0)this.dy=0;this.grounded=gravityMultiplier>0;}
+  if(this.y<=CEILING_Y){this.y=CEILING_Y;if(this.dy<0)this.dy=0;this.grounded=gravityMultiplier<0;}
+  if(playerMode!=='wave'&&playerMode!=='spider')this.rotation+=.105;
+};
+const oldPortalCheck=checkPortalTrigger;
+checkPortalTrigger=function(p,portal,screenX){
+  if(['ship','cube'].includes(portal.type)){oldPortalCheck(p,portal,screenX);return;}
+  if(portal.triggered)return;
+  const top=GROUND_Y-PORTAL_HEIGHT,bottom=GROUND_Y;
+  const overlaps=p.x+p.size>screenX+6&&p.x<screenX+PORTAL_WIDTH-6&&p.y+p.size>top&&p.y<bottom;
+  if(!overlaps)return;
+  portal.triggered=true;
+  if(['ball','ufo','wave','robot','spider'].includes(portal.type))playerMode=portal.type;
+  else if(portal.type==='gravity'||portal.type==='mirror'){gravityMultiplier*=-1;p.dy=0;}
+  playSfx('portal');spawnEndParticles(screenX+PORTAL_WIDTH/2,p.y+p.size/2,16,true);
 };
 const oldDrawElements=drawLevelElementsInWorld;
 drawLevelElementsInWorld=function(){oldDrawElements();drawRuntimeExtraObjects();};
