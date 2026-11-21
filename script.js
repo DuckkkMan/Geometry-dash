@@ -74,6 +74,12 @@ const RESPAWN_DELAY_MS = 1200;
 let bgScroll = 0;
 let groundScroll = 0;
 let levelDistance = 0;
+
+// Demonstração automática do menu: não altera o estado real da fase.
+let menuDemoScroll = 0;
+let menuDemoY = GROUND_Y - BLOCK_SIZE;
+let menuDemoDy = 0;
+let menuDemoRotation = 0;
 let isHoldingJump = false;
 let jumpJustPressed = false;
 let particles = [];
@@ -1182,9 +1188,12 @@ function drawBackgroundAndGround() {
     }
     ctx.restore();
 
-    // Teto sutil no modo ship / aéreo
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-    ctx.fillRect(0, 0, canvas.width, CEILING_Y);
+    // O teto escurecido só aparece durante uma fase no modo Ship.
+    const inGameplay = ['PLAYING', 'DEAD', 'PAUSED', 'WIN'].includes(gameState);
+    if (inGameplay && playerMode === 'ship') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.fillRect(0, 0, canvas.width, CEILING_Y);
+    }
 
     // Chão
     ctx.fillStyle = groundFill;
@@ -1340,6 +1349,37 @@ function updateGameplay() {
     }
 }
 
+function drawMenuPreview() {
+    const playerX = 160;
+    const groundTop = GROUND_Y - BLOCK_SIZE;
+    const cycleLength = 1680;
+    const offset = menuDemoScroll % cycleLength;
+
+    // Espinhos em uma pista contínua que passa pelo cubo.
+    for (let i = 0; i < 8; i++) {
+        const spikeX = 340 + i * 240 - offset;
+        if (spikeX > -BLOCK_SIZE && spikeX < canvas.width + BLOCK_SIZE) {
+            drawSpike({}, spikeX);
+            if (menuDemoDy === 0 && spikeX >= playerX + 58 && spikeX <= playerX + 88) {
+                menuDemoDy = JUMP_FORCE;
+            }
+        }
+    }
+
+    menuDemoDy += GRAVITY;
+    menuDemoY += menuDemoDy;
+    if (menuDemoY >= groundTop) {
+        menuDemoY = groundTop;
+        menuDemoDy = 0;
+        menuDemoRotation = Math.round(menuDemoRotation / (Math.PI / 2)) * (Math.PI / 2);
+    } else {
+        menuDemoRotation += 0.12;
+    }
+
+    drawCubeSkin(ctx, playerX, menuDemoY, BLOCK_SIZE, menuDemoRotation, playerSkin);
+    menuDemoScroll += 2.4;
+}
+
 function loop() {
     ctx.save();
     if (screenShake > 0) {
@@ -1359,9 +1399,10 @@ function loop() {
         }
         updateAndDrawParticles();
     } else {
-        // Fundo animado no menu
+        // Fundo e demonstração jogável animados no menu principal e nos submenus.
         bgScroll += 1.2;
         groundScroll += 2.4;
+        drawMenuPreview();
     }
 
     if (winFlashAlpha > 0) {
