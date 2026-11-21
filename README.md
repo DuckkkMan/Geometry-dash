@@ -20,7 +20,7 @@ Protótipo de navegador inspirado em jogos de plataforma de ritmo, feito com HTM
 - **PC:** Espaço, seta para cima ou clique para jogar; Esc/P pausa.
 - **Celular:** toque para jogar; segurar por alguns segundos pausa.
 - **Editor:** arraste para colocar elementos; use MÃO/MOVER para navegar; SELECIONAR para mover objetos.
-- **Editor (atalhos):** Ctrl+Z desfazer, Ctrl+Y refazer, Ctrl+C copiar, Ctrl+V colar, Delete apagar seleção.
+- **Editor (atalhos):** Ctrl+Z desfazer, Ctrl+Y refazer, Ctrl+Shift+Z refazer novamente e Delete apagar a seleção. Use o inspetor para ajustar posição, rotação, escala e grupos.
 
 ## Executar
 
