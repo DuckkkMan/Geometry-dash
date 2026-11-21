@@ -1618,3 +1618,10 @@ canvas {
 .grid-settings-option input[type=checkbox]{accent-color:#9dff00;width:15px;height:15px}
 .grid-settings-option select{max-width:115px;padding:5px;border:1px solid #345775;border-radius:5px;background:#061326;color:#fff;font:700 9px Orbitron,sans-serif}
 @media(max-width:700px){#editor-grid-settings-panel{right:5px;top:46px;width:min(235px,calc(100% - 10px))}}
+
+
+/* Mobile performance profile shown in Settings */
+.low-performance-setting{display:flex;flex-direction:column;gap:6px;margin-top:14px;padding:12px;border:1px solid #31516d;border-radius:8px;background:#0a1b2d;color:#eaf8ff}
+.low-performance-setting strong{font:900 10px Orbitron,sans-serif;color:#8cecff}
+.low-performance-setting span{font:800 10px Orbitron,sans-serif;color:#9dff00}
+.low-performance-setting small{font:600 11px sans-serif;line-height:1.45;color:#91b7d0}
