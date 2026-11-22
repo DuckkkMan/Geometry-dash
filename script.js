@@ -39,8 +39,6 @@ let lastAutoCheckpointDist = -9999;
 const AUTO_CHECKPOINT_STEP = 550;
 
 // Timer para segurar 5 segundos no toque e ir para o pause
-const HOLD_PAUSE_MS = 5000;
-let holdPauseTimer = null;
 
 // Física do Cubo
 const GRAVITY = 0.95;
@@ -1083,7 +1081,7 @@ function hideAllOverlays() {
 }
 
 function showOverlay(overlayEl, nextState) {
-    clearHoldPauseTimer();
+
     hideAllOverlays();
     hud.classList.add('hidden');
     if (overlayEl) overlayEl.classList.remove('hidden');
@@ -1106,7 +1104,7 @@ function cloneLevelEntities(lvl) {
 
 function startLevel(lvl, fromEditor = false) {
     clearRespawnTimer();
-    clearHoldPauseTimer();
+
     hideAllOverlays();
     hud.classList.remove('hidden');
     isTestingFromEditor = Boolean(fromEditor);
@@ -1168,7 +1166,7 @@ function triggerDeath() {
     if (gameState !== 'PLAYING') return;
     gameState = 'DEAD';
     isHoldingJump = false;
-    clearHoldPauseTimer();
+
     screenShake = 10;
     playSfx('death');
     spawnEndParticles(player.x + player.size / 2, player.y + player.size / 2, 22, false);
@@ -1184,7 +1182,7 @@ function triggerWin() {
     if (gameState !== 'PLAYING') return;
     gameState = 'WIN';
     isHoldingJump = false;
-    clearHoldPauseTimer();
+
     winFlashAlpha = 0.85;
     recordBestProgress(activePlayableLevel.name, 100);
     spawnEndParticles(player.x + player.size / 2, player.y + player.size / 2, 30, false);
@@ -1202,7 +1200,7 @@ function pauseCurrentGame() {
     }
     gameState = 'PAUSED';
     isHoldingJump = false;
-    clearHoldPauseTimer();
+
     document.getElementById('pause-level-name').textContent = activePlayableLevel.name;
     pauseScreen.classList.remove('hidden');
 }
