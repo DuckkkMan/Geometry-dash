@@ -321,7 +321,10 @@ const LEVELS = [
         ]
     }
 ];
-
+LEVELS.push({name:'Triple Spike',difficulty:'EASY',stars:1,faceKey:'azul',bgTop:'#063b91',bgBottom:'#1684e8',groundFill:'#05285d',groundGrid:'#1765bd',finishX:3100,
+spikes:[760,804,848,1420,1464,1508,2180,2224,2268].map(x=>({x,sizeType:'normal'})),platforms:[{x:1080,y:GROUND_Y-60,w:132,h:28},{x:1800,y:GROUND_Y-80,w:132,h:28}],blocks:[],pads:[{x:1120,color:'yellow',cooldown:0}],orbs:[{x:1900,y:GROUND_Y-120,color:'yellow',used:false}],saws:[],pillars:[],coins:[{x:1980,y:GROUND_Y-155,collected:false}],triggers:[],portals:[]});
+const surprisePick=a=>a[Math.floor(Math.random()*a.length)],surpriseSpikes=[];for(let i=0;i<10;i++){const x=650+i*330;for(let j=0,n=surprisePick([1,2,3]);j<n;j++)surpriseSpikes.push({x:x+j*44,sizeType:surprisePick(['normal','mini'])});}
+LEVELS.push({name:'??? Surprise ???',difficulty:'HARD',stars:3,faceKey:'azul',bgTop:'#160b35',bgBottom:'#6d28d9',groundFill:'#100a24',groundGrid:'#9333ea',finishX:4200,spikes:surpriseSpikes,platforms:[{x:980,y:GROUND_Y-70,w:132,h:28},{x:2460,y:GROUND_Y-115,w:150,h:28}],blocks:[],pads:[{x:1320,color:'pink',cooldown:0}],orbs:[{x:1760,y:GROUND_Y-130,color:'pink',used:false}],saws:[{x:2110,y:GROUND_Y-80,r:22,angle:0}],pillars:[],coins:[{x:2800,y:GROUND_Y-150,collected:false}],triggers:[{x:1120,kind:'speed_custom',speed:surprisePick([.75,1.25,1.5,2]),triggered:false},{x:1940,kind:'bg_custom',bgTop:'#09203f',bgBottom:'#00a6a6',triggered:false},{x:3000,kind:'shake_custom',shakeAmount:surprisePick([5,10,16]),triggered:false}],portals:[{x:3480,type:'ship',triggered:false},{x:3780,type:'cube',triggered:false}]});
 let activePlayableLevel = LEVELS[0];
 let currentLevelIndex = 0;
 
@@ -932,7 +935,7 @@ function drawTriggerMarker(trig, screenX) {
         shake: 'SHAKE',
         low_grav: 'LOW G',
         high_grav: 'HIGH G',
-        norm_grav: 'NORM G'
+        norm_grav: 'NORM G', speed_custom:'CUSTOM', move:'MOVE', color:'COLOR', bg_custom:'BG', shake_custom:'SHAKE', rotate:'ROTATE', pulse:'PULSE'
     };
     ctx.save();
     const color = trig.kind.indexOf('speed') === 0 ? '#00e5ff' : trig.kind.indexOf('bg') === 0 ? '#c084fc' : trig.kind.indexOf('grav') >= 0 ? '#ffe066' : '#fb7185';
@@ -962,24 +965,16 @@ function checkTriggerActivation(p, trig, screenX) {
     if (trig.triggered) return;
     if (p.x + p.size >= screenX) {
         trig.triggered = true;
-        if (trig.kind === 'speed_fast') {
-            currentGameSpeed = BASE_GAME_SPEED * 1.25;
-        } else if (trig.kind === 'speed_slow') {
-            currentGameSpeed = BASE_GAME_SPEED * 0.75;
-        } else if (trig.kind === 'speed_normal') {
-            currentGameSpeed = BASE_GAME_SPEED;
-        } else if (trig.kind === 'bg' || trig.kind === 'bg_cyan') {
-            runtimeBgTop = trig.bgTop || (trig.kind === 'bg_cyan' ? '#083344' : '#311042');
-            runtimeBgBottom = trig.bgBottom || (trig.kind === 'bg_cyan' ? '#0891b2' : '#7209b7');
-        } else if (trig.kind === 'shake') {
-            screenShake = 12;
-        } else if (trig.kind === 'low_grav') {
-            gravityMultiplier = 0.65;
-        } else if (trig.kind === 'high_grav') {
-            gravityMultiplier = 1.35;
-        } else if (trig.kind === 'norm_grav') {
-            gravityMultiplier = 1;
-        }
+        if(trig.kind==='speed_fast')currentGameSpeed=BASE_GAME_SPEED*1.25;
+        else if(trig.kind==='speed_slow')currentGameSpeed=BASE_GAME_SPEED*.75;
+        else if(trig.kind==='speed_normal')currentGameSpeed=BASE_GAME_SPEED;
+        else if(trig.kind==='speed_custom')currentGameSpeed=BASE_GAME_SPEED*Math.max(.25,Math.min(3,Number(trig.speed)||1));
+        else if(['bg','bg_cyan','bg_custom'].includes(trig.kind)){runtimeBgTop=trig.bgTop||(trig.kind==='bg_cyan'?'#083344':'#311042');runtimeBgBottom=trig.bgBottom||(trig.kind==='bg_cyan'?'#0891b2':'#7209b7');}
+        else if(trig.kind==='shake'||trig.kind==='shake_custom')screenShake=Math.max(1,Math.min(30,Number(trig.shakeAmount)||12));
+        else if(trig.kind==='low_grav')gravityMultiplier=.65;
+        else if(trig.kind==='high_grav')gravityMultiplier=1.35;
+        else if(trig.kind==='norm_grav')gravityMultiplier=1;
+        else if(['move','color','rotate','pulse'].includes(trig.kind)){const gid=String(trig.groupId||'1');[activeBlocks,activePlatforms,activeSpikes,activePads,activeOrbs,activeSaws,activePillars,activeCoins,activePortals,activeDecorations].forEach(list=>list.forEach(obj=>{const gs=Array.isArray(obj.groups)?obj.groups.map(String):(obj.group!==undefined?[String(obj.group)]:[]);if(!gs.includes(gid))return;if(trig.kind==='move'){obj.x=(Number(obj.x)||0)+Math.max(-100,Math.min(100,Number(trig.moveX)||0))*BLOCK_SIZE;if(Number.isFinite(Number(obj.y)))obj.y+=Math.max(-100,Math.min(100,Number(trig.moveY)||0))*BLOCK_SIZE;}else if(trig.kind==='color')obj.colorOverride=trig.color||'#ff4fd8';else if(trig.kind==='rotate')obj.rotation=(Number(obj.rotation)||0)+(Number(trig.rotateAmount)||45)*Math.PI/180;else obj.scale=Math.max(.2,Math.min(3,Number(trig.pulseAmount)||1.25));}));}
     }
 }
 
