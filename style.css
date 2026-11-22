@@ -1882,3 +1882,21 @@ body { overflow:auto; }
   transform: scale(0.5);
   transform-origin: center center;
 }
+
+
+.extra-settings {
+    display:flex; flex-direction:column; gap:9px; margin-top:14px; padding:12px;
+    border:1px solid rgba(0,229,255,.25); border-radius:10px; background:rgba(2,12,28,.55);
+    color:#d8edff; font-size:11px;
+}
+.extra-settings > strong { color:#7deaff; letter-spacing:1px; margin-bottom:2px; }
+.extra-settings label { display:flex; align-items:center; gap:9px; cursor:pointer; }
+.extra-settings input[type="checkbox"] { accent-color:#00c8ef; width:16px; height:16px; }
+.extra-settings .volume-setting { justify-content:space-between; }
+.extra-settings input[type="range"] { width:55%; accent-color:#00c8ef; }
+#settings-screen .settings-box { max-height:calc(100% - 30px); overflow-y:auto; }
+@media (max-width:700px) {
+  #pause-menu-btn { right:10px; top:58px; width:42px; height:42px; z-index:20; }
+  #hud { padding:0 8px; }
+  #settings-screen .settings-box { width:calc(100% - 20px); }
+}
