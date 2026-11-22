@@ -125,9 +125,12 @@ function makeId() {
   return 'obj_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 }
 
+const EDITOR_LAYERS = [['blocks','Blocos'],['platforms','Plataformas'],['spikes','Espinhos'],['pads','Pads'],['orbs','Orbs'],['saws','Serras'],['pillars','Pilares'],['coins','Moedas'],['portals','Portais'],['triggers','Triggers'],['decorations','Decorações'],['structures','Estruturas']];
+let editorLayerVisibility = {};
+try { editorLayerVisibility = JSON.parse(localStorage.getItem('gd_editor_layers_v1') || '{}') || {}; } catch (_) {}
 function allEditorArrays(draft) {
   return ['spikes', 'platforms', 'blocks', 'pads', 'orbs', 'saws', 'pillars', 'coins', 'portals', 'triggers', 'decorations', 'structures']
-    .map(key => ({ key, items: Array.isArray(draft[key]) ? draft[key] : [] }));
+    .map(key => ({ key, items: editorLayerVisibility[key] === false ? [] : (Array.isArray(draft[key]) ? draft[key] : []) }));
 }
 
 function objectCenter(obj, key) {
@@ -479,6 +482,17 @@ function addEditorCommandBar() {
   });
   top.querySelector('.editor-top-right')?.prepend(recovery);
 }
+function addLayerManager() {
+ const top=editorRoot.querySelector('.editor-topbar'); if(!top||$('editor-layers-open')) return;
+ const button=document.createElement('button'); button.id='editor-layers-open'; button.type='button'; button.className='mini-btn'; button.textContent='CAMADAS'; button.title='Mostrar ou ocultar categorias de objetos'; top.querySelector('.editor-top-right')?.prepend(button);
+ const panel=document.createElement('section'); panel.id='editor-layers-panel'; panel.className='hidden';
+ panel.innerHTML='<div class="grid-settings-head"><strong>CAMADAS DO EDITOR</strong><button type="button" id="editor-layers-close">×</button></div><div id="editor-layer-list"></div><div class="editor-layer-actions"><button type="button" id="editor-layers-show-all">MOSTRAR TODAS</button><button type="button" id="editor-layers-hide-all">OCULTAR TODAS</button></div>';
+ editorRoot.appendChild(panel); const list=$('editor-layer-list');
+ EDITOR_LAYERS.forEach(([key,label])=>{const row=document.createElement('label');row.className='editor-layer-row';const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=editorLayerVisibility[key]!==false;checkbox.addEventListener('change',()=>{editorLayerVisibility[key]=checkbox.checked;try{localStorage.setItem('gd_editor_layers_v1',JSON.stringify(editorLayerVisibility));}catch(_){}drawEditorCanvas();});const span=document.createElement('span');span.textContent=label;row.append(checkbox,span);list.appendChild(row);});
+ button.addEventListener('click',()=>panel.classList.toggle('hidden')); $('editor-layers-close').addEventListener('click',()=>panel.classList.add('hidden'));
+ $('editor-layers-show-all').addEventListener('click',()=>{EDITOR_LAYERS.forEach(([key])=>editorLayerVisibility[key]=true);list.querySelectorAll('input').forEach(input=>input.checked=true);try{localStorage.setItem('gd_editor_layers_v1',JSON.stringify(editorLayerVisibility));}catch(_){}drawEditorCanvas();});
+ $('editor-layers-hide-all').addEventListener('click',()=>{EDITOR_LAYERS.forEach(([key])=>editorLayerVisibility[key]=false);list.querySelectorAll('input').forEach(input=>input.checked=false);try{localStorage.setItem('gd_editor_layers_v1',JSON.stringify(editorLayerVisibility));}catch(_){}drawEditorCanvas();});
+}
 function addGridSettings() {
   const top = editorRoot.querySelector('.editor-topbar');
   if (!top || $('editor-grid-settings-open')) return;
@@ -774,7 +788,13 @@ function queueEditorAutosave() {
   }, 450);
 }
 const drawWithAutosave = drawEditorCanvas;
-drawEditorCanvas = function () { drawWithAutosave(); queueEditorAutosave(); };
+drawEditorCanvas = function () {
+ if (!editorDraft) { drawWithAutosave(); return; }
+ const hidden=[];
+ EDITOR_LAYERS.forEach(([key])=>{if(editorLayerVisibility[key]===false){hidden.push([key,editorDraft[key]]);editorDraft[key]=[];}});
+ try { drawWithAutosave(); } finally { hidden.forEach(([key,items])=>{editorDraft[key]=items;}); }
+ queueEditorAutosave();
+};
 
 // Cada sessão de edição começa com histórico próprio; limpar também pode ser desfeito.
 const originalOpenEditorWithLevel = openEditorWithLevel;
@@ -798,6 +818,7 @@ $('editor-clear-btn')?.addEventListener('click', () => recordHistory(), true);
 addCategoryPanel();
 addEditorCommandBar();
 addGridSettings();
+addLayerManager();
 addInspector();
 refreshInspector();
 
