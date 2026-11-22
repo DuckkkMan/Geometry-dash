@@ -511,7 +511,7 @@ function drawPortal(portal, screenX) {
 
     const isCubePortal = portal.type === 'cube';
     const img = isCubePortal ? PORTAL_IMAGES.cube : PORTAL_IMAGES.ship;
-    const drawY = GROUND_Y - PORTAL_HEIGHT;
+    const drawY = (Number.isFinite(Number(portal.y)) ? Number(portal.y) : GROUND_Y - PORTAL_HEIGHT / 2) - PORTAL_HEIGHT / 2;
 
     ctx.save();
     if (img.complete && img.naturalWidth > 0) {
@@ -533,8 +533,9 @@ function drawPortal(portal, screenX) {
 function checkPortalTrigger(p, portal, portalScreenX) {
     if (portal.triggered) return;
 
-    const portalTop = GROUND_Y - PORTAL_HEIGHT;
-    const portalBottom = GROUND_Y;
+    const portalCenterY = Number.isFinite(Number(portal.y)) ? Number(portal.y) : GROUND_Y - PORTAL_HEIGHT / 2;
+    const portalTop = portalCenterY - PORTAL_HEIGHT / 2;
+    const portalBottom = portalCenterY + PORTAL_HEIGHT / 2;
 
     const overlaps =
         p.x + p.size > portalScreenX + 6 &&
@@ -721,7 +722,8 @@ function drawSpike(spike, screenX) {
     if (screenX + w < -50 || screenX > canvas.width + 50) return;
 
     const inverted = Boolean(spike.inverted);
-    const baseY = inverted ? (spike.y || CEILING_Y) : (spike.y || GROUND_Y);
+    const defaultBaseY = inverted ? CEILING_Y : GROUND_Y;
+    const baseY = Number.isFinite(Number(spike.y)) ? Number(spike.y) : defaultBaseY;
     const tipY = inverted ? baseY + h : baseY - h;
 
     ctx.save();
@@ -743,7 +745,8 @@ function checkSpikeCollision(p, spike, screenX) {
     const w = isMini ? MINI_SPIKE_W : BLOCK_SIZE;
     const h = isMini ? MINI_SPIKE_H : BLOCK_SIZE;
     const inverted = Boolean(spike.inverted);
-    const baseY = inverted ? (spike.y || CEILING_Y) : (spike.y || GROUND_Y);
+    const defaultBaseY = inverted ? CEILING_Y : GROUND_Y;
+    const baseY = Number.isFinite(Number(spike.y)) ? Number(spike.y) : defaultBaseY;
     const tipY = inverted ? baseY + h : baseY - h;
 
     const left = screenX + 9;
@@ -922,23 +925,36 @@ function drawTriggerMarker(trig, screenX) {
     if (screenX < -50 || screenX > canvas.width + 50) return;
     const labelMap = {
         speed_fast: '1.25x',
+        speed_slow: '0.75x',
         speed_normal: '1.0x',
-        bg: 'BG',
-        shake: 'SHK',
-        low_grav: 'LOWG',
-        norm_grav: 'NORMG'
+        bg: 'COLOR',
+        bg_cyan: 'CYAN',
+        shake: 'SHAKE',
+        low_grav: 'LOW G',
+        high_grav: 'HIGH G',
+        norm_grav: 'NORM G'
     };
     ctx.save();
-    ctx.strokeStyle = '#00e5ff';
-    ctx.fillStyle = 'rgba(0, 229, 255, 0.16)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(screenX, GROUND_Y - 120, 28, 120);
-    ctx.fillRect(screenX, GROUND_Y - 120, 28, 120);
-
+    const color = trig.kind.indexOf('speed') === 0 ? '#00e5ff' : trig.kind.indexOf('bg') === 0 ? '#c084fc' : trig.kind.indexOf('grav') >= 0 ? '#ffe066' : '#fb7185';
+    const top = Number.isFinite(Number(trig.y)) ? Number(trig.y) : GROUND_Y - 112;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color + '22';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(screenX, top, 30, 112);
+    ctx.fillRect(screenX, top, 30, 112);
+    ctx.setLineDash([]);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(screenX + 15, top + 8);
+    ctx.lineTo(screenX + 22, top + 18);
+    ctx.lineTo(screenX + 15, top + 28);
+    ctx.lineTo(screenX + 8, top + 18);
+    ctx.closePath();
+    ctx.fill();
     ctx.font = '900 9px Orbitron, sans-serif';
-    ctx.fillStyle = '#ffe600';
     ctx.textAlign = 'center';
-    ctx.fillText(labelMap[trig.kind] || 'TRG', screenX + 14, GROUND_Y - 126);
+    ctx.fillText(labelMap[trig.kind] || 'TRG', screenX + 15, top - 7);
     ctx.restore();
 }
 
@@ -948,15 +964,19 @@ function checkTriggerActivation(p, trig, screenX) {
         trig.triggered = true;
         if (trig.kind === 'speed_fast') {
             currentGameSpeed = BASE_GAME_SPEED * 1.25;
+        } else if (trig.kind === 'speed_slow') {
+            currentGameSpeed = BASE_GAME_SPEED * 0.75;
         } else if (trig.kind === 'speed_normal') {
             currentGameSpeed = BASE_GAME_SPEED;
-        } else if (trig.kind === 'bg') {
-            runtimeBgTop = trig.bgTop || '#311042';
-            runtimeBgBottom = trig.bgBottom || '#7209b7';
+        } else if (trig.kind === 'bg' || trig.kind === 'bg_cyan') {
+            runtimeBgTop = trig.bgTop || (trig.kind === 'bg_cyan' ? '#083344' : '#311042');
+            runtimeBgBottom = trig.bgBottom || (trig.kind === 'bg_cyan' ? '#0891b2' : '#7209b7');
         } else if (trig.kind === 'shake') {
             screenShake = 12;
         } else if (trig.kind === 'low_grav') {
             gravityMultiplier = 0.65;
+        } else if (trig.kind === 'high_grav') {
+            gravityMultiplier = 1.35;
         } else if (trig.kind === 'norm_grav') {
             gravityMultiplier = 1;
         }
