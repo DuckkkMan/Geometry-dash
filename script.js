@@ -1909,7 +1909,7 @@ function eraseAtWorldCoord(x, y) {
     editorDraft.pads = editorDraft.pads.filter(o => !matchX(o.x, 36));
     editorDraft.pillars = editorDraft.pillars.filter(o => !matchX(o.x, o.w || 34));
     editorDraft.portals = editorDraft.portals.filter(o => !(matchX(o.x, PORTAL_WIDTH) && Math.abs((Number.isFinite(Number(o.y)) ? Number(o.y) : GROUND_Y - PORTAL_HEIGHT / 2) - y) <= PORTAL_HEIGHT / 2 + hitRadius));
-    editorDraft.triggers = editorDraft.triggers.filter(o => !matchX(o.x, 28));
+    editorDraft.triggers = editorDraft.triggers.filter(o => !(matchX(o.x, 30) && Math.abs((Number.isFinite(Number(o.y)) ? Number(o.y) + 50 : GROUND_Y - 50) - y) <= 70));
 
     editorDraft.platforms = editorDraft.platforms.filter(o =>
         !(matchX(o.x, o.w || 120) && Math.abs((o.y || GROUND_Y - 28) - y) <= hitRadius)
