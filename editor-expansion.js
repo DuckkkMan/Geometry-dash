@@ -423,6 +423,15 @@ function addEditorCommandBar() {
     syncEditorToolButtons();
   });
 
+  const groupButton = document.createElement('button');
+  groupButton.id = 'editor-select-group-btn';
+  groupButton.type = 'button';
+  groupButton.className = 'mini-btn';
+  groupButton.textContent = 'GRUPO';
+  groupButton.title = 'Selecionar todos os objetos dos mesmos grupos';
+  groupButton.addEventListener('click', selectMatchingGroup);
+  top.querySelector('.editor-top-center')?.appendChild(groupButton);
+
   const del = document.createElement('section');
   del.id = 'editor-delete-panel';
   del.className = 'hidden';
@@ -449,6 +458,26 @@ function addEditorCommandBar() {
   redo.id = 'editor-redo-btn'; redo.type = 'button'; redo.className = 'mini-btn';
   redo.textContent = '↷'; redo.title = 'Refazer'; redo.addEventListener('click', redoLocalEditor);
   top.querySelector('.editor-top-right')?.prepend(redo, undo);
+  const recovery = document.createElement('button');
+  recovery.id = 'editor-recover-btn';
+  recovery.type = 'button';
+  recovery.className = 'mini-btn';
+  recovery.textContent = 'RECUPERAR';
+  recovery.title = 'Restaurar o último rascunho salvo automaticamente';
+  recovery.addEventListener('click', () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('gd_editor_autosave_v1') || 'null');
+      if (!saved || !saved.level) { alert('Nenhum rascunho automático encontrado.'); return; }
+      if (!confirm('Restaurar o rascunho automático? O conteúdo atual do editor será substituído.')) return;
+      recordHistory();
+      editorDraft = JSON.parse(JSON.stringify(saved.level));
+      selectedObjects = [];
+      syncStyleInputsFromDraft();
+      refreshInspector();
+      drawEditorCanvas();
+    } catch (_) { alert('Não foi possível recuperar o rascunho.'); }
+  });
+  top.querySelector('.editor-top-right')?.prepend(recovery);
 }
 function addGridSettings() {
   const top = editorRoot.querySelector('.editor-topbar');
@@ -633,53 +662,69 @@ const oldEditAtPointer = editAtEditorPointer;
 editAtEditorPointer = function (pointerEvent) {
   const point = getEditorWorldCoords(pointerEvent);
   expandEditorLevelIfNeeded(point.x);
-
   if (editorToolMode === 'select') {
     if (!selectedDragState) {
       const hit = findObjectAt(point);
-      selectedObjects = hit ? [hit] : [];
-      selectedDragState = hit ? {
-        key: hit.key, obj: hit.obj, startX: point.x, startY: point.y,
-        objectX: Number(hit.obj.x) || 0, objectY: Number.isFinite(Number(hit.obj.y)) ? Number(hit.obj.y) : objectCenter(hit.obj, hit.key).y,
-        moved: false
+      if (pointerEvent.shiftKey && hit) {
+        const existing = selectedObjects.findIndex(item => item.key === hit.key && item.obj === hit.obj);
+        if (existing >= 0) selectedObjects.splice(existing, 1);
+        else selectedObjects.push(hit);
+      } else if (hit && !selectedObjects.some(item => item.key === hit.key && item.obj === hit.obj)) {
+        selectedObjects = [hit];
+      } else if (!hit && !pointerEvent.shiftKey) selectedObjects = [];
+      const records = getSelectionRecords();
+      selectedDragState = records.length ? {
+        records: records.map(record => ({
+          key: record.key, obj: record.obj,
+          objectX: Number(record.obj.x) || 0,
+          objectY: Number.isFinite(Number(record.obj.y)) ? Number(record.obj.y) : objectCenter(record.obj, record.key).y
+        })),
+        startX: point.x, startY: point.y, moved: false
       } : { empty: true };
       refreshInspector();
+      drawEditorCanvas();
       return;
     }
     if (selectedDragState.empty) return;
     const dx = point.x - selectedDragState.startX;
     const dy = point.y - selectedDragState.startY;
     if (!selectedDragState.moved && Math.hypot(dx, dy) < 5) return;
-    if (!selectedDragState.moved) {
-      recordHistory();
-      selectedDragState.moved = true;
-    }
-    const obj = selectedDragState.obj;
-    obj.x = Math.max(0, Math.round((selectedDragState.objectX + dx) / gridUnit) * gridUnit);
-    if (obj.y !== undefined || ['blocks','platforms','orbs','saws','coins','decorations'].includes(selectedDragState.key)) {
-      obj.y = Math.round((selectedDragState.objectY + dy) / gridUnit) * gridUnit;
-    }
+    if (!selectedDragState.moved) { recordHistory(); selectedDragState.moved = true; }
+    selectedDragState.records.forEach(record => {
+      const obj = record.obj;
+      obj.x = Math.max(0, Math.round((record.objectX + dx) / gridUnit) * gridUnit);
+      if (obj.y !== undefined || ['blocks','platforms','orbs','saws','coins','decorations'].includes(record.key)) {
+        obj.y = Math.max(0, Math.round((record.objectY + dy) / gridUnit) * gridUnit);
+      }
+    });
     refreshInspector();
+    drawEditorCanvas();
     return;
   }
-
   if (editorToolMode === 'erase') {
-    if (eraseGestureMode === 'click' && lastEditorDragPoint) {
-      lastEditorDragPoint = point;
-      return;
-    }
+    if (eraseGestureMode === 'click' && lastEditorDragPoint) { lastEditorDragPoint = point; return; }
     recordHistory();
     eraseAtWorldCoord(point.x, point.y);
     editorDraft.decorations = (editorDraft.decorations || []).filter(o => Math.hypot((o.x || 0) - point.x, (o.y || 0) - point.y) > 28);
     lastEditorDragPoint = point;
     return;
   }
-
   oldEditAtPointer(pointerEvent);
 };
 window.addEventListener('pointerup', () => { selectedDragState = null; });
 window.addEventListener('pointercancel', () => { selectedDragState = null; });
-
+function selectMatchingGroup() {
+  const first = getSelectionRecords()[0];
+  if (!first) return;
+  const groups = objectGroupList(first.obj);
+  if (!groups.length) return;
+  selectedObjects = allEditorArrays(editorDraft).flatMap(bucket =>
+    bucket.items.filter(obj => objectGroupList(obj).some(group => groups.includes(group)))
+      .map(obj => ({ key: bucket.key, obj }))
+  );
+  refreshInspector();
+  drawEditorCanvas();
+}
 // Mantém a grade desenhada exatamente na mesma unidade (44px) e deslocamento (editorScrollX) que o clique
 const oldDrawEditor = drawEditorCanvas;
 drawEditorCanvas = function () {
@@ -712,6 +757,25 @@ drawEditorCanvas = function () {
   });
   eCtx.restore();
 };
+// Backup automático local: não depende de conta, servidor ou conexão.
+let editorAutosaveTimer = null;
+function queueEditorAutosave() {
+  if (editorAutosaveTimer) clearTimeout(editorAutosaveTimer);
+  editorAutosaveTimer = setTimeout(() => {
+    if (gameState !== 'EDITOR' || !editorDraft) return;
+    try {
+      localStorage.setItem('gd_editor_autosave_v1', JSON.stringify({ savedAt: Date.now(), level: editorDraft }));
+      const button = $('editor-recover-btn');
+      if (button) button.title = 'Rascunho salvo automaticamente às ' + new Date().toLocaleTimeString();
+    } catch (_) {
+      const button = $('editor-recover-btn');
+      if (button) button.title = 'Armazenamento local cheio: salve a fase manualmente';
+    }
+  }, 450);
+}
+const drawWithAutosave = drawEditorCanvas;
+drawEditorCanvas = function () { drawWithAutosave(); queueEditorAutosave(); };
+
 // Cada sessão de edição começa com histórico próprio; limpar também pode ser desfeito.
 const originalOpenEditorWithLevel = openEditorWithLevel;
 openEditorWithLevel = function (level) {
@@ -744,6 +808,13 @@ document.addEventListener('keydown', event => {
 
   const key = event.key.toLowerCase();
   const modifier = event.ctrlKey || event.metaKey;
+  if (modifier && key === 'a') {
+    event.preventDefault();
+    selectedObjects = allEditorArrays(editorDraft).flatMap(bucket => bucket.items.map(obj => ({ key: bucket.key, obj })));
+    refreshInspector();
+    drawEditorCanvas();
+    return;
+  }
   if (modifier && key === 'c') {
     const records = getSelectionRecords();
     if (!records.length) return;
