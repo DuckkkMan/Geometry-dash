@@ -1990,3 +1990,43 @@ body { overflow:auto; }
   #level-editor .editor-category-current strong { font-size:13px; }
   #level-editor .editor-asset-card { flex-basis:72px; min-width:72px; height:72px; }
 }
+
+
+/* Configurações contextuais dos triggers: aparecem somente ao selecionar um trigger. */
+.trigger-config {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  padding: 10px;
+  margin-top: 8px;
+  border: 1px solid rgba(0,229,255,.45);
+  border-radius: 9px;
+  background: rgba(0,30,55,.82);
+}
+.trigger-config.hidden { display:none !important; }
+.trigger-config strong {
+  grid-column: 1 / -1;
+  color: #00e5ff;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.trigger-config label {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  color:#d7efff;
+  font-size:9px;
+  font-weight:800;
+}
+.trigger-config input {
+  width:100%;
+  min-width:0;
+  height:30px;
+  padding:4px 6px;
+  border:1px solid #267b9b;
+  border-radius:5px;
+  background:#071827;
+  color:#fff;
+  font:inherit;
+}
