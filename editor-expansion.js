@@ -369,7 +369,7 @@ function drawAssetThumb(tCtx, item, size) {
     tCtx.ellipse(0, 0, size * 0.2, size * 0.34, 0, 0, Math.PI * 2);
     tCtx.fill();
     tCtx.stroke();
-  } else if (type === 'legacy_trigger') {
+  } else if ((type === 'legacy_trigger' || type === 'custom_trigger')) {
     tCtx.shadowColor = c;
     tCtx.shadowBlur = size * 0.18;
     tCtx.fillStyle = c + '33';
