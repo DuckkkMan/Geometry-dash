@@ -344,6 +344,7 @@ function applyPlatformSettingsUI() {
         mobileBtn.classList.add('selected');
         pauseMenuBtn.classList.add('hidden');
         gameContainer.classList.add('mobile-ui-drag');
+        gameContainer.classList.add('mobile-game-scale');
         hint.textContent = 'Modo Celular: toque para pular/voar, arraste na UI para ver tudo e segure por 5s para ir ao pause.';
     } else {
         controlPlatform = 'pc';
@@ -351,6 +352,7 @@ function applyPlatformSettingsUI() {
         pcBtn.classList.add('selected');
         pauseMenuBtn.classList.remove('hidden');
         gameContainer.classList.remove('mobile-ui-drag');
+        gameContainer.classList.remove('mobile-game-scale');
         hint.textContent = 'Modo PC: clique/espaço para pular/voar e botão II para pausar.';
     }
 }
