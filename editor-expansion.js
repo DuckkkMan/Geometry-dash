@@ -51,10 +51,13 @@ const EXTRA_CATEGORIES = [
   ]},
   { id: 'triggers', name: 'Triggers', icon: '⚡', items: [
     ['trig_speed_fast', 'Speed 1.25x', 'legacy_trigger', '#00e5ff'],
-    ['trig_speed_norm', 'Speed 1.0x', 'legacy_trigger', '#38bdf8'],
-    ['trig_bg_purple', 'BG Color Trigger', 'legacy_trigger', '#9b5de5'],
-    ['trig_shake', 'Shake Trigger', 'legacy_trigger', '#f15bb5'],
+    ['trig_speed_slow', 'Speed 0.75x', 'legacy_trigger', '#38bdf8'],
+    ['trig_speed_norm', 'Speed 1.0x', 'legacy_trigger', '#60a5fa'],
+    ['trig_bg_purple', 'Purple Color', 'legacy_trigger', '#9b5de5'],
+    ['trig_bg_cyan', 'Cyan Color', 'legacy_trigger', '#22d3ee'],
+    ['trig_shake', 'Camera Shake', 'legacy_trigger', '#f15bb5'],
     ['trig_low_grav', 'Low Gravity', 'legacy_trigger', '#fee440'],
+    ['trig_high_grav', 'High Gravity', 'legacy_trigger', '#fb923c'],
     ['trig_norm_grav', 'Normal Gravity', 'legacy_trigger', '#9dff00']
   ]},
   { id: 'other', name: 'Other', icon: '◇', items: [
@@ -79,6 +82,18 @@ EXTRA_DECORATION_FAMILIES.forEach(([family, label], familyIndex) => {
   }
   EXTRA_CATEGORIES.push({ id: 'extra_' + family, name: label, icon: '✦', items });
 });
+const EDITOR_SHAPE_ITEMS = [
+  ['deco_triangle', 'Triangle', 'decoration', '#38bdf8'],
+  ['deco_diamond', 'Diamond', 'decoration', '#a78bfa'],
+  ['deco_square', 'Square Frame', 'decoration', '#60a5fa'],
+  ['deco_wave', 'Wave Line', 'decoration', '#22d3ee'],
+  ['deco_spiral', 'Spiral', 'decoration', '#c084fc'],
+  ['deco_spark', 'Spark', 'decoration', '#fde047'],
+  ['deco_moon', 'Moon', 'decoration', '#e0e7ff'],
+  ['deco_heart', 'Heart', 'decoration', '#fb7185'],
+  ['deco_flame', 'Flame', 'decoration', '#fb923c']
+];
+EXTRA_CATEGORIES.push({ id: 'geometry', name: 'Geometry', icon: '◇', items: EDITOR_SHAPE_ITEMS });
 
 const ASSET_BY_ID = {};
 EXTRA_CATEGORIES.forEach(cat => {
@@ -145,12 +160,12 @@ function objectCenter(obj, key) {
   }
   if (key === 'pillars') return { x: x + (w || 34) / 2, y: GROUND_Y - (Number(obj.h) || 90) / 2 };
   if (key === 'spikes') {
-    const height = h || BLOCK_SIZE;
-    const baseY = obj.inverted ? CEILING_Y : GROUND_Y;
+    const height = h || (obj.sizeType === 'mini' ? MINI_SPIKE_H : BLOCK_SIZE);
+    const baseY = y === null ? (obj.inverted ? CEILING_Y : GROUND_Y) : y;
     return { x: x + (w || BLOCK_SIZE) / 2, y: baseY + (obj.inverted ? height / 2 : -height / 2) };
   }
   if (key === 'pads') return { x: x + 18, y: GROUND_Y - 5 };
-  if (key === 'portals') return { x: x + PORTAL_WIDTH / 2, y: GROUND_Y - 50 };
+  if (key === 'portals') return { x: x + PORTAL_WIDTH / 2, y: y === null ? GROUND_Y - PORTAL_HEIGHT / 2 : y };
   if (key === 'triggers') return { x: x + 12, y: GROUND_Y - 50 };
   if (y !== null) return { x, y };
   if (obj.cooldown !== undefined) return { x: x + 18, y: GROUND_Y - 5 };
@@ -272,6 +287,33 @@ function drawDecorGraphic(targetCtx, kind, color, r) {
   } else if (family === 'cross') {
     const w = .28 + (variant % 3) * .08;
     polygon([[-w,-1],[w,-1],[w,-w],[1,-w],[1,w],[w,w],[w,1],[-w,1],[-w,w],[-1,w],[-1,-w],[-w,-w]]);
+  } else if (family === 'triangle') {
+    polygon([[0,-1],[.92,.78],[-.92,.78]]);
+    targetCtx.shadowBlur=0; targetCtx.beginPath(); targetCtx.moveTo(0,-.45*r); targetCtx.lineTo(0,.55*r); targetCtx.stroke();
+  } else if (family === 'diamond') {
+    polygon([[0,-1],[.72,0],[0,1],[-.72,0]]);
+    targetCtx.shadowBlur=0; targetCtx.strokeStyle='rgba(255,255,255,.75)'; targetCtx.beginPath(); targetCtx.moveTo(0,-.7*r); targetCtx.lineTo(0,.7*r); targetCtx.stroke();
+  } else if (family === 'square') {
+    polygon([[-.8,-.8],[.8,-.8],[.8,.8],[-.8,.8]]);
+    targetCtx.shadowBlur=0; targetCtx.strokeRect(-r*.45,-r*.45,r*.9,r*.9);
+  } else if (family === 'wave') {
+    targetCtx.shadowBlur=0; targetCtx.beginPath();
+    for(let i=0;i<=24;i++){const x=-r+(i/24)*r*2;const y=Math.sin(i/24*Math.PI*4)*r*.55;if(i===0)targetCtx.moveTo(x,y);else targetCtx.lineTo(x,y);}
+    targetCtx.stroke();
+    targetCtx.beginPath(); targetCtx.arc(0,0,r*.88,0,Math.PI*2); targetCtx.stroke();
+  } else if (family === 'spiral') {
+    targetCtx.shadowBlur=0; targetCtx.beginPath();
+    for(let i=0;i<=80;i++){const a=i/80*Math.PI*4;const rad=(i/80)*r*.9;const x=Math.cos(a)*rad;const y=Math.sin(a)*rad;if(i===0)targetCtx.moveTo(x,y);else targetCtx.lineTo(x,y);}
+    targetCtx.stroke();
+  } else if (family === 'spark') {
+    polygon([[0,-1],[.18,-.2],[1,0],[.18,.2],[0,1],[-.18,.2],[-1,0],[-.18,-.2]]);
+  } else if (family === 'moon') {
+    targetCtx.beginPath(); targetCtx.arc(-r*.1,0,r*.78,-Math.PI*.72,Math.PI*.72); targetCtx.arc(r*.42,-r*.2,r*.72,Math.PI*.7,-Math.PI*.7,true); targetCtx.closePath(); targetCtx.fill(); targetCtx.stroke();
+  } else if (family === 'heart') {
+    targetCtx.beginPath(); targetCtx.moveTo(0,r*.82); targetCtx.bezierCurveTo(-r*1.2,r*.1,-r*.9,-r*.8,-r*.35,-r*.7); targetCtx.bezierCurveTo(-r*.05,-r*.65,0,-r*.35,0,-r*.25); targetCtx.bezierCurveTo(0,-r*.35,r*.2,-r*.8,r*.55,-r*.7); targetCtx.bezierCurveTo(r*1.15,-r*.55,r*1.0,r*.15,0,r*.82); targetCtx.fill(); targetCtx.stroke();
+  } else if (family === 'flame') {
+    polygon([[0,1],[-.72,.55],[-.62,-.1],[-.25,-.55],[-.12,-1],[.35,-.42],[.72,-.12],[.62,.58]]);
+    targetCtx.shadowBlur=0; targetCtx.fillStyle='rgba(255,255,255,.65)'; targetCtx.beginPath(); targetCtx.ellipse(0,r*.35,r*.18,r*.3,0,0,Math.PI*2); targetCtx.fill();
   } else if (family === 'gear') {
     const points=[];
     for(let i=0;i<24;i++){const a=i*Math.PI/12;const rad=i%3===0?.98:(i%3===1?.82:.72);points.push([Math.cos(a)*rad,Math.sin(a)*rad]);}
@@ -328,8 +370,23 @@ function drawAssetThumb(tCtx, item, size) {
     tCtx.fill();
     tCtx.stroke();
   } else if (type === 'legacy_trigger') {
-    tCtx.fillRect(-size * 0.25, -size * 0.35, size * 0.5, size * 0.7);
-    tCtx.strokeRect(-size * 0.25, -size * 0.35, size * 0.5, size * 0.7);
+    tCtx.shadowColor = c;
+    tCtx.shadowBlur = size * 0.18;
+    tCtx.fillStyle = c + '33';
+    tCtx.fillRect(-size * 0.28, -size * 0.38, size * 0.56, size * 0.76);
+    tCtx.strokeStyle = c;
+    tCtx.lineWidth = size * 0.07;
+    tCtx.strokeRect(-size * 0.28, -size * 0.38, size * 0.56, size * 0.76);
+    tCtx.beginPath();
+    tCtx.moveTo(0, -size * 0.23);
+    tCtx.lineTo(-size * 0.15, 0);
+    tCtx.lineTo(-size * 0.02, 0);
+    tCtx.lineTo(-size * 0.10, size * 0.23);
+    tCtx.lineTo(size * 0.17, -size * 0.08);
+    tCtx.lineTo(size * 0.04, -size * 0.08);
+    tCtx.closePath();
+    tCtx.fillStyle = c;
+    tCtx.fill();
   } else {
     drawDecorGraphic(tCtx, item.id, c, size * 0.34);
   }
@@ -342,19 +399,7 @@ function renderAssetLibrary() {
   grid.replaceChildren();
   const cat = EXTRA_CATEGORIES.find(c => c.id === activeCategory) || EXTRA_CATEGORIES[0];
   $('editor-category-title').textContent = cat.name;
-  $('editor-asset-count').textContent = cat.items.length + ' OBJETOS';
-  const tabs = editorRoot.querySelector('.editor-category-tabs');
-  if (tabs) {
-    tabs.replaceChildren();
-    EXTRA_CATEGORIES.forEach(category => {
-      const tab = document.createElement('button');
-      tab.type = 'button';
-      tab.className = 'editor-category-tab' + (category.id === activeCategory ? ' active' : '');
-      tab.textContent = category.name;
-      tab.addEventListener('click', () => { activeCategory = category.id; renderAssetLibrary(); });
-      tabs.appendChild(tab);
-    });
-  }
+  $('editor-asset-count').textContent = (EXTRA_CATEGORIES.findIndex(c => c.id === activeCategory) + 1) + ' / ' + EXTRA_CATEGORIES.length + '  •  ' + cat.items.length + ' OBJETOS';
 
   cat.items.forEach(raw => {
     const item = ASSET_BY_ID[raw[0]];
@@ -394,7 +439,7 @@ function addCategoryPanel() {
   ['editor-panel-assets', 'editor-panel-triggers', 'editor-panel-style'].forEach(id => $(id)?.classList.add('hidden'));
   const panel = document.createElement('section');
   panel.id = 'editor-library';
-  panel.innerHTML = '<div class="editor-library-head"><button id="editor-category-prev" type="button" aria-label="Categoria anterior">◀</button><div><small>OBJETOS</small><strong id="editor-category-title">Blocks</strong></div><span id="editor-asset-count"></span><button id="editor-category-next" type="button" aria-label="Próxima categoria">▶</button></div><div class="editor-category-tabs"></div><div class="editor-asset-grid"></div><div class="editor-selected-label" id="editor-selected-name">Selecione um objeto</div>';
+  panel.innerHTML = '<div class="editor-library-head"><button class="editor-category-arrow" id="editor-category-prev" type="button" aria-label="Categoria anterior" title="Categoria anterior">‹</button><div class="editor-category-current"><small>BIBLIOTECA DE OBJETOS</small><strong id="editor-category-title">Blocks</strong><span id="editor-asset-count"></span></div><button class="editor-category-arrow" id="editor-category-next" type="button" aria-label="Próxima categoria" title="Próxima categoria">›</button></div><div class="editor-asset-grid"></div><div class="editor-selected-label" id="editor-selected-name">Selecione um objeto</div>';
   bottom.appendChild(panel);
   $('editor-category-prev').addEventListener('click', () => changeEditorCategory(-1));
   $('editor-category-next').addEventListener('click', () => changeEditorCategory(1));
@@ -562,12 +607,12 @@ function refreshInspector() {
   ['inspect-x', 'inspect-y', 'inspect-rotation', 'inspect-scale', 'inspect-groups'].forEach(id => {
     if ($(id)) $(id).disabled = !first;
   });
-  if ($('inspect-y')) $('inspect-y').disabled = !first || ['spikes', 'pads', 'pillars', 'portals', 'triggers'].includes(first.key);
+  if ($('inspect-y')) $('inspect-y').disabled = !first || ['pads', 'pillars', 'triggers'].includes(first.key);
   if ($('inspect-rotation')) $('inspect-rotation').disabled = !first || first.key !== 'decorations';
   if ($('inspect-scale')) $('inspect-scale').disabled = !first || first.key !== 'decorations';
   if (!first) return;
   $('inspect-x').value = Math.round(first.obj.x || 0);
-  $('inspect-y').value = Math.round(first.obj.y === undefined ? GROUND_Y - 45 : first.obj.y);
+  $('inspect-y').value = Math.round(first.obj.y === undefined ? (first.key === 'spikes' ? (first.obj.inverted ? CEILING_Y : GROUND_Y) : first.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : GROUND_Y - 45) : first.obj.y);
   $('inspect-rotation').value = Math.round(((first.obj.rotation || 0) * 180) / Math.PI);
   $('inspect-scale').value = Math.round((first.obj.scale || 1) * 100);
   $('inspect-groups').value = objectGroupList(first.obj).join(', ');
@@ -587,8 +632,9 @@ function applyInspector() {
 
   records.forEach(s => {
     if (Number.isFinite(x)) s.obj.x = Math.round(((s.obj.x || 0) + dx) / gridUnit) * gridUnit;
-    if (Number.isFinite(y) && !['spikes', 'pads', 'pillars', 'portals', 'triggers'].includes(s.key)) {
-      s.obj.y = Math.round(((s.obj.y === undefined ? GROUND_Y - 45 : s.obj.y) + dy) / gridUnit) * gridUnit;
+    if (Number.isFinite(y) && !['pads', 'pillars', 'triggers'].includes(s.key)) {
+      const fallbackY = s.key === 'spikes' ? (s.obj.inverted ? CEILING_Y : GROUND_Y) : s.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : GROUND_Y - 45;
+      s.obj.y = Math.max(0, Math.min(GROUND_Y, Math.round(((s.obj.y === undefined ? fallbackY : s.obj.y) + dy) / gridUnit) * gridUnit));
     }
     if (s.key === 'decorations' && Number.isFinite(rot)) s.obj.rotation = (rot * Math.PI) / 180;
     if (s.key === 'decorations' && Number.isFinite(scale)) s.obj.scale = Math.max(0.1, Math.min(5, scale));
@@ -624,7 +670,7 @@ function addAssetAtWorld(x, y) {
 
   if (item.type === 'spike' || item.type === 'mini_spike' || item.type === 'ceil_spike') {
     editorDraft.spikes.push({
-      x: base.x, y: item.type === 'ceil_spike' ? CEILING_Y : floor,
+      x: base.x, y: Math.max(item.type === 'ceil_spike' ? 0 : 40, Math.min(floor, snapY)),
       sizeType: item.type === 'mini_spike' ? 'mini' : 'normal',
       inverted: item.type === 'ceil_spike'
     });
@@ -637,7 +683,7 @@ function addAssetAtWorld(x, y) {
   } else if (item.type.indexOf('pad_') === 0) {
     editorDraft.pads.push({ x: base.x, color: selectedAssetId.replace('pad_', ''), cooldown: 0 });
   } else if (item.type === 'portal_cube' || item.type === 'portal_ship' || item.type === 'portal_extra') {
-    editorDraft.portals.push({ x: base.x, type: selectedAssetId.replace('portal_', ''), triggered: false });
+    editorDraft.portals.push({ x: base.x, y: clampCenter(snapY, PORTAL_HEIGHT / 2), type: selectedAssetId.replace('portal_', ''), triggered: false });
   } else if (item.type === 'saw') {
     editorDraft.saws.push({ x: base.x, y: clampCenter(snapY, 22), r: 22, angle: 0 });
   } else if (item.type === 'pillar') {
@@ -647,10 +693,13 @@ function addAssetAtWorld(x, y) {
   } else if (item.type === 'legacy_trigger') {
     const map = {
       trig_speed_fast: { kind: 'speed_fast' },
+      trig_speed_slow: { kind: 'speed_slow' },
       trig_speed_norm: { kind: 'speed_normal' },
       trig_bg_purple: { kind: 'bg', bgTop: '#311042', bgBottom: '#7209b7' },
+      trig_bg_cyan: { kind: 'bg_cyan', bgTop: '#083344', bgBottom: '#0891b2' },
       trig_shake: { kind: 'shake' },
       trig_low_grav: { kind: 'low_grav' },
+      trig_high_grav: { kind: 'high_grav' },
       trig_norm_grav: { kind: 'norm_grav' }
     };
     const cfg = map[selectedAssetId];
@@ -707,8 +756,8 @@ editAtEditorPointer = function (pointerEvent) {
     selectedDragState.records.forEach(record => {
       const obj = record.obj;
       obj.x = Math.max(0, Math.round((record.objectX + dx) / gridUnit) * gridUnit);
-      if (obj.y !== undefined || ['blocks','platforms','orbs','saws','coins','decorations'].includes(record.key)) {
-        obj.y = Math.max(0, Math.round((record.objectY + dy) / gridUnit) * gridUnit);
+      if (obj.y !== undefined || ['blocks','platforms','orbs','saws','coins','decorations','spikes','portals'].includes(record.key)) {
+        obj.y = Math.max(0, Math.min(GROUND_Y, Math.round((record.objectY + dy) / gridUnit) * gridUnit));
       }
     });
     refreshInspector();
