@@ -1900,3 +1900,37 @@ body { overflow:auto; }
   #hud { padding:0 8px; }
   #settings-screen .settings-box { width:calc(100% - 20px); }
 }
+
+
+/* Camadas e comandos avançados do editor */
+#editor-layers-panel {
+  position:absolute; right:12px; top:56px; z-index:27;
+  width:230px; max-width:calc(100% - 20px); max-height:calc(100% - 170px);
+  overflow:auto; padding:10px; display:flex; flex-direction:column; gap:8px;
+  border:2px solid #65d9ff; border-radius:10px;
+  background:rgba(7,18,36,.97); color:#e4f6ff;
+  box-shadow:0 8px 24px rgba(0,0,0,.5); font-size:10px;
+}
+#editor-layers-panel.hidden { display:none; }
+#editor-layer-list { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.editor-layer-row {
+  display:flex; align-items:center; gap:6px; min-height:26px;
+  padding:4px 6px; border:1px solid #294b70; border-radius:5px;
+  background:#102541; color:#d4eaff; cursor:pointer;
+}
+.editor-layer-row input { accent-color:#00dfff; }
+.editor-layer-actions { display:flex; gap:6px; }
+.editor-layer-actions button {
+  flex:1; min-height:28px; border:1px solid #37618a; border-radius:5px;
+  background:#18395e; color:#e5f6ff; font:800 8px 'Orbitron',sans-serif;
+  cursor:pointer;
+}
+#editor-select-group-btn, #editor-recover-btn, #editor-layers-open {
+  white-space:nowrap;
+}
+#editor-select-group-btn { border-color:#8d78ff; }
+#editor-recover-btn { border-color:#63d9a3; }
+@media (max-width:700px) {
+  #editor-layers-panel { right:6px; top:48px; width:210px; }
+  #editor-layer-list { grid-template-columns:1fr 1fr; }
+}
