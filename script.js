@@ -342,10 +342,10 @@ function applyPlatformSettingsUI() {
     if (controlPlatform === 'mobile') {
         pcBtn.classList.remove('selected');
         mobileBtn.classList.add('selected');
-        pauseMenuBtn.classList.add('hidden');
+        pauseMenuBtn.classList.remove('hidden');
         gameContainer.classList.add('mobile-ui-drag');
         gameContainer.classList.add('mobile-game-scale');
-        hint.textContent = 'Modo Celular: toque para pular/voar, arraste na UI para ver tudo e segure por 5s para ir ao pause.';
+        hint.textContent = 'Modo Celular: toque para pular/voar. Use o botão II para pausar.';
     } else {
         controlPlatform = 'pc';
         mobileBtn.classList.remove('selected');
@@ -359,7 +359,6 @@ function applyPlatformSettingsUI() {
 
 function setPlatformMode(mode) {
     controlPlatform = mode === 'mobile' ? 'mobile' : 'pc';
-    clearHoldPauseTimer();
     applyPlatformSettingsUI();
     writeSaveData();
 }
@@ -471,22 +470,6 @@ function clearRespawnTimer() {
         respawnTimer = null;
     }
     deadRemainingMs = 0;
-}
-
-function clearHoldPauseTimer() {
-    if (holdPauseTimer) {
-        clearTimeout(holdPauseTimer);
-        holdPauseTimer = null;
-    }
-}
-
-function startHoldPauseTimer() {
-    if (controlPlatform !== 'mobile') return;
-    clearHoldPauseTimer();
-    holdPauseTimer = setTimeout(() => {
-        isHoldingJump = false;
-        pauseCurrentGame();
-    }, HOLD_PAUSE_MS);
 }
 
 function scheduleRespawn(delayMs) {
@@ -1425,39 +1408,54 @@ function updateGameplay() {
 }
 
 function drawMenuPreview() {
-    const playerX = 160;
+    // Demonstração em duas etapas: cubo caminha até uma parede; depois a ship atravessa o céu.
+    const phaseLength = 1900;
+    const phase = menuDemoScroll % phaseLength;
     const groundTop = GROUND_Y - BLOCK_SIZE;
-    const cycleLength = 1680;
-    const offset = menuDemoScroll % cycleLength;
-
-    // Espinhos em uma pista contínua que passa pelo cubo.
-    for (let i = 0; i < 8; i++) {
-        const spikeX = 340 + i * 240 - offset;
-        if (spikeX > -BLOCK_SIZE && spikeX < canvas.width + BLOCK_SIZE) {
-            drawSpike({}, spikeX);
-            if (menuDemoDy === 0 && spikeX >= playerX + 58 && spikeX <= playerX + 88) {
-                menuDemoDy = JUMP_FORCE;
-            }
+    if (phase < 900) {
+        const playerX = 110 + Math.min(1, phase / 760) * 285;
+        const wallX = 445;
+        ctx.fillStyle = '#182d4a';
+        ctx.fillRect(wallX, GROUND_Y - 112, 28, 112);
+        ctx.fillStyle = '#4f83b9';
+        ctx.fillRect(wallX + 4, GROUND_Y - 108, 20, 104);
+        // Trail de caminhada em pequenos losangos.
+        for (let i = 1; i <= 5; i++) {
+            const tx = playerX - i * 13;
+            const alpha = 0.34 - i * 0.05;
+            ctx.fillStyle = `rgba(80,225,255,${alpha})`;
+            ctx.fillRect(tx, groundTop + 17 + Math.sin((menuDemoScroll - i * 5) * 0.18) * 3, 6, 6);
         }
-    }
-
-    menuDemoDy += GRAVITY;
-    menuDemoY += menuDemoDy;
-    if (menuDemoY >= groundTop) {
-        menuDemoY = groundTop;
-        menuDemoDy = 0;
-        menuDemoRotation = Math.round(menuDemoRotation / (Math.PI / 2)) * (Math.PI / 2);
+        drawCubeSkin(ctx, playerX, groundTop, BLOCK_SIZE, 0, playerSkin);
     } else {
-        menuDemoRotation += 0.12;
+        const flight = (phase - 900) / 1000;
+        const shipX = 90 + flight * 760;
+        const shipY = 245 + Math.sin(flight * Math.PI * 5) * 48;
+        // Trilho luminoso da ship.
+        ctx.save();
+        ctx.globalAlpha = 0.28;
+        ctx.strokeStyle = '#53eaff';
+        ctx.lineWidth = 13;
+        ctx.beginPath(); ctx.moveTo(shipX - 95, shipY + 20); ctx.lineTo(shipX - 12, shipY + 20); ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.translate(shipX + 22, shipY + 22);
+        ctx.fillStyle = playerSkin.primary;
+        ctx.strokeStyle = '#07101d';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-24, -15); ctx.lineTo(5, -15); ctx.lineTo(25, 0);
+        ctx.lineTo(5, 15); ctx.lineTo(-24, 15); ctx.lineTo(-14, 0); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = playerSkin.secondary;
+        ctx.beginPath(); ctx.arc(2, 0, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
     }
-
-    drawCubeSkin(ctx, playerX, menuDemoY, BLOCK_SIZE, menuDemoRotation, playerSkin);
     menuDemoScroll += 2.4;
 }
-
 function loop() {
     ctx.save();
-    if (screenShake > 0) {
+    if (visualSettings.shake && screenShake > 0) {
         const sx = (Math.random() - 0.5) * screenShake;
         const sy = (Math.random() - 0.5) * screenShake;
         ctx.translate(sx, sy);
@@ -1470,9 +1468,14 @@ function loop() {
         updateGameplay();
         drawLevelElementsInWorld();
         if (gameState !== 'DEAD') {
+            if (visualSettings.trail && playerTrailTick++ % 3 === 0) {
+                playerTrail.push({ x: player.x - 8, y: player.y + player.size / 2, life: 1 });
+                if (playerTrail.length > 18) playerTrail.shift();
+            }
+            drawPlayerTrail();
             player.draw();
         }
-        updateAndDrawParticles();
+        if (visualSettings.particles) updateAndDrawParticles(); else particles.length = 0;
     } else {
         // Fundo e demonstração jogável animados no menu principal e nos submenus.
         bgScroll += 1.2;
@@ -2304,16 +2307,91 @@ function bindEvents() {
         e.preventDefault();
         if (!isHoldingJump) jumpJustPressed = true;
         isHoldingJump = true;
-        startHoldPauseTimer();
-    });
+        });
 
     window.addEventListener('pointerup', () => {
         isHoldingJump = false;
-        clearHoldPauseTimer();
     });
 }
 
+
+/* Configurações extras, trail e música inteiramente sintetizada no navegador. */
+const visualSettings = { trail: true, music: true, shake: true, particles: true, volume: 0.35 };
+let playerTrail = [];
+let playerTrailTick = 0;
+let musicTimer = null;
+let musicStep = 0;
+const musicNotes = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63, 293.66, 440.00, 523.25, 659.25, 523.25, 440.00, 392.00, 329.63, 293.66, 349.23];
+function startProceduralMusic() {
+    if (!visualSettings.music || musicTimer) return;
+    try {
+        if (!audioCtx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            audioCtx = new AC();
+        }
+        audioCtx.resume();
+        musicTimer = setInterval(() => {
+            if (!visualSettings.music || !audioCtx || audioCtx.state !== 'running') return;
+            const now = audioCtx.currentTime;
+            const base = musicNotes[musicStep % musicNotes.length];
+            const playTone = (frequency, duration, type, volume) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(frequency, now);
+                gain.gain.setValueAtTime(Math.max(0.0001, visualSettings.volume * volume), now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + duration);
+            };
+            playTone(base, 0.20, 'triangle', 0.11);
+            if (musicStep % 4 === 0) playTone(base / 2, 0.48, 'sine', 0.10);
+            if (musicStep % 2 === 1) playTone(base * 1.5, 0.12, 'sine', 0.035);
+            musicStep++;
+        }, 190);
+    } catch (_) {}
+}
+function stopProceduralMusic() {
+    if (musicTimer) clearInterval(musicTimer);
+    musicTimer = null;
+}
+function drawPlayerTrail() {
+    if (!visualSettings.trail) { playerTrail.length = 0; return; }
+    ctx.save();
+    playerTrail.forEach((p, i) => {
+        const alpha = Math.max(0, p.life * (1 - i / Math.max(1, playerTrail.length)) * 0.32);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = playerSkin.secondary;
+        ctx.fillRect(p.x, p.y, 7, 7);
+        p.life -= 0.055;
+    });
+    ctx.restore();
+    playerTrail = playerTrail.filter(p => p.life > 0);
+}
+function setupExtraSettings() {
+    const bind = (id, key, type = 'checkbox') => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const stored = localStorage.getItem('gd_setting_' + key);
+        if (stored !== null) visualSettings[key] = type === 'range' ? Number(stored) / 100 : stored === 'true';
+        el.checked = type === 'checkbox' ? visualSettings[key] : el.checked;
+        if (type === 'range') el.value = Math.round(visualSettings[key] * 100);
+        el.addEventListener('change', () => {
+            visualSettings[key] = type === 'range' ? Number(el.value) / 100 : el.checked;
+            localStorage.setItem('gd_setting_' + key, String(type === 'range' ? Number(el.value) : visualSettings[key]));
+            if (key === 'music') visualSettings.music ? startProceduralMusic() : stopProceduralMusic();
+        });
+    };
+    bind('setting-trail', 'trail');
+    bind('setting-music', 'music');
+    bind('setting-shake', 'shake');
+    bind('setting-particles', 'particles');
+    bind('setting-volume', 'volume', 'range');
+    document.addEventListener('pointerdown', () => { if (visualSettings.music) startProceduralMusic(); }, { once: true });
+}
+
 applyPlatformSettingsUI();
+setupExtraSettings();
 setupMobileUiDrag();
 setupGarage();
 renderLevelSelect();
