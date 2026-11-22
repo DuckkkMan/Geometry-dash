@@ -628,7 +628,8 @@ function applyInspector() {
   const scale = Number($('inspect-scale').value) / 100;
   const first = records[0].obj;
   const dx = Number.isFinite(x) ? x - (first.x || 0) : 0;
-  const dy = Number.isFinite(y) ? y - (first.y === undefined ? GROUND_Y - 45 : first.y) : 0;
+  const firstDefaultY = records[0].key === 'spikes' ? (first.inverted ? CEILING_Y : GROUND_Y) : records[0].key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : GROUND_Y - 45;
+  const dy = Number.isFinite(y) ? y - (first.y === undefined ? firstDefaultY : first.y) : 0;
 
   records.forEach(s => {
     if (Number.isFinite(x)) s.obj.x = Math.round(((s.obj.x || 0) + dx) / gridUnit) * gridUnit;
@@ -703,7 +704,7 @@ function addAssetAtWorld(x, y) {
       trig_norm_grav: { kind: 'norm_grav' }
     };
     const cfg = map[selectedAssetId];
-    if (cfg) editorDraft.triggers.push({ x: base.x, triggered: false, ...cfg });
+    if (cfg) editorDraft.triggers.push({ x: base.x, y: clampTop(snapY - 50, 100), triggered: false, ...cfg });
   } else {
     const radius = 18 * (base.scale || 1);
     editorDraft.decorations.push({ ...base, y: clampCenter(snapY, radius), kind: selectedAssetId, color: item.color });
@@ -740,7 +741,7 @@ editAtEditorPointer = function (pointerEvent) {
         records: records.map(record => ({
           key: record.key, obj: record.obj,
           objectX: Number(record.obj.x) || 0,
-          objectY: Number.isFinite(Number(record.obj.y)) ? Number(record.obj.y) : objectCenter(record.obj, record.key).y
+          objectY: Number.isFinite(Number(record.obj.y)) ? Number(record.obj.y) : record.key === 'spikes' ? (record.obj.inverted ? CEILING_Y : GROUND_Y) : objectCenter(record.obj, record.key).y
         })),
         startX: point.x, startY: point.y, moved: false
       } : { empty: true };
@@ -846,6 +847,57 @@ drawEditorCanvas = function () {
 };
 
 // Cada sessão de edição começa com histórico próprio; limpar também pode ser desfeito.
+// Trilha procedural exclusiva do editor: sintetizador leve, sem arquivos externos.
+let editorMusicTimer = null;
+let editorMusicStep = 0;
+function startEditorMusic() {
+  if (editorMusicTimer || !visualSettings.music) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!audioCtx && AC) audioCtx = new AC();
+    if (!audioCtx) return;
+    audioCtx.resume();
+    const melody = [392, 523.25, 659.25, 523.25, 440, 587.33, 698.46, 587.33, 349.23, 440, 523.25, 659.25, 392, 493.88, 587.33, 493.88];
+    editorMusicTimer = setInterval(() => {
+      if (!visualSettings.music || !audioCtx || audioCtx.state !== 'running') return;
+      const now = audioCtx.currentTime;
+      const note = melody[editorMusicStep % melody.length];
+      const tone = (frequency, duration, wave, level, attack = 0.012) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = wave;
+        osc.frequency.setValueAtTime(frequency, now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, visualSettings.volume * level), now + attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + duration + 0.02);
+      };
+      tone(note, 0.30, 'triangle', 0.075);
+      if (editorMusicStep % 2 === 0) tone(note * 0.5, 0.52, 'sine', 0.065, 0.035);
+      if (editorMusicStep % 4 === 2) tone(note * 2, 0.13, 'sine', 0.025);
+      editorMusicStep++;
+    }, 220);
+  } catch (_) {}
+}
+function stopEditorMusic() {
+  if (editorMusicTimer) clearInterval(editorMusicTimer);
+  editorMusicTimer = null;
+}
+
+
+const originalShowOverlayForEditorMusic = showOverlay;
+showOverlay = function (overlayEl, nextState) {
+  originalShowOverlayForEditorMusic.call(this, overlayEl, nextState);
+  if (nextState === 'EDITOR') {
+    stopProceduralMusic();
+    startEditorMusic();
+  } else {
+    stopEditorMusic();
+    if (nextState === 'MENU' && visualSettings.music) startProceduralMusic();
+  }
+};
+
 const originalOpenEditorWithLevel = openEditorWithLevel;
 openEditorWithLevel = function (level) {
   localUndoStack.length = 0;
