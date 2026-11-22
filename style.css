@@ -1874,3 +1874,11 @@ body { overflow:auto; }
 #level-editor .editor-category-tabs { overscroll-behavior-x:contain; }
 #level-editor .editor-asset-grid { overscroll-behavior-x:contain; }
 #level-editor #editor-inspector { max-height:calc(100% - 160px); overflow:auto; }
+
+
+/* Modo celular: reduz a janela visual para exatamente metade (900x500 -> 450x250).
+   A resolução lógica do canvas continua 900x500 para não alterar física ou coordenadas. */
+#game-container.mobile-game-scale {
+  transform: scale(0.5);
+  transform-origin: center center;
+}
