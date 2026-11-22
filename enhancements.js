@@ -244,7 +244,7 @@ function drawProceduralPortal(portal, screenX) {
   const color = portalColor(mode);
   const t = performance.now() / 1000;
   const cx = screenX + PORTAL_WIDTH / 2;
-  const cy = GROUND_Y - PORTAL_HEIGHT / 2;
+  const cy = Number.isFinite(Number(portal.y)) ? Number(portal.y) : GROUND_Y - PORTAL_HEIGHT / 2;
   const pulse = 1 + Math.sin(t * 5 + screenX * 0.01) * 0.045;
 
   ctx.save();
@@ -277,8 +277,10 @@ function mapPortalMode(type) {
 
 function portalCollision(p, portal, screenX) {
   if (portal.triggered) return;
-  const top = GROUND_Y - PORTAL_HEIGHT;
-  if (p.x + p.size > screenX + 5 && p.x < screenX + PORTAL_WIDTH - 5 && p.y + p.size > top && p.y < GROUND_Y) {
+  const centerY = Number.isFinite(Number(portal.y)) ? Number(portal.y) : GROUND_Y - PORTAL_HEIGHT / 2;
+  const top = centerY - PORTAL_HEIGHT / 2;
+  const bottom = centerY + PORTAL_HEIGHT / 2;
+  if (p.x + p.size > screenX + 5 && p.x < screenX + PORTAL_WIDTH - 5 && p.y + p.size > top && p.y < bottom) {
     portal.triggered = true;
     const next = mapPortalMode(portal.type);
     if (next !== playerMode) {
