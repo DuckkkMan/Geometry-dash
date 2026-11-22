@@ -166,7 +166,7 @@ function objectCenter(obj, key) {
   }
   if (key === 'pads') return { x: x + 18, y: GROUND_Y - 5 };
   if (key === 'portals') return { x: x + PORTAL_WIDTH / 2, y: y === null ? GROUND_Y - PORTAL_HEIGHT / 2 : y };
-  if (key === 'triggers') return { x: x + 12, y: GROUND_Y - 50 };
+  if (key === 'triggers') return { x: x + 15, y: y === null ? GROUND_Y - 50 : y + 50 };
   if (y !== null) return { x, y };
   if (obj.cooldown !== undefined) return { x: x + 18, y: GROUND_Y - 5 };
   if (obj.h !== undefined) return { x: x + (w || 34) / 2, y: GROUND_Y - (Number(obj.h) || 90) / 2 };
@@ -607,12 +607,12 @@ function refreshInspector() {
   ['inspect-x', 'inspect-y', 'inspect-rotation', 'inspect-scale', 'inspect-groups'].forEach(id => {
     if ($(id)) $(id).disabled = !first;
   });
-  if ($('inspect-y')) $('inspect-y').disabled = !first || ['pads', 'pillars', 'triggers'].includes(first.key);
+  if ($('inspect-y')) $('inspect-y').disabled = !first || ['pads', 'pillars'].includes(first.key);
   if ($('inspect-rotation')) $('inspect-rotation').disabled = !first || first.key !== 'decorations';
   if ($('inspect-scale')) $('inspect-scale').disabled = !first || first.key !== 'decorations';
   if (!first) return;
   $('inspect-x').value = Math.round(first.obj.x || 0);
-  $('inspect-y').value = Math.round(first.obj.y === undefined ? (first.key === 'spikes' ? (first.obj.inverted ? CEILING_Y : GROUND_Y) : first.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : GROUND_Y - 45) : first.obj.y);
+  $('inspect-y').value = Math.round(first.obj.y === undefined ? (first.key === 'spikes' ? (first.obj.inverted ? CEILING_Y : GROUND_Y) : first.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : first.key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45) : first.obj.y);
   $('inspect-rotation').value = Math.round(((first.obj.rotation || 0) * 180) / Math.PI);
   $('inspect-scale').value = Math.round((first.obj.scale || 1) * 100);
   $('inspect-groups').value = objectGroupList(first.obj).join(', ');
@@ -628,13 +628,13 @@ function applyInspector() {
   const scale = Number($('inspect-scale').value) / 100;
   const first = records[0].obj;
   const dx = Number.isFinite(x) ? x - (first.x || 0) : 0;
-  const firstDefaultY = records[0].key === 'spikes' ? (first.inverted ? CEILING_Y : GROUND_Y) : records[0].key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : GROUND_Y - 45;
+  const firstDefaultY = records[0].key === 'spikes' ? (first.inverted ? CEILING_Y : GROUND_Y) : records[0].key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : records[0].key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45;
   const dy = Number.isFinite(y) ? y - (first.y === undefined ? firstDefaultY : first.y) : 0;
 
   records.forEach(s => {
     if (Number.isFinite(x)) s.obj.x = Math.round(((s.obj.x || 0) + dx) / gridUnit) * gridUnit;
-    if (Number.isFinite(y) && !['pads', 'pillars', 'triggers'].includes(s.key)) {
-      const fallbackY = s.key === 'spikes' ? (s.obj.inverted ? CEILING_Y : GROUND_Y) : s.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : GROUND_Y - 45;
+    if (Number.isFinite(y) && !['pads', 'pillars'].includes(s.key)) {
+      const fallbackY = s.key === 'spikes' ? (s.obj.inverted ? CEILING_Y : GROUND_Y) : s.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : s.key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45;
       s.obj.y = Math.max(0, Math.min(GROUND_Y, Math.round(((s.obj.y === undefined ? fallbackY : s.obj.y) + dy) / gridUnit) * gridUnit));
     }
     if (s.key === 'decorations' && Number.isFinite(rot)) s.obj.rotation = (rot * Math.PI) / 180;
