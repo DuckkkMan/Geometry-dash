@@ -568,8 +568,8 @@ function drawPad(pad, screenX) {
     if (screenX + w < -40 || screenX > canvas.width + 40) return;
 
     const isPink = pad.color === 'pink';
-    const mainColor = isPink ? '#ff4fd8' : '#ffe600';
-    const glowColor = isPink ? 'rgba(255, 79, 216, 0.35)' : 'rgba(255, 230, 0, 0.35)';
+    const mainColor = pad.colorOverride || (isPink ? '#ff4fd8' : '#ffe600');
+    const glowColor = pad.colorOverride || (isPink ? 'rgba(255, 79, 216, 0.35)' : 'rgba(255, 230, 0, 0.35)');
 
     ctx.save();
     ctx.fillStyle = glowColor;
@@ -616,8 +616,8 @@ function drawOrb(orb, screenX) {
     if (screenX + radius * 2 < -40 || screenX - radius * 2 > canvas.width + 40) return;
 
     const isPink = orb.color === 'pink';
-    const outerColor = isPink ? '#ff4fd8' : '#ffe600';
-    const innerColor = isPink ? '#ffd1f5' : '#fff8b8';
+    const outerColor = orb.colorOverride || (isPink ? '#ff4fd8' : '#ffe600');
+    const innerColor = orb.colorOverride || (isPink ? '#ffd1f5' : '#fff8b8');
 
     ctx.save();
     ctx.globalAlpha = orb.used ? 0.45 : 1;
@@ -672,13 +672,13 @@ function drawPlatform(plat, screenX) {
     if (screenX + w < -60 || screenX > canvas.width + 60) return;
 
     ctx.save();
-    ctx.fillStyle = '#18376b';
+    ctx.fillStyle = plat.colorOverride || '#18376b';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 3;
     ctx.fillRect(screenX, y, w, h);
     ctx.strokeRect(screenX, y, w, h);
 
-    ctx.strokeStyle = '#00e5ff';
+    ctx.strokeStyle = plat.colorOverride || '#00e5ff';
     ctx.lineWidth = 2;
     ctx.strokeRect(screenX + 3, y + 3, Math.max(0, w - 6), Math.max(0, h - 6));
     ctx.restore();
@@ -727,7 +727,7 @@ function drawSpike(spike, screenX) {
     const tipY = inverted ? baseY + h : baseY - h;
 
     ctx.save();
-    ctx.fillStyle = '#ff3b5c';
+    ctx.fillStyle = spike.colorOverride || '#ff3b5c';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -766,7 +766,7 @@ function drawSaw(saw, screenX) {
     ctx.rotate(saw.angle || 0);
 
     const teeth = 10;
-    ctx.fillStyle = '#334155';
+    ctx.fillStyle = saw.colorOverride || '#334155';
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -782,7 +782,7 @@ function drawSaw(saw, screenX) {
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#ff0055';
+    ctx.fillStyle = saw.colorOverride || '#ff0055';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
