@@ -22,13 +22,9 @@ const EXTRA_CATEGORIES = [
     ['mini_spike', 'Mini Spike', 'mini_spike', '#ff924c'],
     ['ceil_spike', 'Ceiling Spike', 'ceil_spike', '#d62828']
   ]},
-  { id: 'orbs', name: 'Orbs', icon: '◉', items: [
-    ['orb_yellow', 'Yellow Orb', 'orb_yellow', '#ffd60a'],
-    ['orb_pink', 'Pink Orb', 'orb_pink', '#f72585']
-  ]},
-  { id: 'pads', name: 'Pads', icon: '⌁', items: [
-    ['pad_yellow', 'Yellow Pad', 'pad_yellow', '#ffe600'],
-    ['pad_pink', 'Pink Pad', 'pad_pink', '#ff4fd8']
+  { id: 'orbs_pads', name: 'Orbs & Pads', icon: '◉', items: [
+    ['orb_yellow', 'Yellow Orb', 'orb_yellow', '#ffd60a'], ['orb_pink', 'Pink Orb', 'orb_pink', '#f72585'],
+    ['pad_yellow', 'Yellow Pad', 'pad_yellow', '#ffe600'], ['pad_pink', 'Pink Pad', 'pad_pink', '#ff4fd8']
   ]},
   { id: 'portals', name: 'Portals', icon: '◌', items: [
     ['portal_cube', 'Cube Portal', 'portal_cube', '#80ed99'],
@@ -58,7 +54,14 @@ const EXTRA_CATEGORIES = [
     ['trig_shake', 'Camera Shake', 'legacy_trigger', '#f15bb5'],
     ['trig_low_grav', 'Low Gravity', 'legacy_trigger', '#fee440'],
     ['trig_high_grav', 'High Gravity', 'legacy_trigger', '#fb923c'],
-    ['trig_norm_grav', 'Normal Gravity', 'legacy_trigger', '#9dff00']
+    ['trig_norm_grav', 'Normal Gravity', 'legacy_trigger', '#9dff00'],
+    ['trig_custom_speed', 'Custom Speed', 'custom_trigger', '#00e5ff'],
+    ['trig_move', 'Move Group', 'custom_trigger', '#38bdf8'],
+    ['trig_color', 'Group Color', 'custom_trigger', '#f472b6'],
+    ['trig_bg_custom', 'BG Color', 'custom_trigger', '#a78bfa'],
+    ['trig_shake_custom', 'Custom Shake', 'custom_trigger', '#fb7185'],
+    ['trig_rotate', 'Rotate Group', 'custom_trigger', '#f59e0b'],
+    ['trig_pulse', 'Pulse Group', 'custom_trigger', '#2dd4bf']
   ]},
   { id: 'other', name: 'Other', icon: '◇', items: [
     ['coin', 'Coin', 'coin', '#ffb703']
@@ -590,9 +593,10 @@ function addInspector() {
   if (!bottom || $('editor-inspector')) return;
   const panel = document.createElement('aside');
   panel.id = 'editor-inspector';
-  panel.innerHTML = '<div class="editor-inspector-title">OBJECT INSPECTOR <span id="editor-selection-count">0 selected</span></div><div class="editor-inspector-fields"><label>X<input id="inspect-x" type="number" step="1"></label><label>Y<input id="inspect-y" type="number" step="1"></label><label>ROTATION<input id="inspect-rotation" type="number" step="1" value="0"></label><label>SCALE %<input id="inspect-scale" type="number" min="10" max="500" step="5" value="100"></label><label class="group-field">GROUPS<input id="inspect-groups" type="text" placeholder="Ex.: 1, 2, 10"></label><button id="inspect-apply-btn" type="button">APPLY</button></div>';
+  panel.innerHTML = '<div class="editor-inspector-title">OBJECT INSPECTOR <span id="editor-selection-count">0 selected</span></div><div class="editor-inspector-fields"><label>X<input id="inspect-x" type="number" step="1"></label><label>Y<input id="inspect-y" type="number" step="1"></label><label>ROTATION<input id="inspect-rotation" type="number" step="1" value="0"></label><label>SCALE %<input id="inspect-scale" type="number" min="10" max="500" step="5" value="100"></label><label class="group-field">GROUPS<input id="inspect-groups" type="text" placeholder="Ex.: 1, 2, 10"></label><div id="trigger-config" class="trigger-config hidden"></div><button id="inspect-apply-btn" type="button">APPLY</button></div>';
   editorRoot.appendChild(panel);
   $('inspect-apply-btn').addEventListener('click', applyInspector);
+  $('trigger-config').addEventListener('change',ev=>{const rec=getSelectionRecords()[0],key=ev.target.dataset.trg;if(!rec||rec.key!=='triggers'||!key)return;recordHistory();const nums=['speed','moveX','moveY','shakeAmount','rotateAmount','pulseAmount'];rec.obj[key]=nums.includes(key)?Number(ev.target.value):ev.target.value;drawEditorCanvas();});
 }
 
 function getSelectionRecords() {
@@ -616,6 +620,7 @@ function refreshInspector() {
   $('inspect-rotation').value = Math.round(((first.obj.rotation || 0) * 180) / Math.PI);
   $('inspect-scale').value = Math.round((first.obj.scale || 1) * 100);
   $('inspect-groups').value = objectGroupList(first.obj).join(', ');
+  const cfg=$('trigger-config');if(cfg){const show=records[0].key==='triggers';cfg.classList.toggle('hidden',!show);if(show){const t=first.obj;const f=(label,key,value,type='number',min='',max='',step='1')=>'<label>'+label+'<input data-trg="'+key+'" type="'+type+'" value="'+String(value??'')+'" '+(min!==''?'min="'+min+'" ':'')+(max!==''?'max="'+max+'" ':'')+(step!==''?'step="'+step+'"':'')+'></label>';let h='<strong>'+String(t.kind).toUpperCase()+' CONFIG</strong>';if(t.kind==='speed_custom')h+=f('Speed multiplier','speed',t.speed??1.5,'number',.25,3,.05);if(['move','color','rotate','pulse'].includes(t.kind))h+='<label>Group ID<input data-trg="groupId" value="'+(t.groupId||'1')+'"></label>';if(t.kind==='move')h+=f('Move X blocks','moveX',t.moveX??1,'number',-100,100,1)+f('Move Y blocks','moveY',t.moveY??0,'number',-100,100,1);if(t.kind==='color')h+=f('Object color','color',t.color||'#ff4fd8','color','','','');if(t.kind==='bg_custom')h+=f('BG top','bgTop',t.bgTop||'#182848','color','','','')+f('BG bottom','bgBottom',t.bgBottom||'#4b6cb7','color','','','');if(t.kind==='shake_custom')h+=f('Shake intensity','shakeAmount',t.shakeAmount??8,'number',1,30,1);if(t.kind==='rotate')h+=f('Rotation degrees','rotateAmount',t.rotateAmount??45,'number',-360,360,1);if(t.kind==='pulse')h+=f('Pulse scale','pulseAmount',t.pulseAmount??1.25,'number',.2,3,.05);cfg.innerHTML=h;}}
 }
 
 function applyInspector() {
@@ -691,20 +696,17 @@ function addAssetAtWorld(x, y) {
     editorDraft.pillars.push({ x: base.x, h: 90, w: 34 });
   } else if (item.type === 'coin') {
     editorDraft.coins.push({ x: base.x, y: clampCenter(snapY, 14), collected: false });
-  } else if (item.type === 'legacy_trigger') {
+  } else if (item.type === 'legacy_trigger' || item.type === 'custom_trigger') {
     const map = {
-      trig_speed_fast: { kind: 'speed_fast' },
-      trig_speed_slow: { kind: 'speed_slow' },
-      trig_speed_norm: { kind: 'speed_normal' },
-      trig_bg_purple: { kind: 'bg', bgTop: '#311042', bgBottom: '#7209b7' },
-      trig_bg_cyan: { kind: 'bg_cyan', bgTop: '#083344', bgBottom: '#0891b2' },
-      trig_shake: { kind: 'shake' },
-      trig_low_grav: { kind: 'low_grav' },
-      trig_high_grav: { kind: 'high_grav' },
-      trig_norm_grav: { kind: 'norm_grav' }
+      trig_speed_fast:{kind:'speed_fast'},trig_speed_slow:{kind:'speed_slow'},trig_speed_norm:{kind:'speed_normal'},
+      trig_bg_purple:{kind:'bg',bgTop:'#311042',bgBottom:'#7209b7'},trig_bg_cyan:{kind:'bg_cyan',bgTop:'#083344',bgBottom:'#0891b2'},
+      trig_shake:{kind:'shake',shakeAmount:12},trig_low_grav:{kind:'low_grav'},trig_high_grav:{kind:'high_grav'},trig_norm_grav:{kind:'norm_grav'},
+      trig_custom_speed:{kind:'speed_custom',speed:1.5},trig_move:{kind:'move',groupId:'1',moveX:1,moveY:0},
+      trig_color:{kind:'color',groupId:'1',color:'#ff4fd8'},trig_bg_custom:{kind:'bg_custom',bgTop:'#182848',bgBottom:'#4b6cb7'},
+      trig_shake_custom:{kind:'shake_custom',shakeAmount:8},trig_rotate:{kind:'rotate',groupId:'1',rotateAmount:45},trig_pulse:{kind:'pulse',groupId:'1',pulseAmount:1.25}
     };
-    const cfg = map[selectedAssetId];
-    if (cfg) editorDraft.triggers.push({ x: base.x, y: clampTop(snapY - 50, 100), triggered: false, ...cfg });
+    const cfg=map[selectedAssetId];
+    if(cfg)editorDraft.triggers.push({id:makeId(),x:base.x,y:clampTop(snapY-50,100),triggered:false,...cfg});
   } else {
     const radius = 18 * (base.scale || 1);
     editorDraft.decorations.push({ ...base, y: clampCenter(snapY, radius), kind: selectedAssetId, color: item.color });
