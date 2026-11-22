@@ -1905,10 +1905,10 @@ function eraseAtWorldCoord(x, y) {
     const hitRadius = EDITOR_GRID * 0.85;
     const matchX = (ox, ow = 0) => x >= ox - hitRadius && x <= ox + Math.max(EDITOR_GRID, ow) + hitRadius;
 
-    editorDraft.spikes = editorDraft.spikes.filter(o => !matchX(o.x, BLOCK_SIZE));
+    editorDraft.spikes = editorDraft.spikes.filter(o => !(matchX(o.x, o.sizeType === 'mini' ? MINI_SPIKE_W : BLOCK_SIZE) && Math.abs((Number.isFinite(Number(o.y)) ? Number(o.y) : (o.inverted ? CEILING_Y : GROUND_Y)) - y) <= hitRadius * 2));
     editorDraft.pads = editorDraft.pads.filter(o => !matchX(o.x, 36));
     editorDraft.pillars = editorDraft.pillars.filter(o => !matchX(o.x, o.w || 34));
-    editorDraft.portals = editorDraft.portals.filter(o => !matchX(o.x, PORTAL_WIDTH));
+    editorDraft.portals = editorDraft.portals.filter(o => !(matchX(o.x, PORTAL_WIDTH) && Math.abs((Number.isFinite(Number(o.y)) ? Number(o.y) : GROUND_Y - PORTAL_HEIGHT / 2) - y) <= PORTAL_HEIGHT / 2 + hitRadius));
     editorDraft.triggers = editorDraft.triggers.filter(o => !matchX(o.x, 28));
 
     editorDraft.platforms = editorDraft.platforms.filter(o =>
@@ -2038,7 +2038,7 @@ function drawEditorCanvas() {
         const sh = isMini ? MINI_SPIKE_H : BLOCK_SIZE;
         if (sx + sw < -50 || sx > w + 50) return;
         const inv = Boolean(spk.inverted);
-        const baseY = inv ? CEILING_Y : groundY;
+        const baseY = Number.isFinite(Number(spk.y)) ? Number(spk.y) : (inv ? CEILING_Y : groundY);
         const tipY = inv ? baseY + sh : baseY - sh;
         eCtx.fillStyle = '#ff3b5c';
         eCtx.beginPath();
@@ -2073,15 +2073,25 @@ function drawEditorCanvas() {
         eCtx.strokeStyle = pt.type === 'ship' ? '#00c8ff' : '#9dff00';
         eCtx.lineWidth = 4;
         eCtx.beginPath();
-        eCtx.ellipse(sx + PORTAL_WIDTH / 2, groundY - 50, 18, 45, 0, 0, Math.PI * 2);
+        eCtx.ellipse(sx + PORTAL_WIDTH / 2, Number.isFinite(Number(pt.y)) ? Number(pt.y) : groundY - PORTAL_HEIGHT / 2, 18, 45, 0, 0, Math.PI * 2);
         eCtx.stroke();
     });
 
     (editorDraft.triggers || []).forEach(trg => {
         const sx = trg.x + ox;
         if (sx < -50 || sx > w + 50) return;
-        eCtx.strokeStyle = '#00e5ff';
-        eCtx.strokeRect(sx, groundY - 100, 24, 100);
+        const triggerTop = Number.isFinite(Number(trg.y)) ? Number(trg.y) : groundY - 100;
+        const triggerColor = trg.kind && trg.kind.indexOf('speed') === 0 ? '#22d3ee' : trg.kind === 'bg' || trg.kind === 'bg_cyan' ? '#c084fc' : '#fbbf24';
+        eCtx.strokeStyle = triggerColor;
+        eCtx.fillStyle = triggerColor + '22';
+        eCtx.lineWidth = 2.5;
+        eCtx.setLineDash([5, 4]);
+        eCtx.fillRect(sx, triggerTop, 30, 100);
+        eCtx.strokeRect(sx, triggerTop, 30, 100);
+        eCtx.setLineDash([]);
+        eCtx.fillStyle = triggerColor;
+        eCtx.font = 'bold 9px sans-serif';
+        eCtx.fillText(String(trg.kind || 'TRG').toUpperCase().replace('_',' ').slice(0,8), sx + 2, triggerTop - 5);
     });
 
     // Linha de chegada no editor
