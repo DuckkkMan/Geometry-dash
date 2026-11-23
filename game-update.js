@@ -8,7 +8,7 @@ const orb = (x,y,color='yellow') => ({x,y,color,used:false});
 const saw = (x,y,r=22) => ({x,y,r,angle:0});
 const deco = (x,y,kind,color,scale=1) => ({x,y,kind,color,scale});
 const base = (name,difficulty,faceKey,bgTop,bgBottom,groundFill,groundGrid,finishX) => ({
- name,difficulty,stars:difficulty==='EASY'?2:difficulty==='NORMAL'?4:7,faceKey,
+ id:'builtin_'+name.toLowerCase().replace(/[^a-z0-9]+/g,'_'),name,difficulty,stars:difficulty==='EASY'?2:difficulty==='NORMAL'?4:7,faceKey,
  bgTop,bgBottom,groundFill,groundGrid,finishX,initialSpeed:1,
  spikes:[],platforms:[],blocks:[],pads:[],orbs:[],saws:[],pillars:[],
  coins:[],triggers:[],portals:[],decorations:[]
@@ -165,4 +165,21 @@ document.head.appendChild(style);
 const observer=new MutationObserver(installObjectControls);
 observer.observe(document.body,{childList:true,subtree:true});
 installObjectControls();
+/* Presets de skins: variedade visual por paletas, sem trocar os formatos dos ícones. */
+const SKIN_PRESETS=[['Arctic','#7deaff','#eafcff'],['Magma','#ff6b35','#ffd166'],['Toxic','#8cff00','#eaff9d'],['Galaxy','#8b5cf6','#f0abfc'],['Ocean','#087eae','#7dd3fc'],['Sunset','#f72585','#ffb4a2'],['Gold','#d99b00','#fff0a6'],['Ghost','#cbd5e1','#ffffff'],['Cyber','#00e5ff','#ff4fd8'],['Forest','#168a52','#a7f3d0'],['Candy','#ff70a6','#ffdfef'],['Void','#29214f','#a78bfa']];
+function installSkinPresets(){
+ const garage=document.querySelector('#skin-garage .garage-box');if(!garage||document.getElementById('skin-presets'))return;
+ const box=document.createElement('section');box.id='skin-presets';box.className='skin-presets';
+ const heading=document.createElement('strong');heading.textContent='SKIN PRESETS';box.appendChild(heading);
+ const grid=document.createElement('div');grid.className='skin-presets-grid';
+ SKIN_PRESETS.forEach(([name,primary,secondary])=>{const b=document.createElement('button');b.type='button';b.title=name;b.innerHTML='<i></i><span></span><small></small>';b.querySelector('i').style.background=primary;b.querySelector('span').style.background=secondary;b.querySelector('small').textContent=name;b.addEventListener('click',()=>{
+  const channels=[...document.querySelectorAll('.mode-skin-channel, .skin-channel')];
+  const picker=document.querySelector('.skin-custom-color input[type=color]');
+  if(channels.length&&picker){channels[0].click();picker.value=primary;picker.dispatchEvent(new Event('input',{bubbles:true}));if(channels[1])channels[1].click();picker.value=secondary;picker.dispatchEvent(new Event('input',{bubbles:true}));}
+  else if(typeof playerSkin!=='undefined'){playerSkin.primary=primary;playerSkin.secondary=secondary;writeSaveData();renderSkinUI();}
+ });grid.appendChild(b);});
+ box.appendChild(grid);garage.appendChild(box);
+}
+const skinObserver=new MutationObserver(installSkinPresets);skinObserver.observe(document.body,{childList:true,subtree:true});installSkinPresets();
+const musicStateMonitor=setInterval(()=>{if(gameState==='PLAYING'&&!musicTimer)startLevelMusic(activePlayableLevel);else if(gameState!=='PLAYING'&&musicTimer)stopLevelMusic();},350);
 })();

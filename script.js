@@ -1983,7 +1983,7 @@ function drawEditorCanvas() {
     (editorDraft.pillars || []).forEach(pil => {
         const sx = pil.x + ox;
         if (sx < -60 || sx > w + 60) return;
-        eCtx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+        eCtx.globalAlpha = Math.max(0, Math.min(1, Number(pil.opacity ?? 1))); eCtx.fillStyle = pil.colorOverride || '#ffffff';
         eCtx.fillRect(sx, groundY - (pil.h || 90), pil.w || 34, pil.h || 90);
     });
 
@@ -1991,8 +1991,9 @@ function drawEditorCanvas() {
         const sx = plat.x + ox;
         const py = plat.y !== undefined ? plat.y : groundY - 28;
         if (sx + (plat.w || 120) < -60 || sx > w + 60) return;
-        eCtx.fillStyle = '#18376b';
-        eCtx.strokeStyle = '#00e5ff';
+        eCtx.globalAlpha = Math.max(0, Math.min(1, Number(plat.opacity ?? 1)));
+        eCtx.fillStyle = plat.colorOverride || '#18376b';
+        eCtx.strokeStyle = plat.colorOverride || '#00e5ff';
         eCtx.lineWidth = 2;
         eCtx.fillRect(sx, py, plat.w || 120, plat.h || 28);
         eCtx.strokeRect(sx, py, plat.w || 120, plat.h || 28);
@@ -2002,8 +2003,9 @@ function drawEditorCanvas() {
         const sx = blk.x + ox;
         const by = blk.y !== undefined ? blk.y : groundY - BLOCK_SIZE;
         if (sx + BLOCK_SIZE < -60 || sx > w + 60) return;
-        eCtx.fillStyle = '#2563eb';
-        eCtx.strokeStyle = '#93c5fd';
+        eCtx.globalAlpha = Math.max(0, Math.min(1, Number(blk.opacity ?? 1)));
+        eCtx.fillStyle = blk.colorOverride || '#2563eb';
+        eCtx.strokeStyle = blk.colorOverride || '#93c5fd';
         eCtx.lineWidth = 2;
         eCtx.fillRect(sx, by, BLOCK_SIZE, BLOCK_SIZE);
         eCtx.strokeRect(sx, by, BLOCK_SIZE, BLOCK_SIZE);
@@ -2034,7 +2036,8 @@ function drawEditorCanvas() {
         const inv = Boolean(spk.inverted);
         const baseY = Number.isFinite(Number(spk.y)) ? Number(spk.y) : (inv ? CEILING_Y : groundY);
         const tipY = inv ? baseY + sh : baseY - sh;
-        eCtx.fillStyle = '#ff3b5c';
+        eCtx.globalAlpha = Math.max(0, Math.min(1, Number(spk.opacity ?? 1)));
+        eCtx.fillStyle = spk.colorOverride || '#ff3b5c';
         eCtx.beginPath();
         eCtx.moveTo(sx + 2, baseY);
         eCtx.lineTo(sx + sw / 2, tipY);

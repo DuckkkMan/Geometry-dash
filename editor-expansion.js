@@ -603,6 +603,7 @@ function getSelectionRecords() {
   return selectedObjects.map(sel => ({ key: sel.key, obj: sel.obj })).filter(s => (editorDraft[s.key] || []).includes(s.obj));
 }
 window.__gdEditorSelection = () => getSelectionRecords();
+window.__gdEditorSelection = () => getSelectionRecords();
 
 function refreshInspector() {
   const records = getSelectionRecords();
