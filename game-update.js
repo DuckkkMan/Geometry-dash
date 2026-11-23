@@ -149,7 +149,7 @@ triggerDeath=function(){stopLevelMusic();return originalTriggerDeath.apply(this,
 const originalTriggerWin=triggerWin;
 triggerWin=function(){stopLevelMusic();return originalTriggerWin.apply(this,arguments);};
 const originalShowOverlay=showOverlay;
-showOverlay=function(el,state){if(state!=='PLAYING')stopLevelMusic();return originalShowOverlay.apply(this,arguments);};
+showOverlay=function(el,state){if(state!=='PLAYING')stopLevelMusic();const result=originalShowOverlay.apply(this,arguments);if(state==='PLAYING'&&visualSettings.music)startLevelMusic(activePlayableLevel);return result;};
 
 /* As três fases oficiais do projeto podem ser abertas diretamente no editor. */
 const originalRenderLevelSelect=renderLevelSelect;

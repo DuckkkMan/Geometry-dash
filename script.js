@@ -2174,7 +2174,7 @@ function setupExtraSettings() {
     bind('setting-shake', 'shake');
     bind('setting-particles', 'particles');
     bind('setting-volume','volume','range');bind('setting-background-grid','backgroundGrid');bind('setting-menu-preview','menuPreview');bind('setting-glow','glow');
-    const quality=document.getElementById('setting-quality');if(quality){quality.value=graphicsQuality;quality.addEventListener('change',()=>{graphicsQuality=['auto','low','balanced','high'].includes(quality.value)?quality.value:'auto';try{localStorage.setItem('gd_graphics_quality',graphicsQuality);}catch(_){}lowPerformanceMode=graphicsQuality==='low'||(graphicsQuality==='auto'&&controlPlatform==='mobile');});}
+    const quality=document.getElementById('setting-quality');if(quality){quality.value=graphicsQuality;quality.addEventListener('change',()=>{graphicsQuality=['auto','low','balanced','high'].includes(quality.value)?quality.value:'auto';try{localStorage.setItem('gd_graphics_quality',graphicsQuality);}catch(_){}lowPerformanceMode=graphicsQuality==='low'||(graphicsQuality==='auto'&&controlPlatform==='mobile');const status=document.getElementById('low-performance-status');if(status)status.textContent=lowPerformanceMode?'ATIVADO — efeitos reduzidos para melhorar o desempenho.':'Qualidade: '+graphicsQuality.toUpperCase()+' — efeitos conforme suas opções.';});}
     lowPerformanceMode=graphicsQuality==='low'||(graphicsQuality==='auto'&&controlPlatform==='mobile');
 }
 
