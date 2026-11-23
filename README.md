@@ -8,7 +8,7 @@ Protótipo de navegador inspirado em jogos de plataforma de ritmo, feito com HTM
 - Sete modos jogáveis: Cube, Ship, Ball, UFO, Wave, Robot e Spider.
 - Portais desenhados em tempo real no Canvas, com brilho, anéis e partículas.
 - Garagem com oito variações de ícone por modo e paletas de cores.
-- Editor refinado com 133 objetos vetoriais em categorias, sem campo de pesquisa, espinhos, blocos, plataformas, pads, orbs, serras, moedas, triggers, portais e decorações.
+- Editor com biblioteca categorizada e busca global, blocos de vários tamanhos, half/quarter blocks, rampas, plataformas curtas/longas/finas, espinhos, pads, orbs, serras de tamanhos diferentes, moedas, triggers, portais e decorações.
 - Ferramentas de seleção com arraste alinhado à grade, mover câmera, apagar, copiar/colar/duplicar e histórico de desfazer/refazer.
 - Importação e exportação de fases em JSON.
 - Modo prática, checkpoints, progresso e trilha do jogador.

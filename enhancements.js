@@ -414,7 +414,9 @@ function drawPlayerTrail() {
   if (lowPerformanceMode || activeTrail.length < 2) return;
   ctx.save();
   ctx.beginPath();
-  activeTrail.forEach((pt, i) => {
+  const visibleTrail = activeTrail.filter(pt => pt.x >= levelDistance - 1100);
+  if (visibleTrail.length < 2) { ctx.restore(); return; }
+  visibleTrail.forEach((pt, i) => {
     const sx = pt.x - levelDistance + 160;
     const sy = pt.y;
     if (i === 0) ctx.moveTo(sx, sy);
@@ -438,16 +440,10 @@ loop = function () {
   if (gameState === 'PLAYING' && !lowPerformanceMode) {
     if (trailTick++ % 2 === 0) {
       activeTrail.push({ x: levelDistance, y: player.y + player.size / 2 });
-      if (activeTrail.length > 1500) activeTrail.splice(0, 300);
+      if (activeTrail.length > 420) activeTrail.splice(0, 60);
     }
   }
   originalLoop();
-};
-
-const oldDrawLevelElements = drawLevelElementsInWorld;
-drawLevelElementsInWorld = function () {
-  oldDrawLevelElements();
-  drawPlayerTrail();
 };
 
 // Portais extras na paleta base
