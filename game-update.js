@@ -171,7 +171,8 @@ function installObjectControls(){
  window.__gdSyncObjectStyle=records=>{
   const first=records&&records[0];[color,opacity,collision].forEach(input=>input.disabled=!first);if(!first)return;
   const obj=first.obj;color.value=/^#[0-9a-f]{6}$/i.test(obj.colorOverride||obj.color||'')?(obj.colorOverride||obj.color):'#ffffff';
-  opacity.value=Math.round(Math.max(0,Math.min(1,Number(obj.opacity??1)))*100);label.textContent=opacity.value+'%';collision.checked=obj.collision!==false;
+  opacity.value=Math.round(Math.max(0,Math.min(1,Number(obj.opacity??1)))*100);label.textContent=opacity.value+'%';collision.disabled = !first || first.key !== 'decorations';
+  collision.checked = obj.collision === true;
   color.dataset.originalValue=color.value;opacity.dataset.originalValue=opacity.value;collision.dataset.originalValue=String(collision.checked);
  };
  opacity.addEventListener('input',()=>label.textContent=opacity.value+'%');

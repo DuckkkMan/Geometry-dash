@@ -16,6 +16,12 @@ const EXTRA_CATEGORIES = [
     ['slope', 'Slope', 'slope', '#60a5fa'],
     ['slope_reverse', 'Reverse Slope', 'slope_reverse', '#3b82f6'],
     ['quarter_block', 'Quarter Block', 'quarter_block', '#93c5fd'],
+    ['block_tall', 'Tall Block', 'block_tall', '#60a5fa'],
+    ['block_wide', 'Wide Block', 'block_wide', '#3b82f6'],
+    ['block_big', '2×2 Block', 'block_big', '#2563eb'],
+    ['platform_short', 'Short Platform', 'platform_short', '#22d3ee'],
+    ['platform_long', 'Long Platform', 'platform_long', '#06b6d4'],
+    ['platform_thin', 'Thin Platform', 'platform_thin', '#67e8f9'],
     ['double_block', 'Double Block', 'decoration', '#2563eb'],
     ['outlined_block', 'Outlined Block', 'decoration', '#93c5fd']
   ]},
@@ -54,6 +60,8 @@ const EXTRA_CATEGORIES = [
   ]},
   { id: 'structures', name: 'Structures', icon: '▤', items: [
     ['saw', 'Saw', 'saw', '#94a3b8'],
+    ['saw_small', 'Small Saw', 'saw_small', '#cbd5e1'],
+    ['saw_large', 'Large Saw', 'saw_large', '#64748b'],
     ['pillar', 'Pillar', 'pillar', '#e2e8f0']
   ]},
   { id: 'triggers', name: 'Triggers', icon: '⚡', items: [
@@ -370,14 +378,17 @@ function drawAssetThumb(tCtx, item, size) {
     tCtx.strokeStyle = c;
     tCtx.lineWidth = size * 0.13;
     tCtx.stroke();
-  } else if (type === 'saw') {
-    tCtx.beginPath();
-    tCtx.arc(0, 0, size * 0.34, 0, Math.PI * 2);
-    tCtx.fill();
-    tCtx.stroke();
+  } else if (type === 'saw' || type === 'saw_small' || type === 'saw_large') {
+    const sawRadius = type === 'saw_small' ? .23 : type === 'saw_large' ? .42 : .34;
+    tCtx.beginPath(); tCtx.arc(0, 0, size * sawRadius, 0, Math.PI * 2); tCtx.fill(); tCtx.stroke();
+    tCtx.beginPath(); tCtx.arc(0, 0, size * sawRadius * .48, 0, Math.PI * 2); tCtx.stroke();
   } else if (type === 'block' || type === 'platform' || type === 'pillar') {
     tCtx.fillRect(-size * 0.36, -size * 0.36, size * 0.72, size * 0.72);
     tCtx.strokeRect(-size * 0.36, -size * 0.36, size * 0.72, size * 0.72);
+  } else if (['block_tall','block_wide','block_big','platform_short','platform_long','platform_thin'].includes(type)) {
+    const dims = ({block_tall:[.42,.78],block_wide:[.78,.42],block_big:[.78,.78],platform_short:[.48,.22],platform_long:[.88,.22],platform_thin:[.78,.12]})[type];
+    tCtx.fillRect(-size*dims[0]/2,-size*dims[1]/2,size*dims[0],size*dims[1]);
+    tCtx.strokeRect(-size*dims[0]/2,-size*dims[1]/2,size*dims[0],size*dims[1]);
   } else if (['half_block','quarter_block','slope','slope_reverse'].includes(type)) {
     tCtx.beginPath();
     if (type === 'half_block') { tCtx.rect(-size*.36, 0, size*.72, size*.36); }
@@ -419,10 +430,16 @@ function renderAssetLibrary() {
   if (!grid) return;
   grid.replaceChildren();
   const cat = EXTRA_CATEGORIES.find(c => c.id === activeCategory) || EXTRA_CATEGORIES[0];
-  $('editor-category-title').textContent = cat.name;
-  $('editor-asset-count').textContent = (EXTRA_CATEGORIES.findIndex(c => c.id === activeCategory) + 1) + ' / ' + EXTRA_CATEGORIES.length + '  •  ' + cat.items.length + ' OBJETOS';
+  const search = String($('editor-asset-search')?.value || '').trim().toLocaleLowerCase();
+  const sourceItems = search
+    ? EXTRA_CATEGORIES.flatMap(category => category.items.map(raw => ({ raw, category })))
+        .filter(entry => (entry.raw[0] + ' ' + entry.raw[1] + ' ' + entry.category.name).toLocaleLowerCase().includes(search))
+    : cat.items.map(raw => ({ raw, category: cat }));
+  $('editor-category-title').textContent = search ? 'Resultados da busca' : cat.name;
+  $('editor-asset-count').textContent = sourceItems.length + ' OBJETOS' + (search ? ' ENCONTRADOS' : '');
 
-  cat.items.forEach(raw => {
+  sourceItems.forEach(entry => {
+    const raw = entry.raw;
     const item = ASSET_BY_ID[raw[0]];
     const b = document.createElement('button');
     b.type = 'button';
@@ -435,6 +452,7 @@ function renderAssetLibrary() {
     name.textContent = item.label;
     b.append(cv, name);
     b.addEventListener('click', () => {
+      activeCategory = entry.category.id;
       selectedAssetId = item.id;
       editorSelectedItem = item.id;
       editorToolMode = 'place';
@@ -460,8 +478,9 @@ function addCategoryPanel() {
   ['editor-panel-assets', 'editor-panel-triggers', 'editor-panel-style'].forEach(id => $(id)?.classList.add('hidden'));
   const panel = document.createElement('section');
   panel.id = 'editor-library';
-  panel.innerHTML = '<div class="editor-library-head"><button class="editor-category-arrow" id="editor-category-prev" type="button" aria-label="Categoria anterior" title="Categoria anterior">‹</button><div class="editor-category-current"><small>BIBLIOTECA DE OBJETOS</small><strong id="editor-category-title">Blocks</strong><span id="editor-asset-count"></span></div><button class="editor-category-arrow" id="editor-category-next" type="button" aria-label="Próxima categoria" title="Próxima categoria">›</button></div><div class="editor-asset-grid"></div><div class="editor-selected-label" id="editor-selected-name">Selecione um objeto</div>';
+  panel.innerHTML = '<div class="editor-library-head"><button class="editor-category-arrow" id="editor-category-prev" type="button" aria-label="Categoria anterior" title="Categoria anterior">‹</button><div class="editor-category-current"><small>BIBLIOTECA DE OBJETOS</small><strong id="editor-category-title">Blocks</strong><span id="editor-asset-count"></span><input id="editor-asset-search" type="search" placeholder="Buscar blocos, orbs, portais..." autocomplete="off"></div><button class="editor-category-arrow" id="editor-category-next" type="button" aria-label="Próxima categoria" title="Próxima categoria">›</button></div><div class="editor-asset-grid"></div><div class="editor-selected-label" id="editor-selected-name">Selecione um objeto</div>';
   bottom.appendChild(panel);
+  $('editor-asset-search').addEventListener('input', renderAssetLibrary);
   $('editor-category-prev').addEventListener('click', () => changeEditorCategory(-1));
   $('editor-category-next').addEventListener('click', () => changeEditorCategory(1));
   renderAssetLibrary();
@@ -777,10 +796,12 @@ function addAssetAtWorld(x, y) {
       sizeType: item.type === 'mini_spike' ? 'mini' : 'normal',
       inverted: item.type === 'ceil_spike'
     });
-  } else if (item.type === 'platform') {
-    editorDraft.platforms.push({ x: base.x, y: clampTop(snapY, 28), w: EDITOR_GRID * 2, h: 28 });
-  } else if (item.type === 'block') {
-    editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, BLOCK_SIZE), w: BLOCK_SIZE, h: BLOCK_SIZE, shape: 'full' });
+  } else if (item.type === 'platform' || item.type.indexOf('platform_') === 0) {
+    const platformSize = item.type === 'platform_short' ? {w: BLOCK_SIZE, h: 20} : item.type === 'platform_long' ? {w: BLOCK_SIZE * 4, h: 24} : item.type === 'platform_thin' ? {w: BLOCK_SIZE * 3, h: 12} : {w: EDITOR_GRID * 2, h: 28};
+    editorDraft.platforms.push({ x: base.x, y: clampTop(snapY, platformSize.h), ...platformSize });
+  } else if (item.type === 'block' || item.type.indexOf('block_') === 0) {
+    const blockSize = item.type === 'block_tall' ? {w: BLOCK_SIZE, h: BLOCK_SIZE * 2} : item.type === 'block_wide' ? {w: BLOCK_SIZE * 2, h: BLOCK_SIZE} : item.type === 'block_big' ? {w: BLOCK_SIZE * 2, h: BLOCK_SIZE * 2} : {w: BLOCK_SIZE, h: BLOCK_SIZE};
+    editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, blockSize.h), ...blockSize, shape: 'full' });
   } else if (item.type === 'half_block') {
     editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, BLOCK_SIZE / 2), w: BLOCK_SIZE, h: BLOCK_SIZE / 2, shape: 'half' });
   } else if (item.type === 'quarter_block') {
@@ -793,8 +814,9 @@ function addAssetAtWorld(x, y) {
     editorDraft.pads.push({ x: base.x, color: selectedAssetId.replace('pad_', ''), cooldown: 0 });
   } else if (item.type === 'portal_cube' || item.type === 'portal_ship' || item.type === 'portal_extra') {
     editorDraft.portals.push({ x: base.x, y: clampCenter(snapY, PORTAL_HEIGHT / 2), type: selectedAssetId.replace('portal_', ''), triggered: false });
-  } else if (item.type === 'saw') {
-    editorDraft.saws.push({ x: base.x, y: clampCenter(snapY, 22), r: 22, angle: 0 });
+  } else if (item.type === 'saw' || item.type === 'saw_small' || item.type === 'saw_large') {
+    const radius = item.type === 'saw_small' ? 14 : item.type === 'saw_large' ? 34 : 22;
+    editorDraft.saws.push({ x: base.x, y: clampCenter(snapY, radius), r: radius, angle: 0 });
   } else if (item.type === 'pillar') {
     editorDraft.pillars.push({ x: base.x, h: 90, w: 34 });
   } else if (item.type === 'coin') {
