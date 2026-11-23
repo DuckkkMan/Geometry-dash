@@ -320,7 +320,7 @@ function drawProceduralPortal(portal, screenX) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.shadowColor = color;
-  ctx.shadowBlur = lowPerformanceMode ? 8 : 24;
+  ctx.shadowBlur=!visualSettings.glow||lowPerformanceMode?0:(graphicsQuality==='balanced'?10:24);
   ctx.translate(cx, cy);
   ctx.scale(pulse, 1);
   ctx.strokeStyle = color;
@@ -451,7 +451,7 @@ player.draw = function () {
     ctx.save();
     ctx.fillStyle = '#ff8a00';
     ctx.shadowColor = '#ff6a00';
-    ctx.shadowBlur = 9;
+    ctx.shadowBlur=visualSettings.glow&&!lowPerformanceMode?9:0;
     ctx.beginPath();
     ctx.moveTo(this.x - 5, this.y + this.size * 0.35);
     ctx.lineTo(this.x - 22 - Math.random() * 8, this.y + this.size * 0.5);
@@ -659,60 +659,13 @@ function renderModeGarage() {
   }
   panel.appendChild(models);
 
-  const colorSection = document.createElement('div');
-  colorSection.className = 'skin-color-section';
-  const colorHead = document.createElement('div');
-  colorHead.className = 'skin-section-heading';
-  const colorTitle = document.createElement('span');
-  colorTitle.textContent = 'PERSONALIZAR CORES';
-  colorHead.appendChild(colorTitle);
-  colorSection.appendChild(colorHead);
-
-  const channelRow = document.createElement('div');
-  channelRow.className = 'skin-channel-row';
-  ['primary', 'secondary'].forEach((channel, index) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'skin-channel' + (activeColorChannel === channel ? ' selected' : '');
-    b.textContent = index === 0 ? 'COR 1' : 'COR 2';
-    const dot = document.createElement('i');
-    dot.style.background = skin[channel];
-    b.prepend(dot);
-    b.addEventListener('click', () => { activeColorChannel = channel; renderModeGarage(); });
-    channelRow.appendChild(b);
-  });
-  colorSection.appendChild(channelRow);
-
-  const customRow = document.createElement('label');
-  customRow.className = 'skin-custom-color';
-  const customLabel = document.createElement('span');
-  customLabel.textContent = activeColorChannel === 'primary' ? 'COR 1 — ESCOLHA QUALQUER COR' : 'COR 2 — ESCOLHA QUALQUER COR';
-  const picker = document.createElement('input');
-  picker.type = 'color';
-  picker.value = skin[activeColorChannel];
-  picker.addEventListener('input', () => {
-    skin[activeColorChannel] = picker.value;
-    tintedSkinCache.clear();
-    syncPlayerSkinFromMode();
-    saveModeSkins();
-    // Atualiza as miniaturas sem recriar o input (o seletor de cor continua aberto).
-    panel.querySelectorAll('.mode-model').forEach((card, index) => {
-      const cv = card.querySelector('canvas');
-      if (!cv) return;
-      const previewCtx = cv.getContext('2d');
-      previewCtx.clearRect(0, 0, cv.width, cv.height);
-      drawModeIcon(previewCtx, activeSkinMode, 6, 6, 52, 0, { ...skin, model: index });
-    });
-    panel.querySelectorAll('.skin-channel').forEach((button, index) => {
-      const dot = button.querySelector('i');
-      if (dot) dot.style.background = index === 0 ? skin.primary : skin.secondary;
-    });
-    renderSkinUI();
-  });
-  picker.addEventListener('change', () => renderModeGarage());
-  customRow.append(customLabel, picker);
-  colorSection.appendChild(customRow);
-
+  const colorSection=document.createElement('div');colorSection.className='skin-color-section';
+  const colorHead=document.createElement('div');colorHead.className='skin-section-heading';const colorTitle=document.createElement('span');colorTitle.textContent='DEGRADÊ DA SKIN';colorHead.appendChild(colorTitle);colorSection.appendChild(colorHead);
+  const gradientPreview=document.createElement('div');gradientPreview.className='skin-gradient-preview';const updateGradient=()=>{gradientPreview.style.background='linear-gradient(90deg,'+skin.primary+','+skin.secondary+')';};updateGradient();colorSection.appendChild(gradientPreview);
+  const inputs=document.createElement('div');inputs.className='skin-gradient-inputs';
+  function refreshColorPreview(){playerSkin.model=skin.model;playerSkin.primary=skin.primary;playerSkin.secondary=skin.secondary;panel.querySelectorAll('.mode-model').forEach((card,i)=>{const cv=card.querySelector('canvas');if(!cv)return;const pc=cv.getContext('2d');pc.clearRect(0,0,cv.width,cv.height);drawModeIcon(pc,activeSkinMode,6,6,52,0,{...skin,model:i});});renderSkinUI();}
+  [['primary','COR 1'],['secondary','COR 2']].forEach(([key,label])=>{const field=document.createElement('label');field.className='skin-custom-color';const span=document.createElement('span');span.textContent=label;const picker=document.createElement('input');picker.type='color';picker.value=skin[key];picker.setAttribute('aria-label',label+' do degradê');picker.addEventListener('input',()=>{skin[key]=picker.value.toLowerCase();updateGradient();refreshColorPreview();});picker.addEventListener('change',()=>{syncPlayerSkinFromMode();saveModeSkins();});field.append(span,picker);inputs.appendChild(field);});
+  colorSection.appendChild(inputs);
   const footer = document.createElement('div');
   footer.className = 'skin-panel-footer';
   const reset = document.createElement('button');

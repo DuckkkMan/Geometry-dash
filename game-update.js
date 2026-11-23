@@ -113,6 +113,7 @@ function stopLevelMusic(){
 }
 function startLevelMusic(level){
  stopLevelMusic();
+ if(!visualSettings.music)return;
  const Audio=window.AudioContext||window.webkitAudioContext;
  if(!Audio)return;
  try{
@@ -141,7 +142,7 @@ function startLevelMusic(level){
 const originalStartLevel=startLevel;
 startLevel=function(level,fromEditor=false){
  originalStartLevel(level,fromEditor);
- if(gameState==='PLAYING')startLevelMusic(activePlayableLevel);
+ if(gameState==='PLAYING'&&visualSettings.music)startLevelMusic(activePlayableLevel);
 };
 const originalTriggerDeath=triggerDeath;
 triggerDeath=function(){stopLevelMusic();return originalTriggerDeath.apply(this,arguments);};
@@ -223,5 +224,6 @@ const style=document.createElement('style');
 style.textContent='.builtin-edit-level{position:absolute;right:14px;bottom:14px;z-index:5;padding:9px 13px;border:2px solid #66d9ff;border-radius:7px;background:#123d68;color:#fff;font:900 10px Orbitron,sans-serif;cursor:pointer}.object-style-fields{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:8px;border:1px solid #2d83aa;border-radius:7px;background:#071d32}.object-style-fields label{display:flex;flex-direction:column;gap:4px;color:#d9f5ff;font-size:9px}.object-style-fields input[type=color]{width:100%;height:28px}.object-style-fields .collision-option{grid-column:1/-1;flex-direction:row;align-items:center}.object-style-fields input[type=range]{width:100%}';
 document.head.appendChild(style);
 const observer=new MutationObserver(installObjectControls);observer.observe(document.body,{childList:true,subtree:true});installObjectControls();
-const musicStateMonitor=setInterval(()=>{if(gameState==='PLAYING'&&!musicTimer)startLevelMusic(activePlayableLevel);else if(gameState!=='PLAYING'&&musicTimer)stopLevelMusic();},350);
+window.__gdStopLevelMusic=stopLevelMusic;
+window.__gdStartLevelMusic=startLevelMusic;
 })();

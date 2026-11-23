@@ -2137,3 +2137,5 @@ body { overflow:auto; }
     max-height: 400px;
   }
 }
+
+.quality-setting{display:flex;flex-direction:column;gap:6px;color:#c3d9eb;font-size:11px;font-weight:800}.quality-setting select{width:100%;padding:8px;border:1px solid #345779;border-radius:7px;background:#0b1d32;color:#e8f7ff;font:700 10px Orbitron,sans-serif}.skin-gradient-preview{height:18px;width:100%;margin:8px 0 12px;border:2px solid #07101e;border-radius:8px;box-shadow:0 0 0 1px rgba(255,255,255,.2)}.skin-gradient-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.skin-gradient-inputs .skin-custom-color{min-width:0}.skin-gradient-inputs .skin-custom-color span{font-weight:900}.extra-settings{max-height:240px;overflow-y:auto}

@@ -660,8 +660,8 @@ function refreshInspector() {
     const input = $(id);
     if (input) input.disabled = !first;
   });
-  if ($('inspect-rotation')) $('inspect-rotation').disabled = !first || first.key !== 'decorations';
-  if ($('inspect-scale')) $('inspect-scale').disabled = !first || first.key !== 'decorations';
+  if ($('inspect-rotation')) $('inspect-rotation').disabled = !first;
+  if ($('inspect-scale')) $('inspect-scale').disabled = !first;
   if (!first) {
     if (typeof window.__gdSyncObjectStyle === 'function') window.__gdSyncObjectStyle([]);
     return;
@@ -706,29 +706,15 @@ function refreshInspector() {
 }
 
 function applyInspector() {
-  const records = getSelectionRecords();
-  if (!records.length) return;
-  const rotationInput = $('inspect-rotation');
-  const scaleInput = $('inspect-scale');
-  const groupsInput = $('inspect-groups');
-  const canTransform = records.every(record => record.key === 'decorations');
-  const rot = canTransform && rotationInput && !rotationInput.disabled ? Number(rotationInput.value) : null;
-  const scalePercent = canTransform && scaleInput && !scaleInput.disabled ? Number(scaleInput.value) : null;
-  const groupsValue = groupsInput ? groupsInput.value : '';
-  const changeRotation = rot !== null && Number.isFinite(rot) && rot !== Number(rotationInput.dataset.originalValue);
-  const changeScale = scalePercent !== null && Number.isFinite(scalePercent) && scalePercent >= 10 && scalePercent <= 500 && scalePercent !== Number(scaleInput.dataset.originalValue);
-  const changeGroups = Boolean(groupsInput && !groupsInput.disabled && String(groupsValue) !== String(groupsInput.dataset.originalValue));
-  if (!changeRotation && !changeScale && !changeGroups) return;
-  recordHistory();
-  records.forEach(record => {
-    const obj = record.obj;
-    if (record.key === 'decorations' && changeRotation) obj.rotation = rot * Math.PI / 180;
-    if (record.key === 'decorations' && changeScale) obj.scale = scalePercent / 100;
-    if (changeGroups) assignGroups(obj, groupsValue);
-  });
-  refreshInspector();
-  drawEditorCanvas();
-  queueEditorAutosave();
+ const records=getSelectionRecords();if(!records.length)return;
+ const ri=$('inspect-rotation'),si=$('inspect-scale'),gi=$('inspect-groups');
+ const rot=ri&&!ri.disabled?Number(ri.value):null,scale=si&&!si.disabled?Number(si.value):null,groups=gi?gi.value:'';
+ const cr=rot!==null&&Number.isFinite(rot)&&rot!==Number(ri.dataset.originalValue);
+ const cs=scale!==null&&Number.isFinite(scale)&&scale>=10&&scale<=500&&scale!==Number(si.dataset.originalValue);
+ const cg=Boolean(gi&&!gi.disabled&&String(groups)!==String(gi.dataset.originalValue));
+ if(!cr&&!cs&&!cg)return;recordHistory();
+ records.forEach(({obj})=>{if(cr)obj.rotation=rot*Math.PI/180;if(cs)obj.scale=scale/100;if(cg)assignGroups(obj,groups);});
+ refreshInspector();drawEditorCanvas();queueEditorAutosave();
 }
 
 function findObjectAt(point) {
@@ -940,9 +926,7 @@ drawEditorCanvas = function () {
   getSelectionRecords().forEach(record => {
     const center = objectCenter(record.obj, record.key);
     const sx = center.x - editorScrollX + 80;
-    const boxW = Math.max(gridUnit, Number(record.obj.w) || gridUnit);
-    const boxH = Math.max(gridUnit, Number(record.obj.h) || gridUnit);
-    eCtx.strokeRect(sx - boxW / 2, center.y - boxH / 2, boxW, boxH);
+    const objectScale=Math.max(.1,Math.min(5,Number(record.obj.scale)||1));const boxW=Math.max(gridUnit,Number(record.obj.w)||gridUnit)*objectScale;const boxH=Math.max(gridUnit,Number(record.obj.h)||gridUnit)*objectScale;eCtx.save();eCtx.translate(sx,center.y);eCtx.rotate(Number(record.obj.rotation)||0);eCtx.strokeRect(-boxW/2,-boxH/2,boxW,boxH);eCtx.restore();
   });
   eCtx.restore();
 };

@@ -352,12 +352,10 @@ let activePlayableLevel = LEVELS[0];
 let currentLevelIndex = 0;
 
 function applyPlatformSettingsUI() {
-    lowPerformanceMode = controlPlatform === 'mobile';
+    lowPerformanceMode = graphicsQuality === 'low' || (graphicsQuality === 'auto' && controlPlatform === 'mobile');
     const lowHint = document.getElementById('low-performance-status');
     if (lowHint) {
-        lowHint.textContent = lowPerformanceMode
-            ? 'ATIVADO — efeitos reduzidos para melhorar o desempenho.'
-            : 'Desativado no modo PC.';
+        lowHint.textContent=lowPerformanceMode?'ATIVADO — efeitos reduzidos para melhorar o desempenho.':'Qualidade: '+graphicsQuality.toUpperCase()+' — efeitos conforme suas opções.';
     }
     const pcBtn = document.getElementById('mode-pc-btn');
     const mobileBtn = document.getElementById('mode-mobile-btn');
@@ -437,7 +435,7 @@ function updatePracticeUI() {
 }
 
 function spawnEndParticles(x, y, count = 16, soft = false) {
-    const maxParticles = lowPerformanceMode ? Math.min(count, 6) : count;
+    const maxParticles=lowPerformanceMode?Math.min(count,6):(graphicsQuality==='balanced'?Math.min(count,10):count);
     for (let i = 0; i < maxParticles; i++) {
         const angle = (Math.PI * 2 * i) / maxParticles + Math.random() * 0.4;
         const speed = (soft ? 1.8 : 3.2) + Math.random() * 4.5;
@@ -787,7 +785,7 @@ function drawLevelDecoration(item, screenX) {
     ctx.strokeStyle = '#06101e';
     ctx.fillStyle = item.color || '#7dd3fc';
     ctx.shadowColor = item.color || '#7dd3fc';
-    ctx.shadowBlur = lowPerformanceMode ? 2 : Math.max(3, r * 0.22);
+    ctx.shadowBlur=!visualSettings.glow||lowPerformanceMode?0:(graphicsQuality==='balanced'?Math.max(1,r*.1):Math.max(3,r*.22));
     const poly = points => {
         ctx.beginPath();
         ctx.moveTo(points[0][0] * r, points[0][1] * r);
@@ -1204,24 +1202,10 @@ function drawBackgroundAndGround() {
     const groundFill = runtimeGroundFill || activePlayableLevel.groundFill || '#001d5c';
     const groundGrid = runtimeGroundGrid || activePlayableLevel.groundGrid || '#0044cc';
 
-    const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-    grad.addColorStop(0, bgTop);
-    grad.addColorStop(1, bgBottom);
-    ctx.fillStyle = grad;
+    const gradientKey=bgTop+'|'+bgBottom+'|'+canvas.height+'|'+GROUND_Y;if(!backgroundGradientCache||backgroundGradientCacheKey!==gradientKey){backgroundGradientCache=ctx.createLinearGradient(0,0,0,GROUND_Y);backgroundGradientCache.addColorStop(0,bgTop);backgroundGradientCache.addColorStop(1,bgBottom);backgroundGradientCacheKey=gradientKey;}ctx.fillStyle=backgroundGradientCache;
     ctx.fillRect(0, 0, canvas.width, GROUND_Y);
 
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.lineWidth = 2;
-    const stepBg = 120;
-    const offsetBg = -(bgScroll % stepBg);
-    for (let x = offsetBg; x < canvas.width; x += stepBg) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, GROUND_Y);
-        ctx.stroke();
-    }
-    ctx.restore();
+    if(visualSettings.backgroundGrid&&graphicsQuality!=='low'){ctx.save();ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=2;const step=120,off=-(bgScroll%step);ctx.beginPath();for(let x=off;x<canvas.width;x+=step){ctx.moveTo(x,0);ctx.lineTo(x,GROUND_Y);}ctx.stroke();ctx.restore();}
 
     if (inGameplay && playerMode === 'ship') {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
@@ -1231,23 +1215,7 @@ function drawBackgroundAndGround() {
     ctx.fillStyle = groundFill;
     ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
 
-    ctx.save();
-    ctx.strokeStyle = groundGrid;
-    ctx.lineWidth = 2;
-    const offsetG = -(groundScroll % BLOCK_SIZE);
-    for (let x = offsetG; x < canvas.width; x += BLOCK_SIZE) {
-        ctx.beginPath();
-        ctx.moveTo(x, GROUND_Y);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-    }
-    for (let y = GROUND_Y; y < canvas.height; y += BLOCK_SIZE) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-    }
-    ctx.restore();
+    if(visualSettings.backgroundGrid&&graphicsQuality!=='low'){ctx.save();ctx.strokeStyle=groundGrid;ctx.lineWidth=2;const off=-(groundScroll%BLOCK_SIZE);ctx.beginPath();for(let x=off;x<canvas.width;x+=BLOCK_SIZE){ctx.moveTo(x,GROUND_Y);ctx.lineTo(x,canvas.height);}for(let y=GROUND_Y;y<canvas.height;y+=BLOCK_SIZE){ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);}ctx.stroke();ctx.restore();}
 
     ctx.fillStyle = '#00e5ff';
     ctx.fillRect(0, GROUND_Y - 2, canvas.width, 4);
@@ -1423,10 +1391,7 @@ function loop() {
         }
         if (visualSettings.particles) updateAndDrawParticles(); else particles.length = 0;
     } else {
-        // Fundo e demonstração jogável animados no menu principal e nos submenus.
-        bgScroll += 1.2;
-        groundScroll += 2.4;
-        drawMenuPreview();
+        if(visualSettings.menuPreview&&graphicsQuality!=='low'){bgScroll+=1.2;groundScroll+=2.4;drawMenuPreview();}
     }
 
     if (winFlashAlpha > 0) {
@@ -1872,178 +1837,25 @@ function editAtEditorPointer(pointerEvent) {
 }
 
 function drawEditorCanvas() {
-    if (!editorDraft) return;
-    const w = editorCanvas.width;
-    const h = editorCanvas.height;
-    const groundY = Math.min(h - 44, GROUND_Y);
-
-    eCtx.save();
-    eCtx.clearRect(0, 0, w, h);
-
-    const grad = eCtx.createLinearGradient(0, 0, 0, groundY);
-    grad.addColorStop(0, editorDraft.bgTop || '#1e1b4b');
-    grad.addColorStop(1, editorDraft.bgBottom || '#4338ca');
-    eCtx.fillStyle = grad;
-    eCtx.fillRect(0, 0, w, groundY);
-
-    // Grid alinhada exatamente ao EDITOR_GRID (44px) e editorScrollX
-    if (editorShowGrid) {
-        const gridStrength = window.__editorGridStrength || 'normal';
-        const gridAlpha = gridStrength === 'soft' ? 0.07 : (gridStrength === 'strong' ? 0.24 : 0.14);
-        eCtx.strokeStyle = 'rgba(255, 255, 255, ' + gridAlpha + ')';
-        eCtx.lineWidth = 1;
-        const startX = -((editorScrollX - 80) % EDITOR_GRID);
-        for (let gx = startX; gx < w; gx += EDITOR_GRID) {
-            eCtx.beginPath();
-            eCtx.moveTo(gx, 0);
-            eCtx.lineTo(gx, groundY);
-            eCtx.stroke();
-        }
-        // A grade vertical nasce no chão: cada célula de 44px sobe a partir da linha de piso.
-        for (let gy = groundY; gy >= 0; gy -= EDITOR_GRID) {
-            eCtx.beginPath();
-            eCtx.moveTo(0, gy);
-            eCtx.lineTo(w, gy);
-            eCtx.stroke();
-        }
-    }
-
-    // Chão do editor
-    eCtx.fillStyle = editorDraft.groundFill || '#110e2e';
-    eCtx.fillRect(0, groundY, w, h - groundY);
-    eCtx.strokeStyle = editorDraft.groundGrid || '#3730a3';
-    eCtx.lineWidth = 2;
-    eCtx.beginPath();
-    eCtx.moveTo(0, groundY);
-    eCtx.lineTo(w, groundY);
-    eCtx.stroke();
-
-    const ox = -editorScrollX + 80;
-
-    // Objetos do rascunho
-    (editorDraft.pillars || []).forEach(pil => {
-        const sx = pil.x + ox;
-        if (sx < -60 || sx > w + 60) return;
-        eCtx.globalAlpha = Math.max(0, Math.min(1, Number(pil.opacity ?? 1))); eCtx.fillStyle = pil.colorOverride || '#ffffff';
-        eCtx.fillRect(sx, groundY - (pil.h || 90), pil.w || 34, pil.h || 90);
-    });
-
-    (editorDraft.platforms || []).forEach(plat => {
-        const sx = plat.x + ox;
-        const py = plat.y !== undefined ? plat.y : groundY - 28;
-        if (sx + (plat.w || 120) < -60 || sx > w + 60) return;
-        eCtx.globalAlpha = Math.max(0, Math.min(1, Number(plat.opacity ?? 1)));
-        eCtx.fillStyle = plat.colorOverride || '#18376b';
-        eCtx.strokeStyle = plat.colorOverride || '#00e5ff';
-        eCtx.lineWidth = 2;
-        eCtx.fillRect(sx, py, plat.w || 120, plat.h || 28);
-        eCtx.strokeRect(sx, py, plat.w || 120, plat.h || 28);
-    });
-
-    (editorDraft.blocks || []).forEach(blk => {
-        const sx = blk.x + ox;
-        const by = blk.y !== undefined ? blk.y : groundY - BLOCK_SIZE;
-        if (sx + BLOCK_SIZE < -60 || sx > w + 60) return;
-        eCtx.globalAlpha = Math.max(0, Math.min(1, Number(blk.opacity ?? 1)));
-        eCtx.fillStyle = blk.colorOverride || '#2563eb';
-        eCtx.strokeStyle = blk.colorOverride || '#93c5fd';
-        eCtx.lineWidth = 2;
-        eCtx.fillRect(sx, by, BLOCK_SIZE, BLOCK_SIZE);
-        eCtx.strokeRect(sx, by, BLOCK_SIZE, BLOCK_SIZE);
-    });
-
-    (editorDraft.pads || []).forEach(pad => {
-        const sx = pad.x + ox;
-        if (sx < -50 || sx > w + 50) return;
-        eCtx.fillStyle = pad.colorOverride || ({yellow:'#ffe600',pink:'#ff4fd8',red:'#ff334f',blue:'#28a9ff',green:'#45e06f'}[pad.color] || '#ffe600');
-        eCtx.fillRect(sx, groundY - 10, 36, 10);
-    });
-
-    (editorDraft.orbs || []).forEach(orb => {
-        const sx = orb.x + ox;
-        if (sx < -50 || sx > w + 50) return;
-        eCtx.fillStyle = orb.colorOverride || ({yellow:'#ffd60a',pink:'#ff4fd8',red:'#ff334f',blue:'#28a9ff',green:'#45e06f',black:'#242424'}[orb.color] || '#ffd60a');
-        eCtx.beginPath();
-        eCtx.arc(sx, orb.y || groundY - 80, 14, 0, Math.PI * 2);
-        eCtx.fill();
-    });
-
-    (editorDraft.spikes || []).forEach(spk => {
-        const sx = spk.x + ox;
-        const isMini = spk.sizeType === 'mini';
-        const sw = isMini ? MINI_SPIKE_W : BLOCK_SIZE;
-        const sh = isMini ? MINI_SPIKE_H : BLOCK_SIZE;
-        if (sx + sw < -50 || sx > w + 50) return;
-        const inv = Boolean(spk.inverted);
-        const baseY = Number.isFinite(Number(spk.y)) ? Number(spk.y) : (inv ? CEILING_Y : groundY);
-        const tipY = inv ? baseY + sh : baseY - sh;
-        eCtx.globalAlpha = Math.max(0, Math.min(1, Number(spk.opacity ?? 1)));
-        eCtx.fillStyle = spk.colorOverride || '#ff3b5c';
-        eCtx.beginPath();
-        eCtx.moveTo(sx + 2, baseY);
-        eCtx.lineTo(sx + sw / 2, tipY);
-        eCtx.lineTo(sx + sw - 2, baseY);
-        eCtx.closePath();
-        eCtx.fill();
-    });
-
-    (editorDraft.saws || []).forEach(saw => {
-        const sx = saw.x + ox;
-        if (sx < -50 || sx > w + 50) return;
-        eCtx.fillStyle = '#ff0055';
-        eCtx.beginPath();
-        eCtx.arc(sx, saw.y || groundY - 80, saw.r || 22, 0, Math.PI * 2);
-        eCtx.fill();
-    });
-
-    (editorDraft.coins || []).forEach(coin => {
-        const sx = coin.x + ox;
-        if (sx < -50 || sx > w + 50) return;
-        eCtx.fillStyle = '#ffd60a';
-        eCtx.beginPath();
-        eCtx.arc(sx, coin.y || groundY - 80, 12, 0, Math.PI * 2);
-        eCtx.fill();
-    });
-
-    (editorDraft.portals || []).forEach(pt => {
-        const sx = pt.x + ox;
-        if (sx < -70 || sx > w + 70) return;
-        eCtx.strokeStyle = pt.type === 'ship' ? '#00c8ff' : '#9dff00';
-        eCtx.lineWidth = 4;
-        eCtx.beginPath();
-        eCtx.ellipse(sx + PORTAL_WIDTH / 2, Number.isFinite(Number(pt.y)) ? Number(pt.y) : groundY - PORTAL_HEIGHT / 2, 18, 45, 0, 0, Math.PI * 2);
-        eCtx.stroke();
-    });
-
-    (editorDraft.triggers || []).forEach(trg => {
-        const sx = trg.x + ox;
-        if (sx < -50 || sx > w + 50) return;
-        const triggerTop = Number.isFinite(Number(trg.y)) ? Number(trg.y) : groundY - 100;
-        const triggerColor = trg.kind && trg.kind.indexOf('speed') === 0 ? '#22d3ee' : trg.kind === 'bg' || trg.kind === 'bg_cyan' ? '#c084fc' : '#fbbf24';
-        eCtx.strokeStyle = triggerColor;
-        eCtx.fillStyle = triggerColor + '22';
-        eCtx.lineWidth = 2.5;
-        eCtx.setLineDash([5, 4]);
-        eCtx.fillRect(sx, triggerTop, 30, 100);
-        eCtx.strokeRect(sx, triggerTop, 30, 100);
-        eCtx.setLineDash([]);
-        eCtx.fillStyle = triggerColor;
-        eCtx.font = 'bold 9px sans-serif';
-        eCtx.fillText(String(trg.kind || 'TRG').toUpperCase().replace('_',' ').slice(0,8), sx + 2, triggerTop - 5);
-    });
-
-    // Linha de chegada no editor
-    const finX = (editorDraft.finishX || 4400) + ox;
-    if (finX >= -20 && finX <= w + 20) {
-        eCtx.strokeStyle = '#9dff00';
-        eCtx.lineWidth = 3;
-        eCtx.beginPath();
-        eCtx.moveTo(finX, 0);
-        eCtx.lineTo(finX, groundY);
-        eCtx.stroke();
-    }
-
-    eCtx.restore();
+ if(!editorDraft)return;
+ const w=editorCanvas.width,h=editorCanvas.height,groundY=Math.min(h-44,GROUND_Y);
+ eCtx.save();eCtx.clearRect(0,0,w,h);
+ const grad=eCtx.createLinearGradient(0,0,0,groundY);grad.addColorStop(0,editorDraft.bgTop||'#1e1b4b');grad.addColorStop(1,editorDraft.bgBottom||'#4338ca');eCtx.fillStyle=grad;eCtx.fillRect(0,0,w,groundY);
+ if(editorShowGrid){const st=window.__editorGridStrength||'normal';eCtx.strokeStyle='rgba(255,255,255,'+(st==='soft'?.07:st==='strong'?.24:.14)+')';eCtx.lineWidth=1;const sx=-((editorScrollX-80)%EDITOR_GRID);eCtx.beginPath();for(let x=sx;x<w;x+=EDITOR_GRID){eCtx.moveTo(x,0);eCtx.lineTo(x,groundY);}for(let y=groundY;y>=0;y-=EDITOR_GRID){eCtx.moveTo(0,y);eCtx.lineTo(w,y);}eCtx.stroke();}
+ eCtx.fillStyle=editorDraft.groundFill||'#110e2e';eCtx.fillRect(0,groundY,w,h-groundY);eCtx.strokeStyle=editorDraft.groundGrid||'#3730a3';eCtx.lineWidth=2;eCtx.beginPath();eCtx.moveTo(0,groundY);eCtx.lineTo(w,groundY);eCtx.stroke();
+ const ox=-editorScrollX+80;
+ const tr=(o,cx,cy,fn)=>{const sc=Math.max(.1,Math.min(5,Number(o.scale)||1));eCtx.save();eCtx.globalAlpha*=Math.max(0,Math.min(1,Number(o.opacity??1)));eCtx.translate(cx,cy);eCtx.rotate(Number(o.rotation)||0);eCtx.scale(sc,sc);fn();eCtx.restore();};
+ (editorDraft.pillars||[]).forEach(o=>{const x=o.x+ox,ww=o.w||34,hh=o.h||90;if(x+ww < -60||x>w+60)return;tr(o,x+ww/2,groundY-hh/2,()=>{eCtx.fillStyle=o.colorOverride||'#ffffff';eCtx.fillRect(-ww/2,-hh/2,ww,hh);});});
+ (editorDraft.platforms||[]).forEach(o=>{const x=o.x+ox,ww=o.w||120,hh=o.h||28,y=o.y!==undefined?o.y:groundY-28;if(x+ww < -60||x>w+60)return;tr(o,x+ww/2,y+hh/2,()=>{eCtx.fillStyle=o.colorOverride||'#18376b';eCtx.strokeStyle=o.colorOverride||'#00e5ff';eCtx.lineWidth=2;eCtx.fillRect(-ww/2,-hh/2,ww,hh);eCtx.strokeRect(-ww/2,-hh/2,ww,hh);});});
+ (editorDraft.blocks||[]).forEach(o=>{const x=o.x+ox,ww=o.w||BLOCK_SIZE,hh=o.h||BLOCK_SIZE,y=o.y!==undefined?o.y:groundY-hh;if(x+ww < -60||x>w+60)return;tr(o,x+ww/2,y+hh/2,()=>{eCtx.fillStyle=o.colorOverride||'#2563eb';eCtx.strokeStyle=o.colorOverride||'#93c5fd';eCtx.lineWidth=2;eCtx.fillRect(-ww/2,-hh/2,ww,hh);eCtx.strokeRect(-ww/2,-hh/2,ww,hh);});});
+ (editorDraft.pads||[]).forEach(o=>{const x=o.x+ox;if(x < -50||x>w+50)return;tr(o,x+18,groundY-5,()=>{eCtx.fillStyle=o.colorOverride||({yellow:'#ffe600',pink:'#ff4fd8',red:'#ff334f',blue:'#28a9ff',green:'#45e06f'}[o.color]||'#ffe600');eCtx.fillRect(-18,-5,36,10);});});
+ (editorDraft.orbs||[]).forEach(o=>{const x=o.x+ox,y=o.y||groundY-80;if(x < -50||x>w+50)return;tr(o,x,y,()=>{eCtx.fillStyle=o.colorOverride||({yellow:'#ffd60a',pink:'#ff4fd8',red:'#ff334f',blue:'#28a9ff',green:'#45e06f',black:'#242424'}[o.color]||'#ffd60a');eCtx.beginPath();eCtx.arc(0,0,14,0,Math.PI*2);eCtx.fill();});});
+ (editorDraft.spikes||[]).forEach(o=>{const x=o.x+ox,mini=o.sizeType==='mini',ww=mini?MINI_SPIKE_W:BLOCK_SIZE,hh=mini?MINI_SPIKE_H:BLOCK_SIZE;if(x+ww < -50||x>w+50)return;const inv=Boolean(o.inverted),base=Number.isFinite(Number(o.y))?Number(o.y):(inv?CEILING_Y:groundY),cy=inv?base+hh/2:base-hh/2;tr(o,x+ww/2,cy,()=>{eCtx.fillStyle=o.colorOverride||'#ff3b5c';eCtx.beginPath();eCtx.moveTo(-ww/2,hh/2);eCtx.lineTo(0,inv?hh/2:-hh/2);eCtx.lineTo(ww/2,hh/2);eCtx.closePath();eCtx.fill();});});
+ (editorDraft.saws||[]).forEach(o=>{const x=o.x+ox,y=o.y||groundY-80,r=o.r||22;if(x < -50||x>w+50)return;tr(o,x,y,()=>{eCtx.fillStyle=o.colorOverride||'#ff0055';eCtx.beginPath();eCtx.arc(0,0,r,0,Math.PI*2);eCtx.fill();});});
+ (editorDraft.coins||[]).forEach(o=>{const x=o.x+ox,y=o.y||groundY-80;if(x < -50||x>w+50||o.collected)return;tr(o,x,y,()=>{eCtx.fillStyle=o.colorOverride||'#ffd60a';eCtx.beginPath();eCtx.arc(0,0,12,0,Math.PI*2);eCtx.fill();});});
+ (editorDraft.portals||[]).forEach(o=>{const x=o.x+ox,y=Number.isFinite(Number(o.y))?Number(o.y):groundY-PORTAL_HEIGHT/2;if(x < -70||x>w+70)return;tr(o,x+PORTAL_WIDTH/2,y,()=>{eCtx.strokeStyle=o.type==='ship'?'#00c8ff':'#9dff00';eCtx.lineWidth=4;eCtx.beginPath();eCtx.ellipse(0,0,18,45,0,0,Math.PI*2);eCtx.stroke();});});
+ (editorDraft.triggers||[]).forEach(o=>{const x=o.x+ox;if(x < -50||x>w+50)return;const y=Number.isFinite(Number(o.y))?Number(o.y):groundY-100,c=o.kind&&o.kind.indexOf('speed')===0?'#22d3ee':o.kind==='bg'||o.kind==='bg_cyan'?'#c084fc':'#fbbf24';eCtx.save();eCtx.globalAlpha=Math.max(0,Math.min(1,Number(o.opacity??1)));eCtx.strokeStyle=c;eCtx.fillStyle=c+'22';eCtx.lineWidth=2.5;eCtx.setLineDash([5,4]);eCtx.fillRect(x,y,30,100);eCtx.strokeRect(x,y,30,100);eCtx.setLineDash([]);eCtx.fillStyle=c;eCtx.font='bold 9px sans-serif';eCtx.fillText(String(o.kind||'TRG').toUpperCase().replace('_',' ').slice(0,8),x+2,y-5);eCtx.restore();});
+ const finish=(editorDraft.finishX||4400)+ox;if(finish>=-20&&finish<=w+20){eCtx.strokeStyle='#9dff00';eCtx.lineWidth=3;eCtx.beginPath();eCtx.moveTo(finish,0);eCtx.lineTo(finish,groundY);eCtx.stroke();}eCtx.restore();
 }
 
 // === EVENTOS E CONTROLES ===
@@ -2289,7 +2101,9 @@ function bindEvents() {
 
 
 /* Configurações extras, trail e música inteiramente sintetizada no navegador. */
-const visualSettings = { trail: true, music: true, shake: true, particles: true, volume: 0.35 };
+const visualSettings={trail:true,music:true,shake:true,particles:true,volume:.35,backgroundGrid:true,menuPreview:true,glow:true};
+let graphicsQuality=(()=>{try{return localStorage.getItem('gd_graphics_quality')||'auto';}catch(_){return'auto';}})();
+let backgroundGradientCache=null,backgroundGradientCacheKey='';
 let playerTrail = [];
 let playerTrailTick = 0;
 let musicTimer = null;
@@ -2352,15 +2166,16 @@ function setupExtraSettings() {
         el.addEventListener('change', () => {
             visualSettings[key] = type === 'range' ? Number(el.value) / 100 : el.checked;
             localStorage.setItem('gd_setting_' + key, String(type === 'range' ? Number(el.value) : visualSettings[key]));
-            if (key === 'music') visualSettings.music ? startProceduralMusic() : stopProceduralMusic();
+            if(key==='music'){stopProceduralMusic();if(!visualSettings.music)window.__gdStopLevelMusic?.();else if(gameState==='PLAYING')window.__gdStartLevelMusic?.(activePlayableLevel);}
         });
     };
     bind('setting-trail', 'trail');
     bind('setting-music', 'music');
     bind('setting-shake', 'shake');
     bind('setting-particles', 'particles');
-    bind('setting-volume', 'volume', 'range');
-    document.addEventListener('pointerdown', () => { if (visualSettings.music) startProceduralMusic(); }, { once: true });
+    bind('setting-volume','volume','range');bind('setting-background-grid','backgroundGrid');bind('setting-menu-preview','menuPreview');bind('setting-glow','glow');
+    const quality=document.getElementById('setting-quality');if(quality){quality.value=graphicsQuality;quality.addEventListener('change',()=>{graphicsQuality=['auto','low','balanced','high'].includes(quality.value)?quality.value:'auto';try{localStorage.setItem('gd_graphics_quality',graphicsQuality);}catch(_){}lowPerformanceMode=graphicsQuality==='low'||(graphicsQuality==='auto'&&controlPlatform==='mobile');});}
+    lowPerformanceMode=graphicsQuality==='low'||(graphicsQuality==='auto'&&controlPlatform==='mobile');
 }
 
 applyPlatformSettingsUI();
