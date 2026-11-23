@@ -41,7 +41,7 @@ const AUTO_CHECKPOINT_STEP = 550;
 // Timer para segurar 5 segundos no toque e ir para o pause
 
 // Física do Cubo
-const GRAVITY = 0.95;
+const GRAVITY = 0;
 const JUMP_FORCE = -14.8;
 
 // Física do Hoverboard (Ship)
