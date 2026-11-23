@@ -812,7 +812,7 @@ function addAssetAtWorld(x, y) {
     if(cfg)editorDraft.triggers.push({id:makeId(),x:base.x,y:clampTop(snapY-50,100),triggered:false,...cfg});
   } else {
     const radius = 18 * (base.scale || 1);
-    editorDraft.decorations.push({ ...base, y: clampCenter(snapY, radius), kind: selectedAssetId, color: item.color });
+    editorDraft.decorations.push({ ...base, y: clampCenter(snapY, radius), kind: selectedAssetId, color: item.color, collision: false });
   }
   return true;
 }

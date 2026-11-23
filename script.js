@@ -1351,6 +1351,12 @@ function updateGameplay() {
     for (const blk of activeBlocks) {
         if (handlePlatformCollision(player, blk, blk.x - camOffset)) return;
     }
+    // Decorações do editor podem receber colisão sólida pelo inspetor.
+    for (const deco of activeDecorations) {
+        if (deco.collision !== true) continue;
+        const hitbox = { ...deco, x: (Number(deco.x) || 0) - 18, y: (Number(deco.y) || 0) - 18, w: 36, h: 36 };
+        if (handlePlatformCollision(player, hitbox, hitbox.x - camOffset)) return;
+    }
 
     // Espinhos
     for (const spk of activeSpikes) {
