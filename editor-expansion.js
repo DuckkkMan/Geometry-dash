@@ -608,6 +608,7 @@ window.__gdEditorSelection = () => getSelectionRecords();
 function refreshInspector() {
   const records = getSelectionRecords();
   const first = records[0];
+  window.__gdSyncObjectStyle?.(records);
   if (!$('editor-selection-count')) return;
   $('editor-selection-count').textContent = records.length + ' selected';
   ['inspect-x', 'inspect-y', 'inspect-rotation', 'inspect-scale', 'inspect-groups'].forEach(id => {

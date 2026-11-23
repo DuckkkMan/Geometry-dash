@@ -1,7 +1,7 @@
 /* Conteúdo original: 3 fases, música procedural e edição dos níveis oficiais do projeto. */
 (() => {
 'use strict';
-const G = 412;
+const G = 390;
 const spike = (x, sizeType='normal') => ({x, y:G, sizeType});
 const platform = (x,y,w=132,h=28) => ({x,y,w,h});
 const orb = (x,y,color='yellow') => ({x,y,color,used:false});
@@ -44,6 +44,7 @@ yellow.portals=[{x:1510,type:'ship',triggered:false},{x:2570,type:'cube',trigger
 yellow.triggers=[{x:1600,kind:'speed_fast',triggered:false},{x:2700,kind:'bg_custom',bgTop:'#33134d',bgBottom:'#9c3d18',triggered:false},{x:3500,kind:'speed_slow',triggered:false},{x:4380,kind:'shake_custom',shakeAmount:7,triggered:false}];
 yellow.decorations=[deco(1080,90,'deco_flame_03','#ffb347',1.4),deco(2360,105,'deco_gear_04','#ffd166',1.2),deco(3600,85,'deco_star_06','#fff0a6',1.4),deco(4760,115,'deco_bolt_05','#ffbd59',1.3)];
 LEVELS.splice(0,LEVELS.length,blue,green,yellow);
+DIFFICULTY_FACES.amarelo='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="47" fill="#ffd43b" stroke="#111" stroke-width="5"/><circle cx="34" cy="39" r="6"/><circle cx="66" cy="39" r="6"/><path d="M28 62 Q50 82 72 62" fill="none" stroke="#111" stroke-width="6" stroke-linecap="round"/></svg>');
 currentLevelIndex=0;
 activePlayableLevel=LEVELS[0];
 
@@ -106,7 +107,7 @@ renderLevelSelect=function(){
  let edit=document.getElementById('builtin-edit-level');
  if(!edit){edit=document.createElement('button');edit.id='builtin-edit-level';edit.type='button';edit.textContent='EDITAR FASE';edit.className='builtin-edit-level';card.appendChild(edit);}
  const lvl=getAllSelectableLevels()[currentLevelIndex];
- edit.onclick=()=>openEditorWithLevel(lvl);
+ edit.onclick=(event)=>{event.stopPropagation();openEditorWithLevel(lvl);};
  edit.textContent=LEVELS.includes(lvl)?'EDITAR ESTA FASE':'EDITAR CRIAÇÃO';
 };
 
@@ -117,6 +118,10 @@ const oldSpikeCollision=checkSpikeCollision;
 checkSpikeCollision=function(p,obj,x){if(obj&&obj.collision===false)return false;return oldSpikeCollision(p,obj,x);};
 const oldSawCollision=checkSawCollision;
 checkSawCollision=function(p,obj,x){if(obj&&obj.collision===false)return false;return oldSawCollision(p,obj,x);};
+const oldPadCollision=checkPadCollision;
+checkPadCollision=function(p,obj,x){if(obj&&obj.collision===false)return;return oldPadCollision(p,obj,x);};
+const oldCoinTrigger=checkCoinTrigger;
+checkCoinTrigger=function(p,obj,x){if(obj&&obj.collision===false)return;return oldCoinTrigger(p,obj,x);};
 const oldOrbTrigger=checkOrbTrigger;
 checkOrbTrigger=function(p,obj,x){if(obj&&obj.collision===false)return;return oldOrbTrigger(p,obj,x);};
 const oldPortalTrigger=checkPortalTrigger;
@@ -124,7 +129,7 @@ checkPortalTrigger=function(p,obj,x){if(obj&&obj.collision===false)return;return
 
 /* Aparência individual: cor e transparência são aplicadas durante o desenho. */
 const drawPairs=[
- ['drawPlatform','platforms'],['drawSpike','spikes'],['drawSaw','saws'],
+ ['drawPlatform','platforms'],['drawSpike','spikes'],['drawSaw','saws'],['drawPad','pads'],['drawPortal','portals'],
  ['drawOrb','orbs'],['drawCoin','coins'],['drawPillar','pillars'],
  ['drawLevelDecoration','decorations']
 ];
@@ -146,6 +151,7 @@ function installObjectControls(){
  const group=document.createElement('div');group.className='object-style-fields';
  group.innerHTML='<label>Cor do objeto<input id="inspect-object-color" type="color" value="#ffffff"></label><label>Transparência <span id="inspect-opacity-value">100%</span><input id="inspect-object-opacity" type="range" min="0" max="100" value="100"></label><label class="collision-option"><input id="inspect-object-collision" type="checkbox" checked> Colisão ativada</label>';
  fields.appendChild(group);
+ window.__gdSyncObjectStyle = records => {const first=records&&records[0];if(!first)return;const obj=first.obj;const color=document.getElementById('inspect-object-color'),opacity=document.getElementById('inspect-object-opacity'),collision=document.getElementById('inspect-object-collision');if(color)color.value=/^#[0-9a-f]{6}$/i.test(obj.colorOverride||obj.color||'')?(obj.colorOverride||obj.color):'#ffffff';if(opacity){opacity.value=Math.round(Math.max(0,Math.min(1,Number(obj.opacity??1)))*100);const label=document.getElementById('inspect-opacity-value');if(label)label.textContent=opacity.value+'%';}if(collision)collision.checked=obj.collision!==false;};
  const opacity=document.getElementById('inspect-object-opacity');
  opacity.addEventListener('input',()=>document.getElementById('inspect-opacity-value').textContent=opacity.value+'%');
  const apply=document.getElementById('inspect-apply-btn');
