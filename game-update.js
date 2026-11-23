@@ -44,7 +44,7 @@ yellow.portals=[{x:1510,type:'ship',triggered:false},{x:2570,type:'cube',trigger
 yellow.triggers=[{x:1600,kind:'speed_fast',triggered:false},{x:2700,kind:'bg_custom',bgTop:'#33134d',bgBottom:'#9c3d18',triggered:false},{x:3500,kind:'speed_slow',triggered:false},{x:4380,kind:'shake_custom',shakeAmount:7,triggered:false}];
 yellow.decorations=[deco(1080,90,'deco_flame_03','#ffb347',1.4),deco(2360,105,'deco_gear_04','#ffd166',1.2),deco(3600,85,'deco_star_06','#fff0a6',1.4),deco(4760,115,'deco_bolt_05','#ffbd59',1.3)];
 LEVELS.splice(0,LEVELS.length,blue,green,yellow);
-DIFFICULTY_FACES.amarelo='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="47" fill="#ffd43b" stroke="#111" stroke-width="5"/><circle cx="34" cy="39" r="6"/><circle cx="66" cy="39" r="6"/><path d="M28 62 Q50 82 72 62" fill="none" stroke="#111" stroke-width="6" stroke-linecap="round"/></svg>');
+
 currentLevelIndex=0;
 activePlayableLevel=LEVELS[0];
 

@@ -166,9 +166,31 @@ function playSfx(type) {
 }
 
 // === ROSTOS DE DIFICULDADE ===
+/* Todos os rostos usam o mesmo desenho vetorial, gerado por código.
+   Só mudam a cor e a expressão de cada dificuldade. */
+function makeDifficultyFace(color, expression, horns = false) {
+    const mouth = expression === 'happy'
+        ? '<path d="M34 59 Q50 78 66 59" fill="none" stroke="#17121d" stroke-width="6" stroke-linecap="round"/>'
+        : expression === 'flat'
+            ? '<path d="M36 64 H64" fill="none" stroke="#17121d" stroke-width="6" stroke-linecap="round"/>'
+            : '<path d="M35 68 Q50 54 65 68" fill="none" stroke="#17121d" stroke-width="6" stroke-linecap="round"/><path d="M27 38 L42 43 M73 38 L58 43" fill="none" stroke="#17121d" stroke-width="5" stroke-linecap="round"/>';
+    const hornShape = horns
+        ? '<path d="M20 28 Q5 5 5 1 Q27 7 34 22 M80 28 Q95 5 95 1 Q73 7 66 22" fill="#f1d9ff" stroke="#24142e" stroke-width="4" stroke-linejoin="round"/>'
+        : '';
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+        hornShape +
+        '<rect x="9" y="13" width="82" height="78" rx="19" fill="' + color + '" stroke="#17121d" stroke-width="6"/>' +
+        '<path d="M17 26 Q50 8 83 26" fill="none" stroke="#ffffff" stroke-opacity=".28" stroke-width="5" stroke-linecap="round"/>' +
+        '<circle cx="35" cy="45" r="6" fill="#17121d"/><circle cx="65" cy="45" r="6" fill="#17121d"/>' +
+        mouth + '</svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
 const DIFFICULTY_FACES = {
-    azul: 'Assets/cara_azul.png',
-    verde: 'Assets/cara_verde.png'
+    azul: makeDifficultyFace('#168cff', 'happy'),
+    verde: makeDifficultyFace('#35c96b', 'happy'),
+    amarelo: makeDifficultyFace('#ffd43b', 'flat'),
+    vermelho: makeDifficultyFace('#f04444', 'angry'),
+    roxo: makeDifficultyFace('#9b59d0', 'angry', true)
 };
 
 // === IMAGENS DOS PORTAIS ===

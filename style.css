@@ -816,8 +816,8 @@ canvas {
 }
 
 .difficulty-face {
-    width: 140px;
-    height: 140px;
+    width: 116px;
+    height: 116px;
     display: flex;
     justify-content: center;
     align-items: center;
