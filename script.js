@@ -881,8 +881,8 @@ function drawPillar(pillar, screenX) {
     if (screenX + w < -50 || screenX > canvas.width + 50) return;
 
     ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
+    ctx.fillStyle = pillar.colorOverride || 'rgba(255, 255, 255, 0.14)';
+    ctx.strokeStyle = pillar.colorOverride || 'rgba(255, 255, 255, 0.32)';
     ctx.lineWidth = 2;
     ctx.fillRect(screenX, GROUND_Y - h, w, h);
     ctx.strokeRect(screenX, GROUND_Y - h, w, h);
@@ -895,7 +895,7 @@ function drawCoin(coin, screenX) {
     if (screenX + r * 2 < -40 || screenX - r * 2 > canvas.width + 40) return;
 
     ctx.save();
-    ctx.fillStyle = '#ffd60a';
+    ctx.fillStyle = coin.colorOverride || '#ffd60a';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
