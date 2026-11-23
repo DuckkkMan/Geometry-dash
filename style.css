@@ -2124,7 +2124,7 @@ body { overflow:auto; }
   width: min(720px, calc(100% - 24px));
   height: auto;
   max-width: 720px;
-  max-height: calc(100% - 190px);
+  max-height: 400px;
   aspect-ratio: 9 / 5;
   object-fit: contain;
   flex: 0 1 auto;
@@ -2134,6 +2134,6 @@ body { overflow:auto; }
 @media (max-width: 700px) {
   #level-editor #editorCanvas {
     width: min(720px, calc(100% - 12px));
-    max-height: calc(100% - 170px);
+    max-height: 400px;
   }
 }
