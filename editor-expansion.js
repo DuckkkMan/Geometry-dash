@@ -593,16 +593,22 @@ function addInspector() {
   if (!bottom || $('editor-inspector')) return;
   const panel = document.createElement('aside');
   panel.id = 'editor-inspector';
-  panel.innerHTML = '<div class="editor-inspector-title">OBJECT INSPECTOR <span id="editor-selection-count">0 selected</span></div><div class="editor-inspector-fields"><label>X<input id="inspect-x" type="number" step="1"></label><label>Y<input id="inspect-y" type="number" step="1"></label><label>ROTATION<input id="inspect-rotation" type="number" step="1" value="0"></label><label>SCALE %<input id="inspect-scale" type="number" min="10" max="500" step="5" value="100"></label><label class="group-field">GROUPS<input id="inspect-groups" type="text" placeholder="Ex.: 1, 2, 10"></label><div id="trigger-config" class="trigger-config hidden"></div><button id="inspect-apply-btn" type="button">APPLY</button></div>';
+  panel.innerHTML = '<div class="editor-inspector-title">OBJECT INSPECTOR <span id="editor-selection-count">0 selected</span></div><div class="editor-inspector-fields"><label>ROTATION<input id="inspect-rotation" type="number" step="1" value="0"></label><label>SCALE %<input id="inspect-scale" type="number" min="10" max="500" step="5" value="100"></label><label class="group-field">GROUPS<input id="inspect-groups" type="text" placeholder="Ex.: 1, 2, 10"></label><div id="trigger-config" class="trigger-config hidden"></div><button id="inspect-apply-btn" type="button">APPLY</button></div>';
   editorRoot.appendChild(panel);
   $('inspect-apply-btn').addEventListener('click', applyInspector);
-  $('trigger-config').addEventListener('change',ev=>{const rec=getSelectionRecords()[0],key=ev.target.dataset.trg;if(!rec||rec.key!=='triggers'||!key)return;recordHistory();const nums=['speed','moveX','moveY','shakeAmount','rotateAmount','pulseAmount'];rec.obj[key]=nums.includes(key)?Number(ev.target.value):ev.target.value;drawEditorCanvas();});
+  $('trigger-config').addEventListener('change', ev => {
+    const rec = getSelectionRecords()[0], key = ev.target.dataset.trg;
+    if (!rec || rec.key !== 'triggers' || !key) return;
+    recordHistory();
+    const nums = ['speed','moveX','moveY','shakeAmount','rotateAmount','pulseAmount'];
+    rec.obj[key] = nums.includes(key) ? Number(ev.target.value) : ev.target.value;
+    drawEditorCanvas();
+  });
 }
 
 function getSelectionRecords() {
   return selectedObjects.map(sel => ({ key: sel.key, obj: sel.obj })).filter(s => (editorDraft[s.key] || []).includes(s.obj));
 }
-window.__gdEditorSelection = () => getSelectionRecords();
 window.__gdEditorSelection = () => getSelectionRecords();
 
 function refreshInspector() {
@@ -611,21 +617,15 @@ function refreshInspector() {
   if (!$('editor-selection-count')) return;
   $('editor-selection-count').textContent = records.length + ' selected';
 
-  ['inspect-x', 'inspect-y', 'inspect-rotation', 'inspect-scale', 'inspect-groups'].forEach(id => {
-    if ($(id)) $(id).disabled = !first;
+  ['inspect-rotation', 'inspect-scale', 'inspect-groups'].forEach(id => {
+    const input = $(id);
+    if (input) input.disabled = !first;
   });
-  if ($('inspect-y')) $('inspect-y').disabled = !first || ['pads', 'pillars'].includes(first.key);
   if ($('inspect-rotation')) $('inspect-rotation').disabled = !first || first.key !== 'decorations';
   if ($('inspect-scale')) $('inspect-scale').disabled = !first || first.key !== 'decorations';
   if (!first) return;
 
   const values = {
-    'inspect-x': Math.round(first.obj.x || 0),
-    'inspect-y': Math.round(first.obj.y === undefined
-      ? (first.key === 'spikes' ? (first.obj.inverted ? CEILING_Y : GROUND_Y)
-        : first.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2
-        : first.key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45)
-      : first.obj.y),
     'inspect-rotation': Math.round(((first.obj.rotation || 0) * 180) / Math.PI),
     'inspect-scale': Math.round((first.obj.scale || 1) * 100),
     'inspect-groups': objectGroupList(first.obj).join(', ')
@@ -634,7 +634,6 @@ function refreshInspector() {
     const input = $(id);
     if (!input) return;
     input.value = value;
-    // O Apply só pode alterar propriedades cujo valor foi editado depois da seleção.
     input.dataset.originalValue = String(value);
   });
 
@@ -671,37 +670,17 @@ function applyInspector() {
     const input = $(id);
     return Boolean(input && !input.disabled && String(input.value) !== String(input.dataset.originalValue));
   };
-  const changeX = changed('inspect-x');
-  const changeY = changed('inspect-y');
   const changeRotation = changed('inspect-rotation');
   const changeScale = changed('inspect-scale');
   const changeGroups = changed('inspect-groups');
-  if (!changeX && !changeY && !changeRotation && !changeScale && !changeGroups) return;
+  if (!changeRotation && !changeScale && !changeGroups) return;
 
-  const x = changeX ? Number($('inspect-x').value) : null;
-  const y = changeY ? Number($('inspect-y').value) : null;
   const rot = changeRotation ? Number($('inspect-rotation').value) : null;
   const scale = changeScale ? Number($('inspect-scale').value) / 100 : null;
-  if ((changeX && !Number.isFinite(x)) || (changeY && !Number.isFinite(y)) ||
-      (changeRotation && !Number.isFinite(rot)) || (changeScale && !Number.isFinite(scale))) return;
+  if ((changeRotation && !Number.isFinite(rot)) || (changeScale && !Number.isFinite(scale))) return;
 
   recordHistory();
-  const first = records[0].obj;
-  const firstDefaultY = records[0].key === 'spikes' ? (first.inverted ? CEILING_Y : GROUND_Y)
-    : records[0].key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2
-    : records[0].key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45;
-  const dx = changeX ? x - (first.x || 0) : 0;
-  const dy = changeY ? y - (first.y === undefined ? firstDefaultY : first.y) : 0;
-
   records.forEach(s => {
-    if (changeX) s.obj.x = Math.round(((s.obj.x || 0) + dx) / gridUnit) * gridUnit;
-    if (changeY && !['pads', 'pillars'].includes(s.key)) {
-      const fallbackY = s.key === 'spikes' ? (s.obj.inverted ? CEILING_Y : GROUND_Y)
-        : s.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2
-        : s.key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45;
-      s.obj.y = Math.max(0, Math.min(GROUND_Y,
-        Math.round(((s.obj.y === undefined ? fallbackY : s.obj.y) + dy) / gridUnit) * gridUnit));
-    }
     if (s.key === 'decorations' && changeRotation) s.obj.rotation = (rot * Math.PI) / 180;
     if (s.key === 'decorations' && changeScale) s.obj.scale = Math.max(0.1, Math.min(5, scale));
     if (changeGroups) assignGroups(s.obj, $('inspect-groups').value);

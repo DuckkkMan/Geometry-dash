@@ -1255,6 +1255,18 @@ function resumeCurrentGame() {
 
 // === RENDERIZAÇÃO DO MUNDO DO JOGO ===
 function drawBackgroundAndGround() {
+    const inGameplay = ['PLAYING', 'DEAD', 'PAUSED', 'WIN'].includes(gameState);
+    if (!inGameplay && gameState === 'MENU') {
+        // Menu limpo: fundo sólido, chão simples e sem grade decorativa.
+        ctx.fillStyle = '#26384d';
+        ctx.fillRect(0, 0, canvas.width, GROUND_Y);
+        ctx.fillStyle = '#111d2b';
+        ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+        ctx.fillStyle = '#48d8e8';
+        ctx.fillRect(0, GROUND_Y - 3, canvas.width, 3);
+        return;
+    }
+
     const bgTop = runtimeBgTop || activePlayableLevel.bgTop || '#0038a8';
     const bgBottom = runtimeBgBottom || activePlayableLevel.bgBottom || '#0066ff';
     const groundFill = runtimeGroundFill || activePlayableLevel.groundFill || '#001d5c';
@@ -1266,7 +1278,6 @@ function drawBackgroundAndGround() {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, GROUND_Y);
 
-    // Linhas decorativas no fundo
     ctx.save();
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 2;
@@ -1280,14 +1291,11 @@ function drawBackgroundAndGround() {
     }
     ctx.restore();
 
-    // O teto escurecido só aparece durante uma fase no modo Ship.
-    const inGameplay = ['PLAYING', 'DEAD', 'PAUSED', 'WIN'].includes(gameState);
     if (inGameplay && playerMode === 'ship') {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
         ctx.fillRect(0, 0, canvas.width, CEILING_Y);
     }
 
-    // Chão
     ctx.fillStyle = groundFill;
     ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
 
@@ -1443,51 +1451,49 @@ function updateGameplay() {
 }
 
 function drawMenuPreview() {
-    // Demonstração em duas etapas: cubo caminha até uma parede; depois a ship atravessa o céu.
-    const phaseLength = 1900;
-    const phase = menuDemoScroll % phaseLength;
-    const groundTop = GROUND_Y - BLOCK_SIZE;
-    if (phase < 900) {
-        const playerX = 110 + Math.min(1, phase / 760) * 285;
-        const wallX = 445;
-        ctx.fillStyle = '#182d4a';
-        ctx.fillRect(wallX, GROUND_Y - 112, 28, 112);
-        ctx.fillStyle = '#4f83b9';
-        ctx.fillRect(wallX + 4, GROUND_Y - 108, 20, 104);
-        // Trail de caminhada em pequenos losangos.
-        for (let i = 1; i <= 5; i++) {
-            const tx = playerX - i * 13;
-            const alpha = 0.34 - i * 0.05;
-            ctx.fillStyle = `rgba(80,225,255,${alpha})`;
-            ctx.fillRect(tx, groundTop + 17 + Math.sin((menuDemoScroll - i * 5) * 0.18) * 3, 6, 6);
-        }
-        drawCubeSkin(ctx, playerX, groundTop, BLOCK_SIZE, 0, playerSkin);
-    } else {
-        const flight = (phase - 900) / 1000;
-        const shipX = 90 + flight * 760;
-        const shipY = 245 + Math.sin(flight * Math.PI * 5) * 48;
-        // Trilho luminoso da ship.
+    const playerX = 150;
+    const cycleLength = 280;
+    const phase = menuDemoScroll % cycleLength;
+    const jumpStart = 35;
+    const jumpLength = 220;
+    const jumpProgress = (phase - jumpStart) / jumpLength;
+    const isJumping = jumpProgress >= 0 && jumpProgress <= 1;
+    const jumpHeight = isJumping ? Math.sin(jumpProgress * Math.PI) * 92 : 0;
+    const playerY = GROUND_Y - BLOCK_SIZE - jumpHeight;
+    const rotation = isJumping ? jumpProgress * Math.PI * 2 : 0;
+
+    // Espinhos repetidos passando pelo chão.
+    for (let worldX = 360; worldX < canvas.width + cycleLength; worldX += cycleLength) {
+        const spikeX = worldX - phase;
+        if (spikeX < -50 || spikeX > canvas.width + 50) continue;
         ctx.save();
-        ctx.globalAlpha = 0.28;
-        ctx.strokeStyle = '#53eaff';
-        ctx.lineWidth = 13;
-        ctx.beginPath(); ctx.moveTo(shipX - 95, shipY + 20); ctx.lineTo(shipX - 12, shipY + 20); ctx.stroke();
-        ctx.restore();
-        ctx.save();
-        ctx.translate(shipX + 22, shipY + 22);
-        ctx.fillStyle = playerSkin.primary;
-        ctx.strokeStyle = '#07101d';
+        ctx.fillStyle = '#ff624f';
+        ctx.strokeStyle = '#101820';
         ctx.lineWidth = 4;
+        ctx.lineJoin = 'round';
         ctx.beginPath();
-        ctx.moveTo(-24, -15); ctx.lineTo(5, -15); ctx.lineTo(25, 0);
-        ctx.lineTo(5, 15); ctx.lineTo(-24, 15); ctx.lineTo(-14, 0); ctx.closePath();
-        ctx.fill(); ctx.stroke();
-        ctx.fillStyle = playerSkin.secondary;
-        ctx.beginPath(); ctx.arc(2, 0, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.moveTo(spikeX, GROUND_Y);
+        ctx.lineTo(spikeX + 22, GROUND_Y - 42);
+        ctx.lineTo(spikeX + 44, GROUND_Y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
         ctx.restore();
     }
-    menuDemoScroll += 2.4;
+
+    // Pequeno rastro discreto e o cubo principal.
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = playerSkin.primary;
+    ctx.fillRect(playerX - 18, playerY + 18, 9, 9);
+    ctx.globalAlpha = 0.10;
+    ctx.fillRect(playerX - 34, playerY + 23, 7, 7);
+    ctx.restore();
+    drawCubeSkin(ctx, playerX, playerY, BLOCK_SIZE, rotation, playerSkin);
+
+    menuDemoScroll += 2.6;
 }
+
 function loop() {
     ctx.save();
     if (visualSettings.shake && screenShake > 0) {
