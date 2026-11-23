@@ -53,3 +53,12 @@ Projeto de fã, não oficial, sem músicas, fases ou recursos proprietários do 
 - Trail desenhada atrás do jogador usando a posição real no mundo.
 - Canvas do editor mantém proporção 9:5 ao redimensionar, evitando deformar as células da grade.
 - Registro de atualizações acessível pelo botão ao lado das configurações.
+
+
+### Patch 1.5.1
+
+- Atualização em tempo real das cores e miniaturas das skins.
+- Rotação contínua de Ball e Robot.
+- Rastro de movimento global restaurado atrás do jogador.
+- Alternância de gravidade da Ball em toques sucessivos durante o voo.
+- Registro de atualizações no menu e canvas do editor com proporção preservada.

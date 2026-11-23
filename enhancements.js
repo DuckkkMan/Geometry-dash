@@ -463,7 +463,7 @@ startAttempt = function (countNewAttempt = true) {
   if (isPracticeMode && activeCheckpoint && Number.isFinite(activeCheckpoint.modeGravity)) {
     modeGravity = activeCheckpoint.modeGravity;
   }
-  activeTrail.push({ x: levelDistance, y: player.y + player.size / 2 });
+  activeTrail.push({ x: levelDistance + player.x, y: player.y + player.size / 2 });
 };
 
 const originalLoop = loop;
