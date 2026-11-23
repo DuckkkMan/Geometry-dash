@@ -5,9 +5,9 @@ Protótipo de navegador inspirado em jogos de plataforma de ritmo, feito com HTM
 ## Recursos
 
 - Menu principal, seleção de fases, recordes, tentativas, pausa e conclusão.
-- Sete modos jogáveis: Cube, Ship, Ball, UFO, Wave, Robot e Spider.
-- Portais desenhados em tempo real no Canvas, com brilho, anéis e partículas.
-- Garagem com oito variações de ícone por modo e paletas de cores.
+- Seis modos jogáveis: Cube, Ship, Ball, UFO, Wave e Robot (o Robot tem visual de bola e salto variável).
+- Portais desenhados em tempo real no Canvas, com brilho, anéis e partículas; sem modo Spider.
+- Garagem com 16 skins PNG próprias em `Skins/`: 6 Cube e 2 de cada outro modo, com degradê personalizável entre duas cores.
 - Editor com biblioteca categorizada e busca global, blocos de vários tamanhos, half/quarter blocks, rampas, plataformas curtas/longas/finas, espinhos, pads, orbs, serras de tamanhos diferentes, moedas, triggers, portais e decorações.
 - Ferramentas de seleção com arraste alinhado à grade, mover câmera, apagar, copiar/colar/duplicar e histórico de desfazer/refazer.
 - Importação e exportação de fases em JSON.
@@ -34,3 +34,13 @@ Abra index.html em um navegador moderno. Não é necessário instalar dependênc
 4. Salve e aguarde o GitHub publicar o site.
 
 Projeto de fã, não oficial, sem músicas, fases ou recursos proprietários do jogo original.
+
+
+## Atualização 1.5
+
+- 16 imagens PNG em `Skins/`, com proporção original preservada.
+- Degradê entre COR 1 e COR 2 aplicado às áreas claras das artes monocromáticas.
+- Seis modos: Cube, Ship, Ball, UFO, Wave e Robot. O Robot usa a skin de bola/robô e salto variável.
+- Spider removido dos modos e portais.
+- Três fases novas: Carbon Rush, Afterglow e Final Drive.
+- Novos objetos: bloco 3×2 e plataforma extra longa.

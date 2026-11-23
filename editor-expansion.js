@@ -19,8 +19,10 @@ const EXTRA_CATEGORIES = [
     ['block_tall', 'Tall Block', 'block_tall', '#60a5fa'],
     ['block_wide', 'Wide Block', 'block_wide', '#3b82f6'],
     ['block_big', '2×2 Block', 'block_big', '#2563eb'],
+    ['block_3x2', '3×2 Block', 'block_3x2', '#1d4ed8'],
     ['platform_short', 'Short Platform', 'platform_short', '#22d3ee'],
     ['platform_long', 'Long Platform', 'platform_long', '#06b6d4'],
+    ['platform_xl', 'Extra Long Platform', 'platform_xl', '#0891b2'],
     ['platform_thin', 'Thin Platform', 'platform_thin', '#67e8f9'],
     ['double_block', 'Double Block', 'decoration', '#2563eb'],
     ['outlined_block', 'Outlined Block', 'decoration', '#93c5fd']
@@ -49,8 +51,7 @@ const EXTRA_CATEGORIES = [
     ['portal_ball', 'Ball Portal', 'portal_extra', '#f59e0b'],
     ['portal_ufo', 'UFO Portal', 'portal_extra', '#a78bfa'],
     ['portal_wave', 'Wave Portal', 'portal_extra', '#22d3ee'],
-    ['portal_robot', 'Robot Portal', 'portal_extra', '#fb923c'],
-    ['portal_spider', 'Spider Portal', 'portal_extra', '#f472b6']
+    ['portal_robot', 'Robot Portal', 'portal_extra', '#fb923c']
   ]},
   { id: 'decorations', name: 'Decorations', icon: '✦', items: [
     ['deco_star', 'Star', 'decoration', '#fde68a'],
@@ -797,10 +798,10 @@ function addAssetAtWorld(x, y) {
       inverted: item.type === 'ceil_spike'
     });
   } else if (item.type === 'platform' || item.type.indexOf('platform_') === 0) {
-    const platformSize = item.type === 'platform_short' ? {w: BLOCK_SIZE, h: 20} : item.type === 'platform_long' ? {w: BLOCK_SIZE * 4, h: 24} : item.type === 'platform_thin' ? {w: BLOCK_SIZE * 3, h: 12} : {w: EDITOR_GRID * 2, h: 28};
+    const platformSize = item.type === 'platform_short' ? {w: BLOCK_SIZE, h: 20} : item.type === 'platform_long' ? {w: BLOCK_SIZE * 4, h: 24} : item.type === 'platform_xl' ? {w: BLOCK_SIZE * 6, h: 24} : item.type === 'platform_thin' ? {w: BLOCK_SIZE * 3, h: 12} : {w: EDITOR_GRID * 2, h: 28};
     editorDraft.platforms.push({ x: base.x, y: clampTop(snapY, platformSize.h), ...platformSize });
   } else if (item.type === 'block' || item.type.indexOf('block_') === 0) {
-    const blockSize = item.type === 'block_tall' ? {w: BLOCK_SIZE, h: BLOCK_SIZE * 2} : item.type === 'block_wide' ? {w: BLOCK_SIZE * 2, h: BLOCK_SIZE} : item.type === 'block_big' ? {w: BLOCK_SIZE * 2, h: BLOCK_SIZE * 2} : {w: BLOCK_SIZE, h: BLOCK_SIZE};
+    const blockSize = item.type === 'block_tall' ? {w: BLOCK_SIZE, h: BLOCK_SIZE * 2} : item.type === 'block_wide' ? {w: BLOCK_SIZE * 2, h: BLOCK_SIZE} : item.type === 'block_big' ? {w: BLOCK_SIZE * 2, h: BLOCK_SIZE * 2} : item.type === 'block_3x2' ? {w: BLOCK_SIZE * 3, h: BLOCK_SIZE * 2} : {w: BLOCK_SIZE, h: BLOCK_SIZE};
     editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, blockSize.h), ...blockSize, shape: 'full' });
   } else if (item.type === 'half_block') {
     editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, BLOCK_SIZE / 2), w: BLOCK_SIZE, h: BLOCK_SIZE / 2, shape: 'half' });
@@ -1034,6 +1035,7 @@ openEditorWithLevel = function (level) {
 
   // Compatibilidade com fases antigas: garante todas as listas antes de usar a biblioteca nova.
   const safeLevel = JSON.parse(JSON.stringify(level || createEmptyEditorDraft()));
+  if (Array.isArray(safeLevel.portals)) safeLevel.portals = safeLevel.portals.filter(portal => portal && portal.type !== 'spider');
   ['spikes', 'platforms', 'blocks', 'pads', 'orbs', 'saws', 'pillars', 'coins',
    'portals', 'triggers', 'decorations', 'structures'].forEach(key => {
     if (!Array.isArray(safeLevel[key])) safeLevel[key] = [];

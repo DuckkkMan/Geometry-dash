@@ -10,11 +10,22 @@ const MODE_INFO = {
   ball: { name: 'BALL', color: '#ffb703', secondary: '#fff1a8' },
   ufo: { name: 'UFO', color: '#d946ef', secondary: '#f5b5ff' },
   wave: { name: 'WAVE', color: '#22d3ee', secondary: '#b6f7ff' },
-  robot: { name: 'ROBOT', color: '#fb923c', secondary: '#ffdfb8' },
-  spider: { name: 'SPIDER', color: '#f43f5e', secondary: '#ffc0cb' }
+  robot: { name: 'ROBOT', color: '#fb923c', secondary: '#ffdfb8' }
 };
 const MODE_LIST = Object.keys(MODE_INFO);
+const MODE_SKIN_COUNTS = { cube: 6, ship: 2, ball: 2, ufo: 2, wave: 2, robot: 2 };
+const MODE_SKIN_PREFIX = { cube: 'Cube', ship: 'Ship', ball: 'Ball', ufo: 'Ufo', wave: 'Wave', robot: 'Robot' };
 const MODE_SKIN_KEY = 'gd_web_mode_skins_v1';
+if (Array.isArray(customLevels)) {
+  let changed = false;
+  customLevels.forEach(level => {
+    if (level.initialMode === 'spider') { level.initialMode = 'cube'; changed = true; }
+    if (!Array.isArray(level.portals)) return;
+    const valid = level.portals.filter(portal => portal && portal.type !== 'spider');
+    if (valid.length !== level.portals.length) { level.portals = valid; changed = true; }
+  });
+  if (changed && typeof writeSaveData === 'function') writeSaveData();
+}
 
 const modeSkins = (() => {
   let saved = {};
@@ -22,11 +33,12 @@ const modeSkins = (() => {
   const result = {};
   MODE_LIST.forEach((mode, index) => {
     const fallback = {
-      model: index % 6,
+      model: 0,
       primary: MODE_INFO[mode].color,
       secondary: MODE_INFO[mode].secondary
     };
     result[mode] = Object.assign(fallback, saved[mode] || {});
+    result[mode].model = Math.max(0, Math.min(MODE_SKIN_COUNTS[mode] - 1, Math.floor(Number(result[mode].model) || 0)));
   });
   return result;
 })();
@@ -202,24 +214,6 @@ function drawModeIcon(c, mode, x, y, size, rotation, skin) {
     c.fillRect(-12, -9, 7, 8); c.strokeRect(-12, -9, 7, 8);
     c.fillRect(5, -9, 7, 8); c.strokeRect(5, -9, 7, 8);
     c.fillRect(-8, 5, 16, 4); c.strokeRect(-8, 5, 16, 4);
-  } else if (mode === 'spider') {
-    c.shadowBlur = 0;
-    c.strokeStyle = primary;
-    c.lineWidth = 4;
-    for (let i = 0; i < 4; i++) {
-      const side = i < 2 ? -1 : 1;
-      const row = i % 2 === 0 ? -1 : 1;
-      c.beginPath();
-      c.moveTo(side * 10, row * 5);
-      c.lineTo(side * (18 + (variant % 3) * 2), row * (13 + (variant % 2) * 2));
-      c.lineTo(side * (22 + (variant % 2) * 3), row * (20 + (variant % 3)));
-      c.stroke();
-    }
-    circle(0, 0, variant % 2 === 0 ? 15 : 13);
-    c.fillStyle = secondary;
-    c.strokeStyle = outline;
-    c.lineWidth = 1.5;
-    c.beginPath(); c.arc(-5, -3, 2.5, 0, Math.PI * 2); c.arc(5, -3, 2.5, 0, Math.PI * 2); c.fill(); c.stroke();
   }
 
   c.shadowBlur = 0;
@@ -233,6 +227,82 @@ function drawModeIcon(c, mode, x, y, size, rotation, skin) {
   }
   c.restore();
 }
+
+ 
+// PNGs monocromáticos: as áreas claras recebem um degradê COR 1 -> COR 2;
+// contornos escuros permanecem escuros e a proporção de cada imagem é mantida.
+const MODE_SKIN_FILES = {
+  cube: ['Cube1.png','Cube2.png','Cube3.png','Cube4.png','Cube5.png','Cube6.png'],
+  ship: ['Ship1.png','Ship2.png'],
+  ball: ['Ball1.png','Ball2.png'],
+  ufo: ['Ufo1.png','Ufo2.png'],
+  wave: ['Wave1.png','Wave2.png'],
+  robot: ['Robot1.png','Robot2.png']
+};
+const skinImageCache = new Map();
+const tintedSkinCache = new Map();
+function skinGradientCanvas(mode, index, skin) {
+  const key = [mode,index,skin.primary,skin.secondary].join('|');
+  if (tintedSkinCache.has(key)) return tintedSkinCache.get(key);
+  const image = skinImageCache.get(mode + ':' + index);
+  if (!image || !image.complete || !image.naturalWidth) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const c = canvas.getContext('2d', { willReadFrequently: true });
+  c.drawImage(image, 0, 0);
+  try {
+    const pixels = c.getImageData(0, 0, canvas.width, canvas.height);
+    const data = pixels.data;
+    const rgb = hex => [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];
+    const a = rgb(skin.primary), b = rgb(skin.secondary);
+    const width = Math.max(1, canvas.width - 1);
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const p = (y * canvas.width + x) * 4;
+        const lum = (data[p] * .299 + data[p+1] * .587 + data[p+2] * .114) / 255;
+        const t = x / width;
+        data[p] = Math.round((a[0] + (b[0]-a[0])*t) * lum);
+        data[p+1] = Math.round((a[1] + (b[1]-a[1])*t) * lum);
+        data[p+2] = Math.round((a[2] + (b[2]-a[2])*t) * lum);
+      }
+    }
+    c.putImageData(pixels, 0, 0);
+  } catch (_) {
+    c.clearRect(0, 0, canvas.width, canvas.height);
+    c.drawImage(image, 0, 0);
+  }
+  tintedSkinCache.set(key, canvas);
+  if (tintedSkinCache.size > 96) tintedSkinCache.delete(tintedSkinCache.keys().next().value);
+  return canvas;
+}
+Object.entries(MODE_SKIN_FILES).forEach(([mode, names]) => names.forEach((name, index) => {
+  const image = new Image();
+  image.decoding = 'async';
+  image.onload = () => {
+    skinImageCache.set(mode + ':' + index, image);
+    tintedSkinCache.clear();
+    if (typeof renderModeGarage === 'function') renderModeGarage();
+    if (typeof renderSkinUI === 'function') renderSkinUI();
+  };
+  image.src = 'Skins/' + name;
+  skinImageCache.set(mode + ':' + index, image);
+}));
+const drawVectorModeIcon = drawModeIcon;
+drawModeIcon = function (c, mode, x, y, size, rotation, skin) {
+  const selected = skin || modeSkins[mode] || modeSkins.cube;
+  const count = MODE_SKIN_COUNTS[mode] || 1;
+  const index = Math.max(0, Math.min(count - 1, Math.floor(Number(selected.model) || 0)));
+  const tinted = skinGradientCanvas(mode, index, selected);
+  if (!tinted) { drawVectorModeIcon(c, mode, x, y, size, rotation, selected); return; }
+  const fit = Math.min(size * .94 / tinted.width, size * .94 / tinted.height);
+  const w = tinted.width * fit, h = tinted.height * fit;
+  c.save();
+  c.translate(x + size / 2, y + size / 2);
+  c.rotate(rotation || 0);
+  c.drawImage(tinted, -w/2, -h/2, w, h);
+  c.restore();
+};
 
 function portalColor(type) {
   return (MODE_INFO[type] || MODE_INFO.cube).color;
@@ -339,31 +409,16 @@ player.update = function () {
     return;
   }
   if (playerMode === 'robot') {
-    if (jumpJustPressed && this.grounded) { this.dy = isHoldingJump ? -17.2 : -14.5; this.grounded = false; playSfx('jump'); }
+    const pressed = jumpJustPressed;
     jumpJustPressed = false;
+    if (pressed && this.grounded) { this.dy = -14.5; this.grounded = false; playSfx('jump'); }
+    // Segurar durante a subida aumenta gradualmente a altura do salto.
+    if (isHoldingJump && this.dy < 0) this.dy = Math.max(-19, this.dy - 0.42);
     this.dy += GRAVITY * gravityMultiplier;
     this.y += this.dy;
     if (this.y >= floor) { this.y = floor; this.dy = 0; this.grounded = true; } else this.grounded = false;
     if (this.y < ceiling) { this.y = ceiling; this.dy = 0; }
     if (!this.grounded) this.rotation += 0.07;
-    return;
-  }
-  if (playerMode === 'spider') {
-    if (jumpJustPressed) {
-      modeGravity *= -1;
-      this.dy = 0;
-      this.y = modeGravity === 1 ? floor : ceiling;
-      this.grounded = true;
-      playSfx('jump');
-      spawnEndParticles(this.x + this.size / 2, this.y + this.size / 2, 8, true);
-    }
-    jumpJustPressed = false;
-    this.dy += GRAVITY * gravityMultiplier * modeGravity;
-    this.y += this.dy;
-    if (modeGravity === 1 && this.y >= floor) { this.y = floor; this.dy = 0; this.grounded = true; }
-    else if (modeGravity === -1 && this.y <= ceiling) { this.y = ceiling; this.dy = 0; this.grounded = true; }
-    else this.grounded = false;
-    this.rotation = 0;
     return;
   }
   originalPlayerUpdate();
@@ -463,15 +518,9 @@ placeSelectedAtWorldCoord = function (x, y) {
 };
 
 // === GARAGEM DE ÍCONES MULTIMODO ===
-const MODE_SKIN_NAMES = [
-  ['Classic', 'Edge', 'Hex', 'Diamond', 'Armor', 'Tech', 'Shield', 'Prism'],
-  ['Glider', 'Arrow', 'Delta', 'Dart', 'Rocket', 'Blade', 'Wing', 'Phantom'],
-  ['Orbit', 'Core', 'Gear', 'Split', 'Pulse', 'Hexa', 'Nova', 'Prism'],
-  ['Classic UFO', 'Saucer', 'Scout', 'Disk', 'Mothership', 'Comet', 'Nova', 'Orbit'],
-  ['Classic Wave', 'Bolt', 'Arrow', 'Zigzag', 'Pulse', 'Spike', 'Vortex', 'Flash'],
-  ['Classic Bot', 'Mech', 'Droid', 'Guard', 'Titan', 'Scout', 'Core', 'Prime'],
-  ['Classic Spider', 'Crawler', 'Arachnid', 'Stalker', 'Orb', 'Tarantula', 'Venom', 'Specter']
-];
+const MODE_SKIN_NAMES = Object.fromEntries(MODE_LIST.map(mode => [mode,
+  Array.from({ length: MODE_SKIN_COUNTS[mode] }, (_, index) => MODE_SKIN_PREFIX[mode] + (index + 1))
+]));
 
 renderSkinUI = function () {
   const icon = document.getElementById('skin-btn-icon');
@@ -512,8 +561,8 @@ function renderModeGarage() {
   panel.replaceChildren();
   garage.querySelector('.skin-row')?.classList.add('hidden');
   garage.querySelectorAll('.color-section').forEach(section => section.classList.add('hidden'));
-  const modeIndex = MODE_LIST.indexOf(activeSkinMode);
   const skin = modeSkins[activeSkinMode];
+  const skinCount = MODE_SKIN_COUNTS[activeSkinMode] || 2;
 
   const head = document.createElement('div');
   head.className = 'skin-panel-head';
@@ -546,23 +595,23 @@ function renderModeGarage() {
   const modelTitle = document.createElement('span');
   modelTitle.textContent = 'DESENHO';
   const modelCount = document.createElement('span');
-  modelCount.textContent = '' + (skin.model + 1) + ' / 8';
+  modelCount.textContent = '' + (skin.model + 1) + ' / ' + skinCount;
   modelHeader.append(modelTitle, modelCount);
   panel.appendChild(modelHeader);
 
   const models = document.createElement('div');
   models.className = 'mode-skin-models';
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < skinCount; i++) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'mode-model' + (skin.model === i ? ' selected' : '');
-    b.setAttribute('aria-label', MODE_SKIN_NAMES[modeIndex][i]);
+    b.setAttribute('aria-label', MODE_SKIN_NAMES[activeSkinMode][i]);
     const cv = document.createElement('canvas');
     cv.width = 64;
     cv.height = 64;
     drawModeIcon(cv.getContext('2d'), activeSkinMode, 6, 6, 52, 0, { ...skin, model: i });
     const name = document.createElement('span');
-    name.textContent = MODE_SKIN_NAMES[modeIndex][i];
+    name.textContent = MODE_SKIN_NAMES[activeSkinMode][i];
     b.append(cv, name);
     b.addEventListener('click', () => {
       skin.model = i;
@@ -608,10 +657,12 @@ function renderModeGarage() {
   picker.value = skin[activeColorChannel];
   picker.addEventListener('input', () => {
     skin[activeColorChannel] = picker.value;
+    tintedSkinCache.clear();
     syncPlayerSkinFromMode();
     saveModeSkins();
     renderSkinUI();
   });
+  picker.addEventListener('change', () => renderModeGarage());
   customRow.append(customLabel, picker);
   colorSection.appendChild(customRow);
 
@@ -647,7 +698,7 @@ try {
 
 MODE_LIST.forEach(mode => {
   const skin = modeSkins[mode];
-  skin.model = Math.max(0, Math.min(7, Math.floor(Number(skin.model) || 0)));
+  skin.model = Math.max(0, Math.min(MODE_SKIN_COUNTS[mode] - 1, Math.floor(Number(skin.model) || 0)));
   if (!/^#[0-9a-f]{6}$/i.test(skin.primary)) skin.primary = MODE_INFO[mode].color;
   if (!/^#[0-9a-f]{6}$/i.test(skin.secondary)) skin.secondary = MODE_INFO[mode].secondary;
 });

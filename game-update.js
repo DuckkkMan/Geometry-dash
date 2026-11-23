@@ -48,7 +48,7 @@ gravity.initialSpeed=1.04;gravity.spikes=[spike(620),spike(980,'mini'),spike(146
 gravity.platforms=[platform(820,G-90,130),platform(1640,G-145,145),platform(2760,G-110,145),platform(3900,G-135,150)];
 gravity.pads=[{x:860,color:'red',cooldown:0},{x:2820,color:'blue',cooldown:0},{x:3940,color:'green',cooldown:0}];
 gravity.orbs=[orb(1180,G-135,'blue'),orb(2100,G-160,'red'),orb(3300,G-145,'green'),orb(4470,G-165,'black')];
-gravity.portals=[{x:1080,type:'ball',triggered:false},{x:2300,type:'spider',triggered:false},{x:3480,type:'cube',triggered:false}];
+gravity.portals=[{x:1080,type:'ball',triggered:false},{x:2300,type:'robot',triggered:false},{x:3480,type:'cube',triggered:false}];
 gravity.saws=[saw(1740,G-175,24),saw(3160,G-160,26)];gravity.coins=[{x:2120,y:G-215,collected:false},{x:4300,y:G-220,collected:false}];
 gravity.decorations=[deco(1000,90,'deco_ring_04','#8be9fd',1.4),deco(2600,105,'deco_hex_06','#d7b7ff',1.3),deco(4100,95,'deco_star_08','#ffe066',1.4)];
 const prism=base('Prism Breaker','INSANE','roxo','#220b46','#a21caf','#190c32','#8b35a8',6200);
@@ -56,11 +56,46 @@ prism.initialSpeed=1.16;prism.spikes=[spike(560),spike(604),spike(648),spike(105
 prism.platforms=[platform(820,G-115,130),platform(1800,G-145,145),platform(2860,G-120,145),platform(3980,G-155,150),platform(5100,G-125,150)];
 prism.pads=[{x:850,color:'pink',cooldown:0},{x:2910,color:'red',cooldown:0},{x:5150,color:'green',cooldown:0}];
 prism.orbs=[orb(1320,G-150,'red'),orb(2380,G-175,'blue'),orb(3500,G-150,'black'),orb(4680,G-170,'green')];
-prism.portals=[{x:1120,type:'ufo',triggered:false},{x:2200,type:'wave',triggered:false},{x:3300,type:'robot',triggered:false},{x:4500,type:'spider',triggered:false},{x:5650,type:'cube',triggered:false}];
+prism.portals=[{x:1120,type:'ufo',triggered:false},{x:2200,type:'wave',triggered:false},{x:3300,type:'robot',triggered:false},{x:4500,type:'ball',triggered:false},{x:5650,type:'cube',triggered:false}];
 prism.saws=[saw(1700,G-185,25),saw(2760,G-170,25),saw(4140,G-190,26),saw(5350,G-170,27)];prism.pillars=[{x:1450,h:100,w:36},{x:3050,h:118,w:38},{x:4800,h:105,w:38}];
 prism.coins=[{x:1850,y:G-220,collected:false},{x:3800,y:G-230,collected:false},{x:5200,y:G-220,collected:false}];
 prism.decorations=[deco(980,90,'deco_bolt_04','#f0abfc',1.4),deco(2500,110,'deco_star_09','#67e8f9',1.4),deco(4200,90,'deco_gear_05','#f9a8d4',1.3),deco(5700,105,'deco_ring_07','#d8b4fe',1.5)];
 LEVELS.splice(0,LEVELS.length,blue,green,yellow,gravity,prism);
+
+ 
+// Três fases novas da atualização 1.5.
+const carbon=base('Carbon Rush','HARD','vermelho','#101820','#273746','#080d12','#3b5368',5400);
+carbon.initialSpeed=1.12;
+carbon.spikes=[spike(620),spike(664),spike(708),spike(1160,'mini'),spike(1204,'mini'),spike(1680),spike(1724),spike(2180),spike(2224),spike(2780,'mini'),spike(2824,'mini'),spike(3380),spike(3424),spike(4020),spike(4064),spike(4620,'mini'),spike(4664,'mini'),spike(5100)];
+carbon.platforms=[platform(900,G-78,132),platform(1840,G-125,150),platform(2940,G-95,132),platform(3880,G-145,150),platform(4740,G-90,132)];
+carbon.pads=[{x:940,color:'yellow',cooldown:0},{x:3000,color:'pink',cooldown:0},{x:4800,color:'red',cooldown:0}];
+carbon.orbs=[orb(1440,G-130,'pink'),orb(2440,G-155,'yellow'),orb(3540,G-165,'red'),orb(4360,G-145,'blue')];
+carbon.saws=[saw(2020,G-175,24),saw(3260,G-165,26),saw(4440,G-180,25)];
+carbon.portals=[{x:1320,type:'ship',triggered:false},{x:2580,type:'robot',triggered:false},{x:3680,type:'cube',triggered:false}];
+carbon.coins=[{x:1880,y:G-185,collected:false},{x:3560,y:G-220,collected:false},{x:4860,y:G-175,collected:false}];
+carbon.decorations=[deco(1040,90,'deco_bolt_03','#8be9fd',1.3),deco(2700,105,'deco_hex_04','#a5f3fc',1.4),deco(4180,90,'deco_ring_05','#d1d5db',1.3)];
+const afterglow=base('Afterglow','INSANE','roxo','#24103f','#713b91','#170b29','#9b5de5',6100);
+afterglow.initialSpeed=1.08;
+afterglow.spikes=[spike(560),spike(604),spike(648),spike(1120,'mini'),spike(1164,'mini'),spike(1208,'mini'),spike(1740),spike(1784),spike(2300,'mini'),spike(2344,'mini'),spike(2880),spike(2924),spike(3480,'mini'),spike(3524,'mini'),spike(4060),spike(4104),spike(4680,'mini'),spike(4724,'mini'),spike(5260),spike(5304),spike(5740)];
+afterglow.platforms=[platform(820,G-110,132),platform(1540,G-80,132),platform(2500,G-145,150),platform(3320,G-100,132),platform(4300,G-155,150),platform(5200,G-105,132)];
+afterglow.pads=[{x:860,color:'pink',cooldown:0},{x:2540,color:'red',cooldown:0},{x:4340,color:'pink',cooldown:0}];
+afterglow.orbs=[orb(1280,G-155,'blue'),orb(2040,G-140,'pink'),orb(3020,G-180,'black'),orb(3860,G-155,'green'),orb(4920,G-170,'red')];
+afterglow.saws=[saw(1840,G-185,24),saw(2820,G-190,25),saw(3760,G-175,26),saw(4860,G-185,25)];
+afterglow.portals=[{x:1380,type:'ball',triggered:false},{x:2680,type:'wave',triggered:false},{x:3960,type:'ufo',triggered:false},{x:5100,type:'robot',triggered:false}];
+afterglow.coins=[{x:1600,y:G-190,collected:false},{x:3420,y:G-215,collected:false},{x:5360,y:G-200,collected:false}];
+afterglow.triggers=[{x:2200,kind:'speed_fast',triggered:false},{x:4200,kind:'bg_custom',bgTop:'#160b35',bgBottom:'#a21caf',triggered:false}];
+afterglow.decorations=[deco(980,85,'deco_star_04','#f5d0fe',1.4),deco(3100,95,'deco_crystal_03','#c4b5fd',1.4),deco(4880,100,'deco_ring_06','#f0abfc',1.5)];
+const finalDrive=base('Final Drive','HARD','azul','#071b35','#155e75','#061322','#0e7490',5900);
+finalDrive.initialSpeed=1.15;
+finalDrive.spikes=[spike(600),spike(644),spike(688),spike(1040),spike(1084),spike(1500,'mini'),spike(1544,'mini'),spike(2020),spike(2064),spike(2520),spike(2564),spike(3060,'mini'),spike(3104,'mini'),spike(3580),spike(3624),spike(4100),spike(4144),spike(4660,'mini'),spike(4704,'mini'),spike(5180),spike(5224),spike(5620)];
+finalDrive.platforms=[platform(820,G-80,132),platform(1660,G-125,150),platform(2640,G-90,132),platform(3180,G-145,150),platform(4200,G-100,132),platform(5000,G-150,150)];
+finalDrive.pads=[{x:860,color:'yellow',cooldown:0},{x:2700,color:'blue',cooldown:0},{x:4260,color:'pink',cooldown:0}];
+finalDrive.orbs=[orb(1220,G-135,'yellow'),orb(2200,G-160,'red'),orb(3720,G-165,'blue'),orb(4820,G-175,'green')];
+finalDrive.saws=[saw(1880,G-170,25),saw(3440,G-185,25),saw(4560,G-175,26)];
+finalDrive.portals=[{x:1420,type:'ship',triggered:false},{x:2360,type:'ball',triggered:false},{x:3860,type:'robot',triggered:false},{x:4920,type:'cube',triggered:false}];
+finalDrive.coins=[{x:1740,y:G-180,collected:false},{x:3560,y:G-225,collected:false},{x:5140,y:G-215,collected:false}];
+finalDrive.decorations=[deco(1120,95,'deco_bolt_02','#67e8f9',1.3),deco(2860,90,'deco_gear_03','#a5f3fc',1.3),deco(4400,105,'deco_star_07','#bae6fd',1.4)];
+LEVELS.push(carbon,afterglow,finalDrive);
 
 currentLevelIndex=0;
 activePlayableLevel=LEVELS[0];
