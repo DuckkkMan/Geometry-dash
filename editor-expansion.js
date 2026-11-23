@@ -12,8 +12,10 @@ const EXTRA_CATEGORIES = [
   { id: 'blocks', name: 'Blocks', icon: '▦', items: [
     ['block', 'Block', 'block', '#4cc9f0'],
     ['platform', 'Platform', 'platform', '#00e5ff'],
-    ['half_block', 'Half Block', 'decoration', '#38bdf8'],
-    ['slope', 'Slope', 'decoration', '#60a5fa'],
+    ['half_block', 'Half Block', 'half_block', '#38bdf8'],
+    ['slope', 'Slope', 'slope', '#60a5fa'],
+    ['slope_reverse', 'Reverse Slope', 'slope_reverse', '#3b82f6'],
+    ['quarter_block', 'Quarter Block', 'quarter_block', '#93c5fd'],
     ['double_block', 'Double Block', 'decoration', '#2563eb'],
     ['outlined_block', 'Outlined Block', 'decoration', '#93c5fd']
   ]},
@@ -376,6 +378,13 @@ function drawAssetThumb(tCtx, item, size) {
   } else if (type === 'block' || type === 'platform' || type === 'pillar') {
     tCtx.fillRect(-size * 0.36, -size * 0.36, size * 0.72, size * 0.72);
     tCtx.strokeRect(-size * 0.36, -size * 0.36, size * 0.72, size * 0.72);
+  } else if (['half_block','quarter_block','slope','slope_reverse'].includes(type)) {
+    tCtx.beginPath();
+    if (type === 'half_block') { tCtx.rect(-size*.36, 0, size*.72, size*.36); }
+    else if (type === 'quarter_block') { tCtx.rect(0, 0, size*.36, size*.36); }
+    else if (type === 'slope') { tCtx.moveTo(-size*.36,size*.36); tCtx.lineTo(size*.36,size*.36); tCtx.lineTo(size*.36,-size*.36); }
+    else { tCtx.moveTo(-size*.36,-size*.36); tCtx.lineTo(-size*.36,size*.36); tCtx.lineTo(size*.36,size*.36); }
+    tCtx.closePath(); tCtx.fill(); tCtx.stroke();
   } else if (type === 'coin') {
     tCtx.beginPath();
     tCtx.ellipse(0, 0, size * 0.2, size * 0.34, 0, 0, Math.PI * 2);
@@ -771,7 +780,13 @@ function addAssetAtWorld(x, y) {
   } else if (item.type === 'platform') {
     editorDraft.platforms.push({ x: base.x, y: clampTop(snapY, 28), w: EDITOR_GRID * 2, h: 28 });
   } else if (item.type === 'block') {
-    editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, BLOCK_SIZE), w: BLOCK_SIZE, h: BLOCK_SIZE });
+    editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, BLOCK_SIZE), w: BLOCK_SIZE, h: BLOCK_SIZE, shape: 'full' });
+  } else if (item.type === 'half_block') {
+    editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, BLOCK_SIZE / 2), w: BLOCK_SIZE, h: BLOCK_SIZE / 2, shape: 'half' });
+  } else if (item.type === 'quarter_block') {
+    editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, BLOCK_SIZE / 2), w: BLOCK_SIZE / 2, h: BLOCK_SIZE / 2, shape: 'quarter' });
+  } else if (item.type === 'slope' || item.type === 'slope_reverse') {
+    editorDraft.blocks.push({ x: base.x, y: clampTop(snapY, BLOCK_SIZE), w: BLOCK_SIZE, h: BLOCK_SIZE, shape: item.type });
   } else if (item.type.indexOf('orb_') === 0) {
     editorDraft.orbs.push({ x: base.x, y: clampCenter(snapY, 18), color: selectedAssetId.replace('orb_', ''), used: false });
   } else if (item.type.indexOf('pad_') === 0) {

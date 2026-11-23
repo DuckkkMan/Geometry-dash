@@ -606,12 +606,33 @@ function drawPlatform(plat, screenX) {
     ctx.fillStyle = plat.colorOverride || '#18376b';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 3;
-    ctx.fillRect(screenX, y, w, h);
-    ctx.strokeRect(screenX, y, w, h);
+    const shape = plat.shape || 'full';
+    ctx.beginPath();
+    if (shape === 'slope') {
+        ctx.moveTo(screenX, y + h);
+        ctx.lineTo(screenX + w, y + h);
+        ctx.lineTo(screenX + w, y);
+        ctx.closePath();
+    } else if (shape === 'slope_reverse') {
+        ctx.moveTo(screenX, y);
+        ctx.lineTo(screenX, y + h);
+        ctx.lineTo(screenX + w, y + h);
+        ctx.closePath();
+    } else {
+        ctx.rect(screenX, y, w, h);
+    }
+    ctx.fill();
+    ctx.stroke();
 
     ctx.strokeStyle = plat.colorOverride || '#00e5ff';
     ctx.lineWidth = 2;
-    ctx.strokeRect(screenX + 3, y + 3, Math.max(0, w - 6), Math.max(0, h - 6));
+    if (shape === 'slope') {
+        ctx.beginPath(); ctx.moveTo(screenX + 3, y + h - 3); ctx.lineTo(screenX + w - 3, y + 3); ctx.stroke();
+    } else if (shape === 'slope_reverse') {
+        ctx.beginPath(); ctx.moveTo(screenX + 3, y + 3); ctx.lineTo(screenX + w - 3, y + h - 3); ctx.stroke();
+    } else {
+        ctx.strokeRect(screenX + 3, y + 3, Math.max(0, w - 6), Math.max(0, h - 6));
+    }
     ctx.restore();
 }
 
@@ -622,12 +643,20 @@ function handlePlatformCollision(p, plat, screenX) {
 
     const prevBottom = p.prevY + p.size;
     const currBottom = p.y + p.size;
+    const playerCenterX = p.x + p.size / 2;
+    const localCenterX = Math.max(0, Math.min(w, playerCenterX - screenX));
+    const shape = plat.shape || 'full';
+    const slopeSurface = shape === 'slope'
+        ? y + h - (localCenterX / w) * h
+        : shape === 'slope_reverse'
+            ? y + (localCenterX / w) * h
+            : y;
     const horizOverlap = p.x + p.size - 5 > screenX && p.x + 5 < screenX + w;
 
     if (!horizOverlap) return false;
 
-    if (p.dy >= 0 && prevBottom <= y + 10 && currBottom >= y) {
-        p.y = y - p.size;
+    if (p.dy >= 0 && prevBottom <= slopeSurface + 10 && currBottom >= slopeSurface) {
+        p.y = slopeSurface - p.size;
         p.dy = 0;
         p.grounded = true;
         if (playerMode === 'cube') {
@@ -637,7 +666,14 @@ function handlePlatformCollision(p, plat, screenX) {
     }
 
     const vertOverlap = p.y + p.size - 6 > y && p.y + 6 < y + h;
-    if (vertOverlap && p.x + p.size > screenX + 4 && p.x < screenX + w - 4) {
+    if (shape === 'slope' || shape === 'slope_reverse') {
+        const surfaceAtLeft = shape === 'slope' ? y + h - (Math.max(0, p.x - screenX) / w) * h : y + (Math.max(0, p.x - screenX) / w) * h;
+        const surfaceAtRight = shape === 'slope' ? y + h - (Math.min(w, p.x + p.size - screenX) / w) * h : y + (Math.min(w, p.x + p.size - screenX) / w) * h;
+        if (vertOverlap && p.y + p.size > Math.min(surfaceAtLeft, surfaceAtRight) + 5) {
+            triggerDeath();
+            return true;
+        }
+    } else if (vertOverlap && p.x + p.size > screenX + 4 && p.x < screenX + w - 4) {
         triggerDeath();
         return true;
     }
