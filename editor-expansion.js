@@ -708,30 +708,27 @@ function refreshInspector() {
 function applyInspector() {
   const records = getSelectionRecords();
   if (!records.length) return;
-
-  const changed = id => {
-    const input = $(id);
-    return Boolean(input && !input.disabled && String(input.value) !== String(input.dataset.originalValue));
-  };
-  const changeRotation = changed('inspect-rotation');
-  const changeScale = changed('inspect-scale');
-  const changeGroups = changed('inspect-groups');
+  const rotationInput = $('inspect-rotation');
+  const scaleInput = $('inspect-scale');
+  const groupsInput = $('inspect-groups');
+  const canTransform = records.every(record => record.key === 'decorations');
+  const rot = canTransform && rotationInput && !rotationInput.disabled ? Number(rotationInput.value) : null;
+  const scalePercent = canTransform && scaleInput && !scaleInput.disabled ? Number(scaleInput.value) : null;
+  const groupsValue = groupsInput ? groupsInput.value : '';
+  const changeRotation = rot !== null && Number.isFinite(rot) && rot !== Number(rotationInput.dataset.originalValue);
+  const changeScale = scalePercent !== null && Number.isFinite(scalePercent) && scalePercent >= 10 && scalePercent <= 500 && scalePercent !== Number(scaleInput.dataset.originalValue);
+  const changeGroups = Boolean(groupsInput && !groupsInput.disabled && String(groupsValue) !== String(groupsInput.dataset.originalValue));
   if (!changeRotation && !changeScale && !changeGroups) return;
-
-  const rot = changeRotation ? Number($('inspect-rotation').value) : null;
-  const scale = changeScale ? Number($('inspect-scale').value) / 100 : null;
-  if ((changeRotation && !Number.isFinite(rot)) || (changeScale && !Number.isFinite(scale))) return;
-
   recordHistory();
-  records.forEach(s => {
-    const ox=s.obj.x,oy=s.obj.y;
-    if(s.key==='decorations'&&changeRotation)s.obj.rotation=(rot*Math.PI)/180;
-    if(s.key==='decorations'&&changeScale)s.obj.scale=Math.max(.1,Math.min(5,scale));
-    if(changeGroups)assignGroups(s.obj,$('inspect-groups').value);
-    s.obj.x=ox;if(oy===undefined)delete s.obj.y;else s.obj.y=oy;
+  records.forEach(record => {
+    const obj = record.obj;
+    if (record.key === 'decorations' && changeRotation) obj.rotation = rot * Math.PI / 180;
+    if (record.key === 'decorations' && changeScale) obj.scale = scalePercent / 100;
+    if (changeGroups) assignGroups(obj, groupsValue);
   });
   refreshInspector();
   drawEditorCanvas();
+  queueEditorAutosave();
 }
 
 function findObjectAt(point) {

@@ -356,6 +356,7 @@ function portalCollision(p, portal, screenX) {
     if (next !== playerMode) {
       playerMode = next;
       modeGravity = 1;
+      ballFlipQueued = false;
       p.dy = 0;
       p.grounded = false;
       if (next === 'ship') p.dy = -3;
@@ -368,6 +369,13 @@ function portalCollision(p, portal, screenX) {
 
 drawPortal = drawProceduralPortal;
 checkPortalTrigger = portalCollision;
+
+let ballFlipQueued = false;
+canvas.addEventListener('pointerdown', event => {
+  if (gameState !== 'PLAYING' || playerMode !== 'ball' || event.button > 0) return;
+  event.preventDefault();
+  ballFlipQueued = true;
+}, { capture: true });
 
 const originalPlayerUpdate = player.update.bind(player);
 const originalPlayerJump = player.jump.bind(player);
@@ -390,13 +398,19 @@ player.update = function () {
     return;
   }
   if (playerMode === 'ball') {
-    if (jumpJustPressed) { modeGravity *= -1; this.dy = 0; playSfx('jump'); jumpJustPressed = false; }
+    if (ballFlipQueued || jumpJustPressed) {
+      modeGravity *= -1;
+      this.dy = 0;
+      this.grounded = false;
+      ballFlipQueued = false;
+      jumpJustPressed = false;
+      playSfx('jump');
+    }
     this.dy += GRAVITY * gravityMultiplier * modeGravity;
     this.y += this.dy;
     if (this.y >= floor) { this.y = floor; this.dy = 0; this.grounded = true; }
     else if (this.y <= ceiling) { this.y = ceiling; this.dy = 0; this.grounded = true; }
     else this.grounded = false;
-    // A bola continua girando mesmo quando a velocidade vertical zera no contato.
     this.rotation += 0.13 * modeGravity;
     return;
   }
@@ -446,6 +460,20 @@ player.draw = function () {
     ctx.restore();
   }
   drawModeIcon(ctx, playerMode, this.x, this.y, this.size, angle, skin);
+  // Marca assimétrica visível: a rotação da Ball fica perceptível mesmo em PNGs circulares.
+  if (playerMode === 'ball') {
+    ctx.save();
+    ctx.translate(this.x + this.size / 2, this.y + this.size / 2);
+    ctx.rotate(this.rotation);
+    ctx.fillStyle = skin.secondary || '#ffffff';
+    ctx.strokeStyle = '#07101d';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, -this.size * 0.34, Math.max(2.5, this.size * 0.075), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
 };
 
 const originalSaveCheckpoint = saveCheckpointAtCurrentState;

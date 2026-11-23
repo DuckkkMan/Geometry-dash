@@ -2111,3 +2111,29 @@ body { overflow:auto; }
 .update-log-entry-head span { color:#7dff9a; font-size:9px; }
 .update-log-entry ul { margin:10px 0 0; padding-left:19px; line-height:1.8; }
 @media (max-width:520px) { .corner-update-btn { right:76px; width:44px; height:44px; top:14px; } .corner-settings-btn { width:44px; height:44px; top:14px; right:14px; } .update-log-box { padding:20px 14px; } }
+
+
+/* Canvas do editor: janela visual compacta, resolução lógica preservada em 900x500. */
+#level-editor .editor-main-area {
+  background-color: #07519a;
+  background-image: linear-gradient(180deg, #0757a5, #123a70);
+  background-size: 100% 100%;
+}
+#level-editor #editorCanvas {
+  display: block;
+  width: min(720px, calc(100% - 24px));
+  height: auto;
+  max-width: 720px;
+  max-height: calc(100% - 190px);
+  aspect-ratio: 9 / 5;
+  object-fit: contain;
+  flex: 0 1 auto;
+  margin: auto;
+  touch-action: none;
+}
+@media (max-width: 700px) {
+  #level-editor #editorCanvas {
+    width: min(720px, calc(100% - 12px));
+    max-height: calc(100% - 170px);
+  }
+}
