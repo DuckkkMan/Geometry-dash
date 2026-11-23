@@ -514,6 +514,8 @@ function renderModeGarage() {
     preview.insertAdjacentElement('afterend', panel);
   }
   panel.replaceChildren();
+  garage.querySelector('.skin-row')?.classList.add('hidden');
+  garage.querySelectorAll('.color-section').forEach(section => section.classList.add('hidden'));
   const modeIndex = MODE_LIST.indexOf(activeSkinMode);
   const skin = modeSkins[activeSkinMode];
 
@@ -601,30 +603,10 @@ function renderModeGarage() {
   });
   colorSection.appendChild(channelRow);
 
-  const palette = ['#ffde00', '#9dff00', '#00e5ff', '#ff0055', '#ff7b00', '#b5179e', '#ffffff', '#111827', '#8b5cf6', '#14b8a6', '#f97316', '#f8fafc', '#60a5fa', '#f472b6', '#a3e635', '#facc15'];
-  const swatches = document.createElement('div');
-  swatches.className = 'mode-color-row';
-  palette.forEach(color => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'mode-color-swatch' + (skin[activeColorChannel].toLowerCase() === color ? ' selected' : '');
-    b.style.background = color;
-    b.title = color;
-    b.addEventListener('click', () => {
-      skin[activeColorChannel] = color;
-      syncPlayerSkinFromMode();
-      saveModeSkins();
-      renderModeGarage();
-      renderSkinUI();
-    });
-    swatches.appendChild(b);
-  });
-  colorSection.appendChild(swatches);
-
   const customRow = document.createElement('label');
   customRow.className = 'skin-custom-color';
   const customLabel = document.createElement('span');
-  customLabel.textContent = 'Cor personalizada';
+  customLabel.textContent = activeColorChannel === 'primary' ? 'COR 1 — ESCOLHA QUALQUER COR' : 'COR 2 — ESCOLHA QUALQUER COR';
   const picker = document.createElement('input');
   picker.type = 'color';
   picker.value = skin[activeColorChannel];

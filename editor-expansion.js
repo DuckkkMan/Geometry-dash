@@ -23,8 +23,17 @@ const EXTRA_CATEGORIES = [
     ['ceil_spike', 'Ceiling Spike', 'ceil_spike', '#d62828']
   ]},
   { id: 'orbs_pads', name: 'Orbs & Pads', icon: '◉', items: [
-    ['orb_yellow', 'Yellow Orb', 'orb_yellow', '#ffd60a'], ['orb_pink', 'Pink Orb', 'orb_pink', '#f72585'],
-    ['pad_yellow', 'Yellow Pad', 'pad_yellow', '#ffe600'], ['pad_pink', 'Pink Pad', 'pad_pink', '#ff4fd8']
+    ['orb_yellow', 'Yellow Orb', 'orb_yellow', '#ffd60a'],
+    ['orb_pink', 'Pink Orb', 'orb_pink', '#f72585'],
+    ['orb_red', 'Red Orb', 'orb_red', '#ff334f'],
+    ['orb_blue', 'Blue Orb', 'orb_blue', '#28a9ff'],
+    ['orb_green', 'Green Orb', 'orb_green', '#45e06f'],
+    ['orb_black', 'Black Orb', 'orb_black', '#242424'],
+    ['pad_yellow', 'Yellow Pad', 'pad_yellow', '#ffe600'],
+    ['pad_pink', 'Pink Pad', 'pad_pink', '#ff4fd8'],
+    ['pad_red', 'Red Pad', 'pad_red', '#ff334f'],
+    ['pad_blue', 'Blue Pad', 'pad_blue', '#28a9ff'],
+    ['pad_green', 'Green Pad', 'pad_green', '#45e06f']
   ]},
   { id: 'portals', name: 'Portals', icon: '◌', items: [
     ['portal_cube', 'Cube Portal', 'portal_cube', '#80ed99'],
@@ -610,6 +619,7 @@ function getSelectionRecords() {
   return selectedObjects.map(sel => ({ key: sel.key, obj: sel.obj })).filter(s => (editorDraft[s.key] || []).includes(s.obj));
 }
 window.__gdEditorSelection = () => getSelectionRecords();
+window.__gdRecordEditorHistory = () => recordHistory();
 
 function refreshInspector() {
   const records = getSelectionRecords();
@@ -623,7 +633,11 @@ function refreshInspector() {
   });
   if ($('inspect-rotation')) $('inspect-rotation').disabled = !first || first.key !== 'decorations';
   if ($('inspect-scale')) $('inspect-scale').disabled = !first || first.key !== 'decorations';
-  if (!first) return;
+  if (!first) {
+    if (typeof window.__gdSyncObjectStyle === 'function') window.__gdSyncObjectStyle([]);
+    return;
+  }
+  if (typeof window.__gdSyncObjectStyle === 'function') window.__gdSyncObjectStyle(records);
 
   const values = {
     'inspect-rotation': Math.round(((first.obj.rotation || 0) * 180) / Math.PI),
@@ -681,9 +695,11 @@ function applyInspector() {
 
   recordHistory();
   records.forEach(s => {
-    if (s.key === 'decorations' && changeRotation) s.obj.rotation = (rot * Math.PI) / 180;
-    if (s.key === 'decorations' && changeScale) s.obj.scale = Math.max(0.1, Math.min(5, scale));
-    if (changeGroups) assignGroups(s.obj, $('inspect-groups').value);
+    const ox=s.obj.x,oy=s.obj.y;
+    if(s.key==='decorations'&&changeRotation)s.obj.rotation=(rot*Math.PI)/180;
+    if(s.key==='decorations'&&changeScale)s.obj.scale=Math.max(.1,Math.min(5,scale));
+    if(changeGroups)assignGroups(s.obj,$('inspect-groups').value);
+    s.obj.x=ox;if(oy===undefined)delete s.obj.y;else s.obj.y=oy;
   });
   refreshInspector();
   drawEditorCanvas();

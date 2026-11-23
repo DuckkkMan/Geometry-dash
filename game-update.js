@@ -43,7 +43,24 @@ yellow.coins=[{x:2050,y:G-205,collected:false},{x:3790,y:G-220,collected:false}]
 yellow.portals=[{x:1510,type:'ship',triggered:false},{x:2570,type:'cube',triggered:false},{x:3400,type:'ship',triggered:false},{x:4310,type:'cube',triggered:false}];
 yellow.triggers=[{x:1600,kind:'speed_fast',triggered:false},{x:2700,kind:'bg_custom',bgTop:'#33134d',bgBottom:'#9c3d18',triggered:false},{x:3500,kind:'speed_slow',triggered:false},{x:4380,kind:'shake_custom',shakeAmount:7,triggered:false}];
 yellow.decorations=[deco(1080,90,'deco_flame_03','#ffb347',1.4),deco(2360,105,'deco_gear_04','#ffd166',1.2),deco(3600,85,'deco_star_06','#fff0a6',1.4),deco(4760,115,'deco_bolt_05','#ffbd59',1.3)];
-LEVELS.splice(0,LEVELS.length,blue,green,yellow);
+const gravity=base('Gravity Garden','HARD','vermelho','#10204f','#5130a5','#17143d','#5542a8',5100);
+gravity.initialSpeed=1.04;gravity.spikes=[spike(620),spike(980,'mini'),spike(1460),spike(1900,'mini'),spike(1944,'mini'),spike(2510),spike(3020),spike(3580,'mini'),spike(3624,'mini'),spike(4250),spike(4700)];
+gravity.platforms=[platform(820,G-90,130),platform(1640,G-145,145),platform(2760,G-110,145),platform(3900,G-135,150)];
+gravity.pads=[{x:860,color:'red',cooldown:0},{x:2820,color:'blue',cooldown:0},{x:3940,color:'green',cooldown:0}];
+gravity.orbs=[orb(1180,G-135,'blue'),orb(2100,G-160,'red'),orb(3300,G-145,'green'),orb(4470,G-165,'black')];
+gravity.portals=[{x:1080,type:'ball',triggered:false},{x:2300,type:'spider',triggered:false},{x:3480,type:'cube',triggered:false}];
+gravity.saws=[saw(1740,G-175,24),saw(3160,G-160,26)];gravity.coins=[{x:2120,y:G-215,collected:false},{x:4300,y:G-220,collected:false}];
+gravity.decorations=[deco(1000,90,'deco_ring_04','#8be9fd',1.4),deco(2600,105,'deco_hex_06','#d7b7ff',1.3),deco(4100,95,'deco_star_08','#ffe066',1.4)];
+const prism=base('Prism Breaker','INSANE','roxo','#220b46','#a21caf','#190c32','#8b35a8',6200);
+prism.initialSpeed=1.16;prism.spikes=[spike(560),spike(604),spike(648),spike(1050,'mini'),spike(1094,'mini'),spike(1550),spike(1594),spike(2080,'mini'),spike(2124,'mini'),spike(2670),spike(2714),spike(3160,'mini'),spike(3204,'mini'),spike(3740),spike(3784),spike(4320,'mini'),spike(4364,'mini'),spike(4910),spike(4954),spike(5480),spike(5524),spike(5900)];
+prism.platforms=[platform(820,G-115,130),platform(1800,G-145,145),platform(2860,G-120,145),platform(3980,G-155,150),platform(5100,G-125,150)];
+prism.pads=[{x:850,color:'pink',cooldown:0},{x:2910,color:'red',cooldown:0},{x:5150,color:'green',cooldown:0}];
+prism.orbs=[orb(1320,G-150,'red'),orb(2380,G-175,'blue'),orb(3500,G-150,'black'),orb(4680,G-170,'green')];
+prism.portals=[{x:1120,type:'ufo',triggered:false},{x:2200,type:'wave',triggered:false},{x:3300,type:'robot',triggered:false},{x:4500,type:'spider',triggered:false},{x:5650,type:'cube',triggered:false}];
+prism.saws=[saw(1700,G-185,25),saw(2760,G-170,25),saw(4140,G-190,26),saw(5350,G-170,27)];prism.pillars=[{x:1450,h:100,w:36},{x:3050,h:118,w:38},{x:4800,h:105,w:38}];
+prism.coins=[{x:1850,y:G-220,collected:false},{x:3800,y:G-230,collected:false},{x:5200,y:G-220,collected:false}];
+prism.decorations=[deco(980,90,'deco_bolt_04','#f0abfc',1.4),deco(2500,110,'deco_star_09','#67e8f9',1.4),deco(4200,90,'deco_gear_05','#f9a8d4',1.3),deco(5700,105,'deco_ring_07','#d8b4fe',1.5)];
+LEVELS.splice(0,LEVELS.length,blue,green,yellow,gravity,prism);
 
 currentLevelIndex=0;
 activePlayableLevel=LEVELS[0];
@@ -145,48 +162,30 @@ drawPairs.forEach(([fn])=>{
 
 /* Controles extras do inspetor: a seleção real é fornecida pela expansão do editor. */
 function installObjectControls(){
- const panel=document.getElementById('editor-inspector');
- if(!panel||document.getElementById('inspect-object-color'))return;
+ const panel=document.getElementById('editor-inspector');if(!panel||document.getElementById('inspect-object-color'))return;
  const fields=panel.querySelector('.editor-inspector-fields');if(!fields)return;
  const group=document.createElement('div');group.className='object-style-fields';
  group.innerHTML='<label>Cor do objeto<input id="inspect-object-color" type="color" value="#ffffff"></label><label>Transparência <span id="inspect-opacity-value">100%</span><input id="inspect-object-opacity" type="range" min="0" max="100" value="100"></label><label class="collision-option"><input id="inspect-object-collision" type="checkbox" checked> Colisão ativada</label>';
  fields.appendChild(group);
- window.__gdSyncObjectStyle = records => {const first=records&&records[0];if(!first)return;const obj=first.obj;const color=document.getElementById('inspect-object-color'),opacity=document.getElementById('inspect-object-opacity'),collision=document.getElementById('inspect-object-collision');if(color)color.value=/^#[0-9a-f]{6}$/i.test(obj.colorOverride||obj.color||'')?(obj.colorOverride||obj.color):'#ffffff';if(opacity){opacity.value=Math.round(Math.max(0,Math.min(1,Number(obj.opacity??1)))*100);const label=document.getElementById('inspect-opacity-value');if(label)label.textContent=opacity.value+'%';}if(collision)collision.checked=obj.collision!==false;};
- const opacity=document.getElementById('inspect-object-opacity');
- opacity.addEventListener('input',()=>document.getElementById('inspect-opacity-value').textContent=opacity.value+'%');
- const apply=document.getElementById('inspect-apply-btn');
- apply.addEventListener('click',()=>{
-  const records=window.__gdEditorSelection?.()||[];
-  if(!records.length)return;
-  const color=document.getElementById('inspect-object-color').value;
-  const opacityValue=Number(opacity.value)/100;
-  const collision=document.getElementById('inspect-object-collision').checked;
-  records.forEach(({obj})=>{obj.colorOverride=color;obj.color=color;obj.opacity=opacityValue;obj.collision=collision;});
-  drawEditorCanvas();
+ const color=document.getElementById('inspect-object-color'),opacity=document.getElementById('inspect-object-opacity'),collision=document.getElementById('inspect-object-collision'),label=document.getElementById('inspect-opacity-value');
+ window.__gdSyncObjectStyle=records=>{
+  const first=records&&records[0];[color,opacity,collision].forEach(input=>input.disabled=!first);if(!first)return;
+  const obj=first.obj;color.value=/^#[0-9a-f]{6}$/i.test(obj.colorOverride||obj.color||'')?(obj.colorOverride||obj.color):'#ffffff';
+  opacity.value=Math.round(Math.max(0,Math.min(1,Number(obj.opacity??1)))*100);label.textContent=opacity.value+'%';collision.checked=obj.collision!==false;
+  color.dataset.originalValue=color.value;opacity.dataset.originalValue=opacity.value;collision.dataset.originalValue=String(collision.checked);
+ };
+ opacity.addEventListener('input',()=>label.textContent=opacity.value+'%');
+ document.getElementById('inspect-apply-btn').addEventListener('click',()=>{
+  const records=window.__gdEditorSelection?.()||[];if(!records.length)return;
+  const cc=color.value!==color.dataset.originalValue,oc=String(opacity.value)!==String(opacity.dataset.originalValue),hc=String(collision.checked)!==collision.dataset.originalValue;
+  if(!cc&&!oc&&!hc)return;window.__gdRecordEditorHistory?.();
+  records.forEach(({obj})=>{const ox=obj.x,oy=obj.y;if(cc){obj.colorOverride=color.value;obj.color=color.value;}if(oc)obj.opacity=Number(opacity.value)/100;if(hc)obj.collision=collision.checked;obj.x=ox;if(oy===undefined)delete obj.y;else obj.y=oy;});
+  window.__gdSyncObjectStyle(records);drawEditorCanvas();
  },true);
 }
 const style=document.createElement('style');
 style.textContent='.builtin-edit-level{position:absolute;right:14px;bottom:14px;z-index:5;padding:9px 13px;border:2px solid #66d9ff;border-radius:7px;background:#123d68;color:#fff;font:900 10px Orbitron,sans-serif;cursor:pointer}.object-style-fields{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:8px;border:1px solid #2d83aa;border-radius:7px;background:#071d32}.object-style-fields label{display:flex;flex-direction:column;gap:4px;color:#d9f5ff;font-size:9px}.object-style-fields input[type=color]{width:100%;height:28px}.object-style-fields .collision-option{grid-column:1/-1;flex-direction:row;align-items:center}.object-style-fields input[type=range]{width:100%}';
-style.textContent += '.skin-presets{margin-top:12px;padding:10px;border:1px solid rgba(0,229,255,.3);border-radius:9px;background:rgba(3,15,31,.55)}.skin-presets>strong{display:block;color:#8ceeff;font:900 10px Orbitron,sans-serif;letter-spacing:1px;margin-bottom:8px}.skin-presets-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.skin-presets-grid button{min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:5px;border:1px solid #315779;border-radius:6px;background:#10243d;color:#fff;cursor:pointer}.skin-presets-grid button i,.skin-presets-grid button span{height:13px;border-radius:3px}.skin-presets-grid button small{grid-column:1/-1;font:700 8px Orbitron,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.skin-presets-grid button:hover{border-color:#ffe600;filter:brightness(1.2)}@media(max-width:700px){.skin-presets-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}';
 document.head.appendChild(style);
-const observer=new MutationObserver(installObjectControls);
-observer.observe(document.body,{childList:true,subtree:true});
-installObjectControls();
-/* Presets de skins: variedade visual por paletas, sem trocar os formatos dos ícones. */
-const SKIN_PRESETS=[['Arctic','#7deaff','#eafcff'],['Magma','#ff6b35','#ffd166'],['Toxic','#8cff00','#eaff9d'],['Galaxy','#8b5cf6','#f0abfc'],['Ocean','#087eae','#7dd3fc'],['Sunset','#f72585','#ffb4a2'],['Gold','#d99b00','#fff0a6'],['Ghost','#cbd5e1','#ffffff'],['Cyber','#00e5ff','#ff4fd8'],['Forest','#168a52','#a7f3d0'],['Candy','#ff70a6','#ffdfef'],['Void','#29214f','#a78bfa']];
-function installSkinPresets(){
- const garage=document.querySelector('#skin-garage .garage-box');if(!garage||document.getElementById('skin-presets'))return;
- const box=document.createElement('section');box.id='skin-presets';box.className='skin-presets';
- const heading=document.createElement('strong');heading.textContent='SKIN PRESETS';box.appendChild(heading);
- const grid=document.createElement('div');grid.className='skin-presets-grid';
- SKIN_PRESETS.forEach(([name,primary,secondary])=>{const b=document.createElement('button');b.type='button';b.title=name;b.innerHTML='<i></i><span></span><small></small>';b.querySelector('i').style.background=primary;b.querySelector('span').style.background=secondary;b.querySelector('small').textContent=name;b.addEventListener('click',()=>{
-  const channels=[...document.querySelectorAll('.mode-skin-channel, .skin-channel')];
-  const picker=document.querySelector('.skin-custom-color input[type=color]');
-  if(channels.length&&picker){channels[0].click();picker.value=primary;picker.dispatchEvent(new Event('input',{bubbles:true}));if(channels[1])channels[1].click();picker.value=secondary;picker.dispatchEvent(new Event('input',{bubbles:true}));}
-  else if(typeof playerSkin!=='undefined'){playerSkin.primary=primary;playerSkin.secondary=secondary;writeSaveData();renderSkinUI();}
- });grid.appendChild(b);});
- box.appendChild(grid);garage.appendChild(box);
-}
-const skinObserver=new MutationObserver(installSkinPresets);skinObserver.observe(document.body,{childList:true,subtree:true});installSkinPresets();
+const observer=new MutationObserver(installObjectControls);observer.observe(document.body,{childList:true,subtree:true});installObjectControls();
 const musicStateMonitor=setInterval(()=>{if(gameState==='PLAYING'&&!musicTimer)startLevelMusic(activePlayableLevel);else if(gameState!=='PLAYING'&&musicTimer)stopLevelMusic();},350);
 })();

@@ -586,108 +586,14 @@ function checkPortalTrigger(p, portal, portalScreenX) {
 }
 
 // === PADS DE PULO ===
-function drawPad(pad, screenX) {
-    const w = 36;
-    const h = 11;
-    const y = GROUND_Y - h;
-    if (screenX + w < -40 || screenX > canvas.width + 40) return;
-
-    const isPink = pad.color === 'pink';
-    const mainColor = pad.colorOverride || (isPink ? '#ff4fd8' : '#ffe600');
-    const glowColor = pad.colorOverride || (isPink ? 'rgba(255, 79, 216, 0.35)' : 'rgba(255, 230, 0, 0.35)');
-
-    ctx.save();
-    ctx.fillStyle = glowColor;
-    ctx.fillRect(screenX - 4, y - 8, w + 8, h + 10);
-
-    ctx.fillStyle = mainColor;
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.roundRect(screenX, y, w, h, [6, 6, 2, 2]);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-}
-
-function checkPadCollision(p, pad, screenX) {
-    if (pad.cooldown > 0) {
-        pad.cooldown--;
-        return;
-    }
-    const w = 36;
-    const h = 14;
-    const padTop = GROUND_Y - h;
-
-    const overlaps =
-        p.x + p.size > screenX + 3 &&
-        p.x < screenX + w - 3 &&
-        p.y + p.size >= padTop &&
-        p.y < GROUND_Y;
-
-    if (overlaps) {
-        pad.cooldown = 12;
-        playerMode = 'cube';
-        p.dy = pad.color === 'pink' ? PAD_PINK_FORCE : PAD_YELLOW_FORCE;
-        p.grounded = false;
-        playSfx('pad');
-        spawnEndParticles(screenX + w / 2, padTop, 10, true);
-    }
-}
-
+const BOOST_COLORS={yellow:'#ffe600',pink:'#ff4fd8',red:'#ff334f',blue:'#28a9ff',green:'#45e06f',black:'#242424'};
+const PAD_FORCES={yellow:-19.5,pink:-24.5,red:-28,blue:-16,green:-22};
+const ORB_FORCES={yellow:-17.5,pink:-22.5,red:-26,blue:-14,green:-20,black:8};
+function drawPad(pad,screenX){const w=36,h=11,y=GROUND_Y-h;if(screenX+w < -40||screenX>canvas.width+40)return;const color=pad.colorOverride||BOOST_COLORS[pad.color]||BOOST_COLORS.yellow;ctx.save();ctx.fillStyle=color;ctx.globalAlpha=.28;ctx.fillRect(screenX-4,y-8,w+8,h+10);ctx.globalAlpha=1;ctx.fillStyle=color;ctx.strokeStyle='#000';ctx.lineWidth=2.5;ctx.beginPath();ctx.roundRect(screenX,y,w,h,[6,6,2,2]);ctx.fill();ctx.stroke();ctx.restore();}
+function checkPadCollision(p,pad,screenX){if(pad.cooldown>0){pad.cooldown--;return;}const w=36,h=14,top=GROUND_Y-h,hit=p.x+p.size>screenX+3&&p.x<screenX+w-3&&p.y+p.size>=top&&p.y<GROUND_Y;if(!hit)return;pad.cooldown=12;playerMode='cube';p.dy=PAD_FORCES[pad.color]??PAD_YELLOW_FORCE;p.grounded=false;playSfx('pad');spawnEndParticles(screenX+w/2,top,10,true);}
 // === ORBS DE PULO ===
-function drawOrb(orb, screenX) {
-    const radius = 17;
-    if (screenX + radius * 2 < -40 || screenX - radius * 2 > canvas.width + 40) return;
-
-    const isPink = orb.color === 'pink';
-    const outerColor = orb.colorOverride || (isPink ? '#ff4fd8' : '#ffe600');
-    const innerColor = orb.colorOverride || (isPink ? '#ffd1f5' : '#fff8b8');
-
-    ctx.save();
-    ctx.globalAlpha = orb.used ? 0.45 : 1;
-
-    ctx.fillStyle = isPink ? 'rgba(255, 79, 216, 0.25)' : 'rgba(255, 230, 0, 0.25)';
-    ctx.beginPath();
-    ctx.arc(screenX, orb.y, radius + 7, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = outerColor;
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(screenX, orb.y, radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = innerColor;
-    ctx.beginPath();
-    ctx.arc(screenX, orb.y, radius * 0.45, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
-}
-
-function checkOrbTrigger(p, orb, screenX) {
-    if (orb.used) return;
-    if (!isHoldingJump && !jumpJustPressed) return;
-
-    const pcx = p.x + p.size / 2;
-    const pcy = p.y + p.size / 2;
-    const dx = pcx - screenX;
-    const dy = pcy - orb.y;
-    const hitDist = p.size * 0.65 + 18;
-
-    if (dx * dx + dy * dy <= hitDist * hitDist) {
-        orb.used = true;
-        jumpJustPressed = false;
-        playerMode = 'cube';
-        p.dy = orb.color === 'pink' ? ORB_PINK_FORCE : ORB_YELLOW_FORCE;
-        p.grounded = false;
-        playSfx('pad');
-        spawnEndParticles(screenX, orb.y, 12, true);
-    }
-}
+function drawOrb(orb,screenX){const r=17;if(screenX+r*2 < -40||screenX-r*2>canvas.width+40)return;const color=orb.colorOverride||BOOST_COLORS[orb.color]||BOOST_COLORS.yellow;ctx.save();ctx.globalAlpha=orb.used ? .45 : 1;ctx.fillStyle=color;ctx.globalAlpha*=.25;ctx.beginPath();ctx.arc(screenX,orb.y,r+7,0,Math.PI*2);ctx.fill();ctx.globalAlpha=orb.used ? .45 : 1;ctx.fillStyle=color;ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.beginPath();ctx.arc(screenX,orb.y,r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.globalAlpha*=.72;ctx.beginPath();ctx.arc(screenX-4,orb.y-4,r*.34,0,Math.PI*2);ctx.fill();ctx.restore();}
+function checkOrbTrigger(p,orb,screenX){if(orb.used||(!isHoldingJump&&!jumpJustPressed))return;const dx=p.x+p.size/2-screenX,dy=p.y+p.size/2-orb.y,hit=p.size*.65+18;if(dx*dx+dy*dy>hit*hit)return;orb.used=true;jumpJustPressed=false;playerMode='cube';p.dy=ORB_FORCES[orb.color]??ORB_YELLOW_FORCE;p.grounded=false;playSfx('pad');spawnEndParticles(screenX,orb.y,12,true);}
 
 // === PLATAFORMAS E BLOCOS ===
 function drawPlatform(plat, screenX) {
@@ -1256,17 +1162,6 @@ function resumeCurrentGame() {
 // === RENDERIZAÇÃO DO MUNDO DO JOGO ===
 function drawBackgroundAndGround() {
     const inGameplay = ['PLAYING', 'DEAD', 'PAUSED', 'WIN'].includes(gameState);
-    if (!inGameplay && gameState === 'MENU') {
-        // Menu limpo: fundo sólido, chão simples e sem grade decorativa.
-        ctx.fillStyle = '#26384d';
-        ctx.fillRect(0, 0, canvas.width, GROUND_Y);
-        ctx.fillStyle = '#111d2b';
-        ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
-        ctx.fillStyle = '#48d8e8';
-        ctx.fillRect(0, GROUND_Y - 3, canvas.width, 3);
-        return;
-    }
-
     const bgTop = runtimeBgTop || activePlayableLevel.bgTop || '#0038a8';
     const bgBottom = runtimeBgBottom || activePlayableLevel.bgBottom || '#0066ff';
     const groundFill = runtimeGroundFill || activePlayableLevel.groundFill || '#001d5c';
@@ -1451,47 +1346,14 @@ function updateGameplay() {
 }
 
 function drawMenuPreview() {
-    const playerX = 150;
-    const cycleLength = 280;
-    const phase = menuDemoScroll % cycleLength;
-    const jumpStart = 35;
-    const jumpLength = 220;
-    const jumpProgress = (phase - jumpStart) / jumpLength;
-    const isJumping = jumpProgress >= 0 && jumpProgress <= 1;
-    const jumpHeight = isJumping ? Math.sin(jumpProgress * Math.PI) * 92 : 0;
-    const playerY = GROUND_Y - BLOCK_SIZE - jumpHeight;
-    const rotation = isJumping ? jumpProgress * Math.PI * 2 : 0;
-
-    // Espinhos repetidos passando pelo chão.
-    for (let worldX = 360; worldX < canvas.width + cycleLength; worldX += cycleLength) {
-        const spikeX = worldX - phase;
-        if (spikeX < -50 || spikeX > canvas.width + 50) continue;
-        ctx.save();
-        ctx.fillStyle = '#ff624f';
-        ctx.strokeStyle = '#101820';
-        ctx.lineWidth = 4;
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(spikeX, GROUND_Y);
-        ctx.lineTo(spikeX + 22, GROUND_Y - 42);
-        ctx.lineTo(spikeX + 44, GROUND_Y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    // Pequeno rastro discreto e o cubo principal.
-    ctx.save();
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = playerSkin.primary;
-    ctx.fillRect(playerX - 18, playerY + 18, 9, 9);
-    ctx.globalAlpha = 0.10;
-    ctx.fillRect(playerX - 34, playerY + 23, 7, 7);
-    ctx.restore();
-    drawCubeSkin(ctx, playerX, playerY, BLOCK_SIZE, rotation, playerSkin);
-
-    menuDemoScroll += 2.6;
+    // Menu antigo: somente a ship voando.
+    const phase=(menuDemoScroll%900)/900,shipX=70+phase*(canvas.width+100),shipY=235+Math.sin(phase*Math.PI*5)*48;
+    ctx.save();ctx.globalAlpha=.26;ctx.strokeStyle='#53eaff';ctx.lineWidth=12;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(shipX-105,shipY+20);ctx.lineTo(shipX-14,shipY+20);ctx.stroke();ctx.restore();
+    ctx.save();ctx.translate(shipX+22,shipY+22);ctx.fillStyle=playerSkin.primary;ctx.strokeStyle='#07101d';ctx.lineWidth=4;ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(-24,-15);ctx.lineTo(5,-15);ctx.lineTo(25,0);ctx.lineTo(5,15);ctx.lineTo(-24,15);ctx.lineTo(-14,0);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle=playerSkin.secondary;ctx.beginPath();ctx.arc(2,0,6,0,Math.PI*2);ctx.fill();ctx.restore();
+    menuDemoScroll+=2.4;
 }
 
 function loop() {
@@ -1548,12 +1410,12 @@ function renderLevelSelect() {
     document.getElementById('level-name').textContent = lvl.name;
     const best = levelProgress[lvl.name] || 0;
     const att = levelAttempts[lvl.name] || 0;
-    document.getElementById('level-diff-text').textContent = `${lvl.difficulty || 'NORMAL'} • RECORDE: ${best}% • ATT: ${att}`;
-    document.getElementById('level-stars').textContent = `☆ ${lvl.stars || 1}`;
-
-    const faceEl = document.getElementById('level-diff-face');
-    const faceSrc = DIFFICULTY_FACES[lvl.faceKey] || DIFFICULTY_FACES.azul;
-    faceEl.innerHTML = `<img src="${faceSrc}" alt="${lvl.difficulty || 'Dificuldade'}">`;
+    const difficulty=String(lvl.difficulty||'NORMAL').toUpperCase();
+    const meta={EASY:{face:'azul',stars:2},NORMAL:{face:'verde',stars:4},HARD:{face:'vermelho',stars:7},INSANE:{face:'roxo',stars:9}}[difficulty]||{face:'verde',stars:4};
+    document.getElementById('level-diff-text').textContent=difficulty+' • RECORDE: '+best+'% • ATT: '+att;
+    document.getElementById('level-stars').textContent='☆ '+(lvl.stars ?? meta.stars);
+    const faceEl=document.getElementById('level-diff-face'),faceSrc=DIFFICULTY_FACES[lvl.faceKey]||DIFFICULTY_FACES[meta.face];
+    faceEl.innerHTML='<img src="'+faceSrc+'" alt="'+difficulty+'">';
 }
 
 function renderSkinUI() {
@@ -1692,8 +1554,15 @@ const ASSET_PALETTE = [
     { id: 'block', label: 'BLOCK', color: '#4cc9f0' },
     { id: 'pad_yellow', label: 'PAD Y', color: '#ffe600' },
     { id: 'pad_pink', label: 'PAD P', color: '#ff4fd8' },
+    { id: 'pad_red', label: 'PAD R', color: '#ff334f' },
+    { id: 'pad_blue', label: 'PAD B', color: '#28a9ff' },
+    { id: 'pad_green', label: 'PAD G', color: '#45e06f' },
     { id: 'orb_yellow', label: 'ORB Y', color: '#ffd60a' },
     { id: 'orb_pink', label: 'ORB P', color: '#f72585' },
+    { id: 'orb_red', label: 'ORB R', color: '#ff334f' },
+    { id: 'orb_blue', label: 'ORB B', color: '#28a9ff' },
+    { id: 'orb_green', label: 'ORB G', color: '#45e06f' },
+    { id: 'orb_black', label: 'ORB BLACK', color: '#242424' },
     { id: 'saw', label: 'SAW', color: '#94a3b8' },
     { id: 'pillar', label: 'PILLAR', color: '#cbd5e1' },
     { id: 'coin', label: 'COIN', color: '#ffb703' },
@@ -1835,7 +1704,8 @@ function saveEditorDraftToCustomLevels() {
     const diffEl = document.getElementById('editor-level-diff');
     editorDraft.name = (titleEl && titleEl.value.trim()) || 'Minha Fase';
     editorDraft.difficulty = (diffEl && diffEl.value) || 'NORMAL';
-
+    const meta={EASY:{faceKey:'azul',stars:2},NORMAL:{faceKey:'verde',stars:4},HARD:{faceKey:'vermelho',stars:7},INSANE:{faceKey:'roxo',stars:9}}[editorDraft.difficulty]||{faceKey:'verde',stars:4};
+    editorDraft.faceKey=meta.faceKey;editorDraft.stars=meta.stars;
     const copy = JSON.parse(JSON.stringify(editorDraft));
     const builtinIdx = LEVELS.findIndex(l => l.id && l.id === editorDraft.id);
     const existingIdx = customLevels.findIndex(l => l.id === editorDraft.id);
@@ -2042,14 +1912,14 @@ function drawEditorCanvas() {
     (editorDraft.pads || []).forEach(pad => {
         const sx = pad.x + ox;
         if (sx < -50 || sx > w + 50) return;
-        eCtx.fillStyle = pad.color === 'pink' ? '#ff4fd8' : '#ffe600';
+        eCtx.fillStyle = pad.colorOverride || ({yellow:'#ffe600',pink:'#ff4fd8',red:'#ff334f',blue:'#28a9ff',green:'#45e06f'}[pad.color] || '#ffe600');
         eCtx.fillRect(sx, groundY - 10, 36, 10);
     });
 
     (editorDraft.orbs || []).forEach(orb => {
         const sx = orb.x + ox;
         if (sx < -50 || sx > w + 50) return;
-        eCtx.fillStyle = orb.color === 'pink' ? '#ff4fd8' : '#ffd60a';
+        eCtx.fillStyle = orb.colorOverride || ({yellow:'#ffd60a',pink:'#ff4fd8',red:'#ff334f',blue:'#28a9ff',green:'#45e06f',black:'#242424'}[orb.color] || '#ffd60a');
         eCtx.beginPath();
         eCtx.arc(sx, orb.y || groundY - 80, 14, 0, Math.PI * 2);
         eCtx.fill();
