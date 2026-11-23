@@ -610,6 +610,7 @@ function refreshInspector() {
   const first = records[0];
   if (!$('editor-selection-count')) return;
   $('editor-selection-count').textContent = records.length + ' selected';
+
   ['inspect-x', 'inspect-y', 'inspect-rotation', 'inspect-scale', 'inspect-groups'].forEach(id => {
     if ($(id)) $(id).disabled = !first;
   });
@@ -617,37 +618,95 @@ function refreshInspector() {
   if ($('inspect-rotation')) $('inspect-rotation').disabled = !first || first.key !== 'decorations';
   if ($('inspect-scale')) $('inspect-scale').disabled = !first || first.key !== 'decorations';
   if (!first) return;
-  $('inspect-x').value = Math.round(first.obj.x || 0);
-  $('inspect-y').value = Math.round(first.obj.y === undefined ? (first.key === 'spikes' ? (first.obj.inverted ? CEILING_Y : GROUND_Y) : first.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : first.key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45) : first.obj.y);
-  $('inspect-rotation').value = Math.round(((first.obj.rotation || 0) * 180) / Math.PI);
-  $('inspect-scale').value = Math.round((first.obj.scale || 1) * 100);
-  $('inspect-groups').value = objectGroupList(first.obj).join(', ');
-  const cfg=$('trigger-config');if(cfg){const show=records[0].key==='triggers';cfg.classList.toggle('hidden',!show);if(show){const t=first.obj;const f=(label,key,value,type='number',min='',max='',step='1')=>'<label>'+label+'<input data-trg="'+key+'" type="'+type+'" value="'+String(value??'')+'" '+(min!==''?'min="'+min+'" ':'')+(max!==''?'max="'+max+'" ':'')+(step!==''?'step="'+step+'"':'')+'></label>';let h='<strong>'+String(t.kind).toUpperCase()+' CONFIG</strong>';if(t.kind==='speed_custom')h+=f('Speed multiplier','speed',t.speed??1.5,'number',.25,3,.05);if(['move','color','rotate','pulse'].includes(t.kind))h+='<label>Group ID<input data-trg="groupId" value="'+(t.groupId||'1')+'"></label>';if(t.kind==='move')h+=f('Move X blocks','moveX',t.moveX??1,'number',-100,100,1)+f('Move Y blocks','moveY',t.moveY??0,'number',-100,100,1);if(t.kind==='color')h+=f('Object color','color',t.color||'#ff4fd8','color','','','');if(t.kind==='bg_custom')h+=f('BG top','bgTop',t.bgTop||'#182848','color','','','')+f('BG bottom','bgBottom',t.bgBottom||'#4b6cb7','color','','','');if(t.kind==='shake_custom')h+=f('Shake intensity','shakeAmount',t.shakeAmount??8,'number',1,30,1);if(t.kind==='rotate')h+=f('Rotation degrees','rotateAmount',t.rotateAmount??45,'number',-360,360,1);if(t.kind==='pulse')h+=f('Pulse scale','pulseAmount',t.pulseAmount??1.25,'number',.2,3,.05);cfg.innerHTML=h;}}
+
+  const values = {
+    'inspect-x': Math.round(first.obj.x || 0),
+    'inspect-y': Math.round(first.obj.y === undefined
+      ? (first.key === 'spikes' ? (first.obj.inverted ? CEILING_Y : GROUND_Y)
+        : first.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2
+        : first.key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45)
+      : first.obj.y),
+    'inspect-rotation': Math.round(((first.obj.rotation || 0) * 180) / Math.PI),
+    'inspect-scale': Math.round((first.obj.scale || 1) * 100),
+    'inspect-groups': objectGroupList(first.obj).join(', ')
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const input = $(id);
+    if (!input) return;
+    input.value = value;
+    // O Apply só pode alterar propriedades cujo valor foi editado depois da seleção.
+    input.dataset.originalValue = String(value);
+  });
+
+  const cfg = $('trigger-config');
+  if (cfg) {
+    const show = records[0].key === 'triggers';
+    cfg.classList.toggle('hidden', !show);
+    if (show) {
+      const t = first.obj;
+      const f = (label, key, value, type = 'number', min = '', max = '', step = '1') =>
+        '<label>' + label + '<input data-trg="' + key + '" type="' + type + '" value="' + String(value ?? '') + '" ' +
+        (min !== '' ? 'min="' + min + '" ' : '') +
+        (max !== '' ? 'max="' + max + '" ' : '') +
+        (step !== '' ? 'step="' + step + '"' : '') + '></label>';
+      let h = '<strong>' + String(t.kind).toUpperCase() + ' CONFIG</strong>';
+      if (t.kind === 'speed_custom') h += f('Speed multiplier', 'speed', t.speed ?? 1.5, 'number', .25, 3, .05);
+      if (['move', 'color', 'rotate', 'pulse'].includes(t.kind)) h += '<label>Group ID<input data-trg="groupId" value="' + (t.groupId || '1') + '"></label>';
+      if (t.kind === 'move') h += f('Move X blocks', 'moveX', t.moveX ?? 1, 'number', -100, 100, 1) + f('Move Y blocks', 'moveY', t.moveY ?? 0, 'number', -100, 100, 1);
+      if (t.kind === 'color') h += f('Object color', 'color', t.color || '#ff4fd8', 'color', '', '', '');
+      if (t.kind === 'bg_custom') h += f('BG top', 'bgTop', t.bgTop || '#182848', 'color', '', '', '') + f('BG bottom', 'bgBottom', t.bgBottom || '#4b6cb7', 'color', '', '', '');
+      if (t.kind === 'shake_custom') h += f('Shake intensity', 'shakeAmount', t.shakeAmount ?? 8, 'number', 1, 30, 1);
+      if (t.kind === 'rotate') h += f('Rotation degrees', 'rotateAmount', t.rotateAmount ?? 45, 'number', -360, 360, 1);
+      if (t.kind === 'pulse') h += f('Pulse scale', 'pulseAmount', t.pulseAmount ?? 1.25, 'number', .2, 3, .05);
+      cfg.innerHTML = h;
+    }
+  }
 }
 
 function applyInspector() {
   const records = getSelectionRecords();
   if (!records.length) return;
+
+  const changed = id => {
+    const input = $(id);
+    return Boolean(input && !input.disabled && String(input.value) !== String(input.dataset.originalValue));
+  };
+  const changeX = changed('inspect-x');
+  const changeY = changed('inspect-y');
+  const changeRotation = changed('inspect-rotation');
+  const changeScale = changed('inspect-scale');
+  const changeGroups = changed('inspect-groups');
+  if (!changeX && !changeY && !changeRotation && !changeScale && !changeGroups) return;
+
+  const x = changeX ? Number($('inspect-x').value) : null;
+  const y = changeY ? Number($('inspect-y').value) : null;
+  const rot = changeRotation ? Number($('inspect-rotation').value) : null;
+  const scale = changeScale ? Number($('inspect-scale').value) / 100 : null;
+  if ((changeX && !Number.isFinite(x)) || (changeY && !Number.isFinite(y)) ||
+      (changeRotation && !Number.isFinite(rot)) || (changeScale && !Number.isFinite(scale))) return;
+
   recordHistory();
-  const x = Number($('inspect-x').value);
-  const y = Number($('inspect-y').value);
-  const rot = Number($('inspect-rotation').value);
-  const scale = Number($('inspect-scale').value) / 100;
   const first = records[0].obj;
-  const dx = Number.isFinite(x) ? x - (first.x || 0) : 0;
-  const firstDefaultY = records[0].key === 'spikes' ? (first.inverted ? CEILING_Y : GROUND_Y) : records[0].key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : records[0].key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45;
-  const dy = Number.isFinite(y) ? y - (first.y === undefined ? firstDefaultY : first.y) : 0;
+  const firstDefaultY = records[0].key === 'spikes' ? (first.inverted ? CEILING_Y : GROUND_Y)
+    : records[0].key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2
+    : records[0].key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45;
+  const dx = changeX ? x - (first.x || 0) : 0;
+  const dy = changeY ? y - (first.y === undefined ? firstDefaultY : first.y) : 0;
 
   records.forEach(s => {
-    if (Number.isFinite(x)) s.obj.x = Math.round(((s.obj.x || 0) + dx) / gridUnit) * gridUnit;
-    if (Number.isFinite(y) && !['pads', 'pillars'].includes(s.key)) {
-      const fallbackY = s.key === 'spikes' ? (s.obj.inverted ? CEILING_Y : GROUND_Y) : s.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2 : s.key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45;
-      s.obj.y = Math.max(0, Math.min(GROUND_Y, Math.round(((s.obj.y === undefined ? fallbackY : s.obj.y) + dy) / gridUnit) * gridUnit));
+    if (changeX) s.obj.x = Math.round(((s.obj.x || 0) + dx) / gridUnit) * gridUnit;
+    if (changeY && !['pads', 'pillars'].includes(s.key)) {
+      const fallbackY = s.key === 'spikes' ? (s.obj.inverted ? CEILING_Y : GROUND_Y)
+        : s.key === 'portals' ? GROUND_Y - PORTAL_HEIGHT / 2
+        : s.key === 'triggers' ? GROUND_Y - 100 : GROUND_Y - 45;
+      s.obj.y = Math.max(0, Math.min(GROUND_Y,
+        Math.round(((s.obj.y === undefined ? fallbackY : s.obj.y) + dy) / gridUnit) * gridUnit));
     }
-    if (s.key === 'decorations' && Number.isFinite(rot)) s.obj.rotation = (rot * Math.PI) / 180;
-    if (s.key === 'decorations' && Number.isFinite(scale)) s.obj.scale = Math.max(0.1, Math.min(5, scale));
-    assignGroups(s.obj, $('inspect-groups').value);
+    if (s.key === 'decorations' && changeRotation) s.obj.rotation = (rot * Math.PI) / 180;
+    if (s.key === 'decorations' && changeScale) s.obj.scale = Math.max(0.1, Math.min(5, scale));
+    if (changeGroups) assignGroups(s.obj, $('inspect-groups').value);
   });
+  refreshInspector();
   drawEditorCanvas();
 }
 
