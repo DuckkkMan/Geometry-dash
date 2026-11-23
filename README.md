@@ -44,3 +44,12 @@ Projeto de fã, não oficial, sem músicas, fases ou recursos proprietários do 
 - Spider removido dos modos e portais.
 - Três fases novas: Carbon Rush, Afterglow e Final Drive.
 - Novos objetos: bloco 3×2 e plataforma extra longa.
+
+
+## Correções de estabilidade e interface
+
+- Cores das skins atualizam as miniaturas em tempo real e o degradê continua aplicado durante a partida.
+- Ball e Robot giram continuamente; Ball aceita novos toques para alternar a gravidade no ar.
+- Trail desenhada atrás do jogador usando a posição real no mundo.
+- Canvas do editor mantém proporção 9:5 ao redimensionar, evitando deformar as células da grade.
+- Registro de atualizações acessível pelo botão ao lado das configurações.

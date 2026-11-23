@@ -40,6 +40,7 @@
 
         <!-- TELA INICIAL (MENU PRINCIPAL) -->
         <div id="main-menu" class="overlay">
+            <button id="update-log-btn" class="corner-update-btn" type="button" aria-label="Registro de atualizações" title="Atualizações">▤</button>
             <button id="settings-btn" class="corner-settings-btn" type="button" aria-label="Configurações" title="Configurações">⚙</button>
 
             <div class="logo-container">
@@ -162,6 +163,35 @@
                             <span id="style-finish-label">4400</span>
                         </label>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REGISTRO DE ATUALIZAÇÕES -->
+        <div id="update-log-screen" class="overlay hidden">
+            <button id="back-from-update-log" class="corner-back-btn" type="button">←</button>
+            <div class="update-log-box">
+                <h2>UPDATE LOG</h2>
+                <p class="settings-subtitle">HISTÓRICO DE ATUALIZAÇÕES</p>
+                <div class="update-log-list">
+                    <article class="update-log-entry current">
+                        <div class="update-log-entry-head"><strong>VERSION 1.5</strong><span>ATUAL</span></div>
+                        <ul>
+                            <li>16 skins PNG: 6 Cube e 2 para cada outro modo.</li>
+                            <li>Editor de cores com degradê entre COR 1 e COR 2.</li>
+                            <li>Seis modos: Cube, Ship, Ball, UFO, Wave e Robot.</li>
+                            <li>Robot com salto variável e aparência própria; Spider removido.</li>
+                            <li>Três fases novas: Carbon Rush, Afterglow e Final Drive.</li>
+                            <li>Novos blocos e plataformas no editor.</li>
+                        </ul>
+                    </article>
+                    <article class="update-log-entry">
+                        <div class="update-log-entry-head"><strong>VERSION 1.4</strong></div>
+                        <ul>
+                            <li>Biblioteca expandida, busca global e ferramentas de construção.</li>
+                            <li>Colisão opcional para decorações e melhorias de desempenho.</li>
+                        </ul>
+                    </article>
                 </div>
             </div>
         </div>

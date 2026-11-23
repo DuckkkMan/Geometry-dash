@@ -396,7 +396,8 @@ player.update = function () {
     if (this.y >= floor) { this.y = floor; this.dy = 0; this.grounded = true; }
     else if (this.y <= ceiling) { this.y = ceiling; this.dy = 0; this.grounded = true; }
     else this.grounded = false;
-    this.rotation += this.dy * 0.025;
+    // A bola continua girando mesmo quando a velocidade vertical zera no contato.
+    this.rotation += 0.13 * modeGravity;
     return;
   }
   if (playerMode === 'ufo') {
@@ -418,7 +419,8 @@ player.update = function () {
     this.y += this.dy;
     if (this.y >= floor) { this.y = floor; this.dy = 0; this.grounded = true; } else this.grounded = false;
     if (this.y < ceiling) { this.y = ceiling; this.dy = 0; }
-    if (!this.grounded) this.rotation += 0.07;
+    // O Robot usa a física de salto própria, mas mantém rotação contínua como ícone.
+    this.rotation += 0.13;
     return;
   }
   originalPlayerUpdate();
@@ -465,39 +467,44 @@ startAttempt = function (countNewAttempt = true) {
 };
 
 const originalLoop = loop;
-function drawPlayerTrail() {
-  if (lowPerformanceMode || activeTrail.length < 2) return;
+function drawActivePlayerTrail() {
+  if (!visualSettings.trail || activeTrail.length < 2) return;
+  const visibleTrail = activeTrail.filter(pt => pt.x >= levelDistance - 900 && pt.x <= levelDistance + player.x);
+  if (visibleTrail.length < 2) return;
   ctx.save();
   ctx.beginPath();
-  const visibleTrail = activeTrail.filter(pt => pt.x >= levelDistance - 1100);
-  if (visibleTrail.length < 2) { ctx.restore(); return; }
   visibleTrail.forEach((pt, i) => {
-    const sx = pt.x - levelDistance + 160;
-    const sy = pt.y;
-    if (i === 0) ctx.moveTo(sx, sy);
-    else ctx.lineTo(sx, sy);
+    const sx = pt.x - levelDistance;
+    if (i === 0) ctx.moveTo(sx, pt.y);
+    else ctx.lineTo(sx, pt.y);
   });
+  const skin = modeSkins[playerMode] || modeSkins.cube;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = 'rgba(0,229,255,.25)';
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = skin.secondary || '#e9fdff';
   ctx.lineWidth = 10;
-  ctx.shadowColor = '#00e5ff';
-  ctx.shadowBlur = 14;
+  ctx.globalAlpha = 0.24;
+  ctx.shadowColor = skin.primary || '#00e5ff';
+  ctx.shadowBlur = 13;
   ctx.stroke();
-  ctx.strokeStyle = '#e9fdff';
+  ctx.globalAlpha = 0.72;
   ctx.lineWidth = 3;
   ctx.shadowBlur = 5;
   ctx.stroke();
   ctx.restore();
 }
+// O loop original chama drawPlayerTrail globalmente. Substituímos a função global
+// para desenhar o rastro real de movimento, em vez do antigo conjunto de quadrados.
+drawPlayerTrail = drawActivePlayerTrail;
 
 loop = function () {
-  if (gameState === 'PLAYING' && !lowPerformanceMode) {
+  if (gameState === 'PLAYING' && visualSettings.trail) {
     if (trailTick++ % 2 === 0) {
-      activeTrail.push({ x: levelDistance, y: player.y + player.size / 2 });
-      if (activeTrail.length > 420) activeTrail.splice(0, 60);
+      activeTrail.push({ x: levelDistance + player.x, y: player.y + player.size / 2 });
+      if (activeTrail.length > 150) activeTrail.splice(0, activeTrail.length - 150);
     }
-  }
+  } else if (!visualSettings.trail) activeTrail.length = 0;
   originalLoop();
 };
 
@@ -660,6 +667,18 @@ function renderModeGarage() {
     tintedSkinCache.clear();
     syncPlayerSkinFromMode();
     saveModeSkins();
+    // Atualiza as miniaturas sem recriar o input (o seletor de cor continua aberto).
+    panel.querySelectorAll('.mode-model').forEach((card, index) => {
+      const cv = card.querySelector('canvas');
+      if (!cv) return;
+      const previewCtx = cv.getContext('2d');
+      previewCtx.clearRect(0, 0, cv.width, cv.height);
+      drawModeIcon(previewCtx, activeSkinMode, 6, 6, 52, 0, { ...skin, model: index });
+    });
+    panel.querySelectorAll('.skin-channel').forEach((button, index) => {
+      const dot = button.querySelector('i');
+      if (dot) dot.style.background = index === 0 ? skin.primary : skin.secondary;
+    });
     renderSkinUI();
   });
   picker.addEventListener('change', () => renderModeGarage());

@@ -16,6 +16,7 @@ const editorHub = document.getElementById('editor-hub');
 const creationsScreen = document.getElementById('creations-screen');
 const levelEditor = document.getElementById('level-editor');
 const settingsScreen = document.getElementById('settings-screen');
+const updateLogScreen = document.getElementById('update-log-screen');
 const levelSelect = document.getElementById('level-select');
 const skinGarage = document.getElementById('skin-garage');
 const pauseScreen = document.getElementById('pause-screen');
@@ -1055,7 +1056,7 @@ const player = {
 function hideAllOverlays() {
     [
         mainMenu, editorHub, creationsScreen, levelEditor,
-        settingsScreen, levelSelect, skinGarage, pauseScreen, winScreen
+        settingsScreen, updateLogScreen, levelSelect, skinGarage, pauseScreen, winScreen
     ].forEach(el => el && el.classList.add('hidden'));
 }
 
@@ -2057,6 +2058,13 @@ function bindEvents() {
         showOverlay(settingsScreen, 'SETTINGS');
     });
 
+    document.getElementById('update-log-btn')?.addEventListener('click', () => {
+        showOverlay(updateLogScreen, 'UPDATE_LOG');
+    });
+    document.getElementById('back-from-update-log')?.addEventListener('click', () => {
+        showOverlay(mainMenu, 'MENU');
+    });
+
     document.getElementById('skin-btn').addEventListener('click', () => {
         setupGarage();
         showOverlay(skinGarage, 'SKINS');
@@ -2270,7 +2278,7 @@ function bindEvents() {
     canvas.addEventListener('pointerdown', (e) => {
         if (gameState !== 'PLAYING') return;
         e.preventDefault();
-        if (!isHoldingJump) jumpJustPressed = true;
+        if (playerMode === 'ball' || !isHoldingJump) jumpJustPressed = true;
         isHoldingJump = true;
         });
 
