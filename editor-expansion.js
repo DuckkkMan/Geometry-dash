@@ -655,12 +655,44 @@ function findObjectAt(point) {
   let found = null;
   let best = Infinity;
   allEditorArrays(editorDraft).forEach(group => group.items.forEach(obj => {
-    const p = objectCenter(obj, group.key);
-    const dist = Math.hypot(point.x - p.x, point.y - p.y);
-    const radius = Math.max(30, (obj.w || obj.r || 40) * (obj.scale || 1) * 0.65);
-    if (dist < radius && dist < best) {
+    const key = group.key;
+    const p = objectCenter(obj, key);
+    const scale = Math.max(0.2, Math.min(5, Number(obj.scale) || 1));
+    let halfW = 22, halfH = 22;
+    if (key === 'platforms' || key === 'blocks') {
+      halfW = Math.max(22, (Number(obj.w) || BLOCK_SIZE) / 2);
+      halfH = Math.max(22, (Number(obj.h) || BLOCK_SIZE) / 2);
+    } else if (key === 'spikes') {
+      halfW = (obj.sizeType === 'mini' ? MINI_SPIKE_W : BLOCK_SIZE) / 2;
+      halfH = (obj.sizeType === 'mini' ? MINI_SPIKE_H : BLOCK_SIZE) / 2;
+    } else if (key === 'pillars') {
+      halfW = (Number(obj.w) || 34) / 2;
+      halfH = (Number(obj.h) || 90) / 2;
+    } else if (key === 'portals') {
+      halfW = PORTAL_WIDTH / 2;
+      halfH = PORTAL_HEIGHT / 2;
+    } else if (key === 'saws') {
+      halfW = halfH = Math.max(22, Number(obj.r) || 22);
+    } else if (key === 'decorations') {
+      halfW = halfH = 22 * scale;
+    } else if (key === 'triggers') {
+      halfW = 20; halfH = 48;
+    } else if (key === 'coins' || key === 'orbs') {
+      halfW = halfH = 25;
+    } else if (key === 'pads') {
+      halfW = 26; halfH = 18;
+    } else if (key === 'structures') {
+      halfW = Math.max(28, (Number(obj.w) || 60) / 2);
+      halfH = Math.max(28, (Number(obj.h) || 60) / 2);
+    }
+    halfW *= scale;
+    halfH *= scale;
+    const dx = Math.max(0, Math.abs(point.x - p.x) - halfW);
+    const dy = Math.max(0, Math.abs(point.y - p.y) - halfH);
+    const dist = Math.hypot(dx, dy);
+    if (dist <= 18 && dist < best) {
       best = dist;
-      found = { key: group.key, obj };
+      found = { key, obj };
     }
   }));
   return found;
