@@ -1808,13 +1808,12 @@ function saveEditorDraftToCustomLevels() {
     editorDraft.name = (titleEl && titleEl.value.trim()) || 'Minha Fase';
     editorDraft.difficulty = (diffEl && diffEl.value) || 'NORMAL';
 
-    const existingIdx = customLevels.findIndex(l => l.id === editorDraft.id);
     const copy = JSON.parse(JSON.stringify(editorDraft));
-    if (existingIdx >= 0) {
-        customLevels[existingIdx] = copy;
-    } else {
-        customLevels.push(copy);
-    }
+    const builtinIdx = LEVELS.findIndex(l => l.id && l.id === editorDraft.id);
+    const existingIdx = customLevels.findIndex(l => l.id === editorDraft.id);
+    if (builtinIdx >= 0) Object.assign(LEVELS[builtinIdx], copy);
+    else if (existingIdx >= 0) customLevels[existingIdx] = copy;
+    else customLevels.push(copy);
     writeSaveData();
 }
 
