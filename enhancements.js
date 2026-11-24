@@ -697,6 +697,7 @@ function renderModeGarage() {
   }
   [['primary','COR 1'],['secondary','COR 2']].forEach(([key,label])=>{const field=document.createElement('label');field.className='skin-custom-color';const span=document.createElement('span');span.textContent=label;const picker=document.createElement('input');picker.type='color';picker.value=skin[key];picker.setAttribute('aria-label',label+' do degradê');picker.addEventListener('input',()=>{skin[key]=picker.value.toLowerCase();tintedSkinCache.clear();updateGradient();refreshColorPreview();syncPlayerSkinFromMode();});picker.addEventListener('change',()=>{syncPlayerSkinFromMode();saveModeSkins();});field.append(span,picker);inputs.appendChild(field);});
   colorSection.appendChild(inputs);
+  panel.appendChild(colorSection);
   const footer = document.createElement('div');
   footer.className = 'skin-panel-footer';
   const reset = document.createElement('button');
