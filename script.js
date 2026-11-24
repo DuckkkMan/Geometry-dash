@@ -1406,7 +1406,24 @@ function loop() {
 
 // === SELEÇÃO DE FASES, GARAGEM E CRIAÇÕES ===
 function getAllSelectableLevels() {
-    return [...LEVELS, ...customLevels];
+    const difficultyOrder = {
+        AUTO: 0, EASY: 1, NORMAL: 2, HARD: 3, HARDER: 4,
+        INSANE: 5, DEMON: 6, EXTREME_DEMON: 7
+    };
+    return [...LEVELS, ...customLevels]
+        .map((level, originalIndex) => ({ level, originalIndex }))
+        .sort((a, b) => {
+            const da = String(a.level.difficulty || 'NORMAL').toUpperCase();
+            const db = String(b.level.difficulty || 'NORMAL').toUpperCase();
+            const ra = difficultyOrder[da] ?? 2;
+            const rb = difficultyOrder[db] ?? 2;
+            if (ra !== rb) return ra - rb;
+            const stars = Number(a.level.stars) || 0;
+            const otherStars = Number(b.level.stars) || 0;
+            if (stars !== otherStars) return stars - otherStars;
+            return a.originalIndex - b.originalIndex;
+        })
+        .map(entry => entry.level);
 }
 
 function renderLevelSelect() {

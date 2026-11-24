@@ -398,19 +398,36 @@ player.update = function () {
     return;
   }
   if (playerMode === 'ball') {
-    if (ballFlipQueued || jumpJustPressed) {
+    // A Ball só inverte a gravidade quando está apoiada na superfície
+    // para a qual a gravidade atual a está puxando.
+    const canFlip = this.grounded && (
+      (modeGravity > 0 && this.y >= floor - 0.5) ||
+      (modeGravity < 0 && this.y <= ceiling + 0.5)
+    );
+    if ((ballFlipQueued || jumpJustPressed) && canFlip) {
       modeGravity *= -1;
       this.dy = 0;
       this.grounded = false;
-      ballFlipQueued = false;
-      jumpJustPressed = false;
       playSfx('jump');
     }
+    // Toques feitos no ar não ficam armazenados para inverter depois.
+    ballFlipQueued = false;
+    jumpJustPressed = false;
+
     this.dy += GRAVITY * gravityMultiplier * modeGravity;
     this.y += this.dy;
-    if (this.y >= floor) { this.y = floor; this.dy = 0; this.grounded = true; }
-    else if (this.y <= ceiling) { this.y = ceiling; this.dy = 0; this.grounded = true; }
-    else this.grounded = false;
+
+    if (this.y >= floor) {
+      this.y = floor;
+      if (modeGravity > 0) { this.dy = 0; this.grounded = true; }
+      else { this.dy = Math.min(0, this.dy); this.grounded = false; }
+    } else if (this.y <= ceiling) {
+      this.y = ceiling;
+      if (modeGravity < 0) { this.dy = 0; this.grounded = true; }
+      else { this.dy = Math.max(0, this.dy); this.grounded = false; }
+    } else {
+      this.grounded = false;
+    }
     this.rotation += 0.13 * modeGravity;
     return;
   }
@@ -580,6 +597,8 @@ function setActiveMode(mode) {
   syncPlayerSkinFromMode();
   renderModeGarage();
   renderSkinUI();
+  const preview=document.getElementById('skin-preview');
+  if(preview){const pc=preview.getContext('2d');pc.clearRect(0,0,preview.width,preview.height);drawModeIcon(pc,activeSkinMode,8,8,64,0,modeSkins[activeSkinMode]);}
 }
 
 function renderModeGarage() {
@@ -663,8 +682,20 @@ function renderModeGarage() {
   const colorHead=document.createElement('div');colorHead.className='skin-section-heading';const colorTitle=document.createElement('span');colorTitle.textContent='DEGRADÊ DA SKIN';colorHead.appendChild(colorTitle);colorSection.appendChild(colorHead);
   const gradientPreview=document.createElement('div');gradientPreview.className='skin-gradient-preview';const updateGradient=()=>{gradientPreview.style.background='linear-gradient(90deg,'+skin.primary+','+skin.secondary+')';};updateGradient();colorSection.appendChild(gradientPreview);
   const inputs=document.createElement('div');inputs.className='skin-gradient-inputs';
-  function refreshColorPreview(){playerSkin.model=skin.model;playerSkin.primary=skin.primary;playerSkin.secondary=skin.secondary;panel.querySelectorAll('.mode-model').forEach((card,i)=>{const cv=card.querySelector('canvas');if(!cv)return;const pc=cv.getContext('2d');pc.clearRect(0,0,cv.width,cv.height);drawModeIcon(pc,activeSkinMode,6,6,52,0,{...skin,model:i});});renderSkinUI();}
-  [['primary','COR 1'],['secondary','COR 2']].forEach(([key,label])=>{const field=document.createElement('label');field.className='skin-custom-color';const span=document.createElement('span');span.textContent=label;const picker=document.createElement('input');picker.type='color';picker.value=skin[key];picker.setAttribute('aria-label',label+' do degradê');picker.addEventListener('input',()=>{skin[key]=picker.value.toLowerCase();updateGradient();refreshColorPreview();});picker.addEventListener('change',()=>{syncPlayerSkinFromMode();saveModeSkins();});field.append(span,picker);inputs.appendChild(field);});
+  function refreshColorPreview(){
+    playerSkin.model=skin.model;playerSkin.primary=skin.primary;playerSkin.secondary=skin.secondary;
+    tintedSkinCache.clear();
+    panel.querySelectorAll('.mode-model').forEach((card,i)=>{
+      const cv=card.querySelector('canvas');if(!cv)return;
+      const pc=cv.getContext('2d');pc.clearRect(0,0,cv.width,cv.height);
+      drawModeIcon(pc,activeSkinMode,6,6,52,0,{...skin,model:i});
+    });
+    const preview=document.getElementById('skin-preview');
+    if(preview){const pc=preview.getContext('2d');pc.clearRect(0,0,preview.width,preview.height);drawModeIcon(pc,activeSkinMode,8,8,64,0,skin);}
+    const buttonIcon=document.getElementById('skin-btn-icon');
+    if(buttonIcon){const bc=buttonIcon.getContext('2d');bc.clearRect(0,0,buttonIcon.width,buttonIcon.height);drawModeIcon(bc,activeSkinMode,4,4,36,0,skin);}
+  }
+  [['primary','COR 1'],['secondary','COR 2']].forEach(([key,label])=>{const field=document.createElement('label');field.className='skin-custom-color';const span=document.createElement('span');span.textContent=label;const picker=document.createElement('input');picker.type='color';picker.value=skin[key];picker.setAttribute('aria-label',label+' do degradê');picker.addEventListener('input',()=>{skin[key]=picker.value.toLowerCase();tintedSkinCache.clear();updateGradient();refreshColorPreview();syncPlayerSkinFromMode();});picker.addEventListener('change',()=>{syncPlayerSkinFromMode();saveModeSkins();});field.append(span,picker);inputs.appendChild(field);});
   colorSection.appendChild(inputs);
   const footer = document.createElement('div');
   footer.className = 'skin-panel-footer';
