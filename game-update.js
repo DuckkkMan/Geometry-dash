@@ -109,7 +109,7 @@ const melodies={
 };
 function stopLevelMusic(){
  if(musicTimer){clearInterval(musicTimer);musicTimer=null;}
- if(musicGain&&musicContext){try{musicGain.gain.setTargetAtTime(0,musicContext.currentTime,.08);}catch(_){}}
+ if(musicGain&&musicContext){try{musicGain.gain.cancelScheduledValues(musicContext.currentTime);musicGain.gain.setTargetAtTime(0,musicContext.currentTime,.04);}catch(_){}}
 }
 function startLevelMusic(level){
  stopLevelMusic();
@@ -120,7 +120,7 @@ function startLevelMusic(level){
   if(!musicContext)musicContext=new Audio();
   if(musicContext.state==='suspended')musicContext.resume();
   if(!musicGain){musicGain=musicContext.createGain();musicGain.gain.value=.075;musicGain.connect(musicContext.destination);}
-  musicGain.gain.setTargetAtTime(.075,musicContext.currentTime,.08);
+  musicGain.gain.cancelScheduledValues(musicContext.currentTime);musicGain.gain.setValueAtTime(0,musicContext.currentTime);musicGain.gain.setTargetAtTime(.075,musicContext.currentTime,.025);
   const tune=melodies[level.name]||melodies['Skyline Sprint'];musicStep=0;
   const playTone=(freq,duration,wave,volume,delay=0)=>{
    const now=musicContext.currentTime+delay,osc=musicContext.createOscillator(),gain=musicContext.createGain();
@@ -173,6 +173,17 @@ startLevel=function(level,fromEditor=false){
  }else if(visualSettings.music){
   startLevelMusic(activePlayableLevel);
  }
+};
+const originalStartAttempt=startAttempt;
+startAttempt=function(countNewAttempt=true){
+ const restartingAfterDeath=gameState==='DEAD';
+ const result=originalStartAttempt.apply(this,arguments);
+ if(restartingAfterDeath&&gameState==='PLAYING'&&visualSettings.music){
+  if(typeof stopProceduralMusic==='function')stopProceduralMusic();
+  if(isTestingFromEditor||!LEVELS.includes(activePlayableLevel))playCustomTrack(activePlayableLevel);
+  else startLevelMusic(activePlayableLevel);
+ }
+ return result;
 };
 const originalTriggerDeath=triggerDeath;
 triggerDeath=function(){stopLevelMusic();stopCustomTrack();return originalTriggerDeath.apply(this,arguments);};
