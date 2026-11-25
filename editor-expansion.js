@@ -567,6 +567,53 @@ function addEditorCommandBar() {
     } catch (_) { alert('Não foi possível recuperar o rascunho.'); }
   });
   top.querySelector('.editor-top-right')?.prepend(recovery);
+
+  const musicButton = document.createElement('button');
+  musicButton.id = 'editor-music-btn';
+  musicButton.type = 'button';
+  musicButton.className = 'mini-btn';
+  musicButton.textContent = '♫ MP3';
+  musicButton.title = 'Adicionar música MP3 personalizada a esta fase';
+  const musicInput = document.createElement('input');
+  musicInput.id = 'editor-music-file';
+  musicInput.type = 'file';
+  musicInput.accept = '.mp3,audio/mpeg,audio/mp3';
+  musicInput.hidden = true;
+  top.appendChild(musicInput);
+  top.querySelector('.editor-top-right')?.prepend(musicButton);
+  musicButton.addEventListener('click', () => musicInput.click());
+  musicInput.addEventListener('change', async () => {
+    const file = musicInput.files && musicInput.files[0];
+    musicInput.value = '';
+    if (!file || !editorDraft) return;
+    if (!/\.mp3$/i.test(file.name) && file.type !== 'audio/mpeg' && file.type !== 'audio/mp3') {
+      alert('Escolha um arquivo MP3.');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      alert('O MP3 precisa ter no máximo 20 MB.');
+      return;
+    }
+    try {
+      const id = String(editorDraft.id || ('lvl_' + Date.now())) + '_music';
+      await window.__gdSaveCustomMusic(id, file);
+      editorDraft.musicBlobId = id;
+      editorDraft.musicName = file.name;
+      saveEditorDraftToCustomLevels();
+      queueEditorAutosave();
+      refreshEditorMusicButton();
+    } catch (error) {
+      console.error('[Editor Music] Não foi possível salvar o MP3:', error);
+      alert('Não foi possível guardar o MP3 neste navegador.');
+    }
+  });
+  refreshEditorMusicButton();
+}
+function refreshEditorMusicButton() {
+  const button = $('editor-music-btn');
+  if (!button) return;
+  button.textContent = editorDraft && editorDraft.musicName ? '♫ ' + String(editorDraft.musicName).slice(0, 12) : '♫ MP3';
+  button.title = editorDraft && editorDraft.musicName ? 'Música da fase: ' + editorDraft.musicName + ' (clique para trocar)' : 'Adicionar música MP3 personalizada a esta fase';
 }
 function addLayerManager() {
  const top=editorRoot.querySelector('.editor-topbar'); if(!top||$('editor-layers-open')) return;
@@ -631,7 +678,7 @@ function addInspector() {
   if (!bottom || $('editor-inspector')) return;
   const panel = document.createElement('aside');
   panel.id = 'editor-inspector';
-  panel.innerHTML = '<div class="editor-inspector-title">OBJECT INSPECTOR <span id="editor-selection-count">0 selected</span></div><div class="editor-inspector-fields"><label>ROTATION<input id="inspect-rotation" type="number" step="1" value="0"></label><label>SCALE %<input id="inspect-scale" type="number" min="10" max="500" step="5" value="100"></label><label class="group-field">GROUPS<input id="inspect-groups" type="text" placeholder="Ex.: 1, 2, 10"></label><div id="trigger-config" class="trigger-config hidden"></div><button id="inspect-apply-btn" type="button">APPLY</button></div>';
+  panel.innerHTML = '<div class="editor-inspector-title">OBJECT INSPECTOR <span id="editor-selection-count">0 selected</span></div><div class="editor-inspector-fields"><label>X (PRECISO)<input id="inspect-x" type="number" step="0.1" value="0"></label><label>Y (PRECISO)<input id="inspect-y" type="number" step="0.1" value="0"></label><label>ROTATION<input id="inspect-rotation" type="number" step="1" value="0"></label><label>SCALE %<input id="inspect-scale" type="number" min="10" max="500" step="5" value="100"></label><label class="group-field">GROUPS<input id="inspect-groups" type="text" placeholder="Ex.: 1, 2, 10"></label><div id="trigger-config" class="trigger-config hidden"></div><button id="inspect-apply-btn" type="button">APPLY</button></div>';
   editorRoot.appendChild(panel);
   $('inspect-apply-btn').addEventListener('click', applyInspector);
   $('trigger-config').addEventListener('change', ev => {
@@ -656,7 +703,7 @@ function refreshInspector() {
   if (!$('editor-selection-count')) return;
   $('editor-selection-count').textContent = records.length + ' selected';
 
-  ['inspect-rotation', 'inspect-scale', 'inspect-groups'].forEach(id => {
+  ['inspect-x', 'inspect-y', 'inspect-rotation', 'inspect-scale', 'inspect-groups'].forEach(id => {
     const input = $(id);
     if (input) input.disabled = !first;
   });
@@ -668,11 +715,15 @@ function refreshInspector() {
   }
   if (typeof window.__gdSyncObjectStyle === 'function') window.__gdSyncObjectStyle(records);
 
+  const firstCenter = objectCenter(first.obj, first.key);
   const values = {
+    'inspect-x': Number(firstCenter.x.toFixed(2)),
+    'inspect-y': Number(firstCenter.y.toFixed(2)),
     'inspect-rotation': Math.round(((first.obj.rotation || 0) * 180) / Math.PI),
     'inspect-scale': Math.round((first.obj.scale || 1) * 100),
     'inspect-groups': objectGroupList(first.obj).join(', ')
   };
+  if ($('inspect-y')) $('inspect-y').disabled = !first || first.key === 'pads';
   Object.entries(values).forEach(([id, value]) => {
     const input = $(id);
     if (!input) return;
@@ -705,15 +756,52 @@ function refreshInspector() {
   }
 }
 
+function setObjectCenter(record, centerX, centerY, moveX, moveY) {
+  const { key, obj } = record;
+  const width = Number(obj.w) || (key === 'spikes' ? (obj.sizeType === 'mini' ? MINI_SPIKE_W : BLOCK_SIZE) : key === 'pillars' ? 34 : key === 'portals' ? PORTAL_WIDTH : 0);
+  const height = Number(obj.h) || (key === 'spikes' ? (obj.sizeType === 'mini' ? MINI_SPIKE_H : BLOCK_SIZE) : key === 'pillars' ? 90 : key === 'portals' ? PORTAL_HEIGHT : 0);
+  if (key === 'blocks' || key === 'platforms' || key === 'structures') {
+    if (moveX) obj.x = centerX - width / 2;
+    if (moveY) obj.y = centerY - height / 2;
+  } else if (key === 'spikes') {
+    if (moveX) obj.x = centerX - width / 2;
+    if (moveY) obj.y = obj.inverted ? centerY - height / 2 : centerY + height / 2;
+  } else if (key === 'pillars') {
+    if (moveX) obj.x = centerX - width / 2;
+    if (moveY) obj.h = Math.max(2, Math.min(GROUND_Y * 2, (GROUND_Y - centerY) * 2));
+  } else if (key === 'pads') {
+    if (moveX) obj.x = centerX - 18;
+  } else if (key === 'portals') {
+    if (moveX) obj.x = centerX - PORTAL_WIDTH / 2;
+    if (moveY) obj.y = centerY;
+  } else if (key === 'triggers') {
+    if (moveX) obj.x = centerX - 15;
+    if (moveY) obj.y = centerY - 50;
+  } else {
+    if (moveX) obj.x = centerX;
+    if (moveY) obj.y = centerY;
+  }
+}
 function applyInspector() {
  const records=getSelectionRecords();if(!records.length)return;
- const ri=$('inspect-rotation'),si=$('inspect-scale'),gi=$('inspect-groups');
+ const xi=$('inspect-x'),yi=$('inspect-y'),ri=$('inspect-rotation'),si=$('inspect-scale'),gi=$('inspect-groups');
+ const x=xi&&!xi.disabled?Number(xi.value):null,y=yi&&!yi.disabled?Number(yi.value):null;
  const rot=ri&&!ri.disabled?Number(ri.value):null,scale=si&&!si.disabled?Number(si.value):null,groups=gi?gi.value:'';
+ const first=records[0],center=objectCenter(first.obj,first.key);
+ const dx=x!==null&&Number.isFinite(x)?x-center.x:0,dy=y!==null&&Number.isFinite(y)?y-center.y:0;
+ const moveX=Math.abs(dx)>.0001,moveY=Math.abs(dy)>.0001;
  const cr=rot!==null&&Number.isFinite(rot)&&rot!==Number(ri.dataset.originalValue);
  const cs=scale!==null&&Number.isFinite(scale)&&scale>=10&&scale<=500&&scale!==Number(si.dataset.originalValue);
  const cg=Boolean(gi&&!gi.disabled&&String(groups)!==String(gi.dataset.originalValue));
- if(!cr&&!cs&&!cg)return;recordHistory();
- records.forEach(({obj})=>{if(cr)obj.rotation=rot*Math.PI/180;if(cs)obj.scale=scale/100;if(cg)assignGroups(obj,groups);});
+ if(!moveX&&!moveY&&!cr&&!cs&&!cg)return;
+ recordHistory();
+ records.forEach(record=>{
+   const p=objectCenter(record.obj,record.key);
+   setObjectCenter(record,p.x+dx,p.y+dy,moveX,moveY);
+   if(cr)record.obj.rotation=rot*Math.PI/180;
+   if(cs)record.obj.scale=scale/100;
+   if(cg)assignGroups(record.obj,groups);
+ });
  refreshInspector();drawEditorCanvas();queueEditorAutosave();
 }
 
@@ -851,8 +939,8 @@ editAtEditorPointer = function (pointerEvent) {
       selectedDragState = records.length ? {
         records: records.map(record => ({
           key: record.key, obj: record.obj,
-          objectX: Number(record.obj.x) || 0,
-          objectY: Number.isFinite(Number(record.obj.y)) ? Number(record.obj.y) : record.key === 'spikes' ? (record.obj.inverted ? CEILING_Y : GROUND_Y) : objectCenter(record.obj, record.key).y
+          centerX: objectCenter(record.obj, record.key).x,
+          centerY: objectCenter(record.obj, record.key).y
         })),
         startX: point.x, startY: point.y, moved: false
       } : { empty: true };
@@ -866,11 +954,11 @@ editAtEditorPointer = function (pointerEvent) {
     if (!selectedDragState.moved && Math.hypot(dx, dy) < 5) return;
     if (!selectedDragState.moved) { recordHistory(); selectedDragState.moved = true; }
     selectedDragState.records.forEach(record => {
-      const obj = record.obj;
-      obj.x = Math.max(0, Math.round((record.objectX + dx) / gridUnit) * gridUnit);
-      if (obj.y !== undefined || ['blocks','platforms','orbs','saws','coins','decorations','spikes','portals'].includes(record.key)) {
-        obj.y = Math.max(0, Math.min(GROUND_Y, Math.round((record.objectY + dy) / gridUnit) * gridUnit));
-      }
+      const nextX = Math.max(0, record.centerX + dx);
+      const nextY = Math.max(0, Math.min(GROUND_Y, record.centerY + dy));
+      // Cada eixo só é gravado quando realmente foi movimentado.
+      // Assim, mover apenas X nunca arredonda nem altera Y (e vice-versa).
+      setObjectCenter(record, nextX, nextY, Math.abs(dx) > 0.001, Math.abs(dy) > 0.001);
     });
     refreshInspector();
     drawEditorCanvas();
@@ -995,15 +1083,55 @@ function stopEditorMusic() {
 }
 
 
+const MUSIC_DB_NAME = 'gd_custom_music_v1';
+function openCustomMusicDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error('IndexedDB indisponível')); return; }
+    const request = indexedDB.open(MUSIC_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('tracks')) db.createObjectStore('tracks');
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Falha ao abrir biblioteca de músicas'));
+  });
+}
+window.__gdSaveCustomMusic = async (id, blob) => {
+  const db = await openCustomMusicDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('tracks', 'readwrite');
+    tx.objectStore('tracks').put(blob, id);
+    tx.oncomplete = () => { db.close(); resolve(true); };
+    tx.onerror = () => { const error = tx.error; db.close(); reject(error); };
+  });
+};
+window.__gdGetCustomMusic = async id => {
+  const db = await openCustomMusicDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('tracks', 'readonly');
+    const request = tx.objectStore('tracks').get(id);
+    request.onsuccess = () => { const value = request.result || null; db.close(); resolve(value); };
+    request.onerror = () => { const error = request.error; db.close(); reject(error); };
+  });
+};
+window.__gdDeleteCustomMusic = async id => {
+  const db = await openCustomMusicDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('tracks', 'readwrite');
+    tx.objectStore('tracks').delete(id);
+    tx.oncomplete = () => { db.close(); resolve(true); };
+    tx.onerror = () => { const error = tx.error; db.close(); reject(error); };
+  });
+};
+
 const originalShowOverlayForEditorMusic = showOverlay;
 showOverlay = function (overlayEl, nextState) {
   originalShowOverlayForEditorMusic.call(this, overlayEl, nextState);
+  stopEditorMusic();
   if (nextState === 'EDITOR') {
     stopProceduralMusic();
-    startEditorMusic();
-  } else {
-    stopEditorMusic();
-    if (nextState === 'MENU' && visualSettings.music) startProceduralMusic();
+  } else if (nextState === 'MENU' && visualSettings.music) {
+    startProceduralMusic();
   }
 };
 
@@ -1023,6 +1151,7 @@ openEditorWithLevel = function (level) {
   });
   if (!Number.isFinite(Number(safeLevel.finishX))) safeLevel.finishX = 4400;
   originalOpenEditorWithLevel.call(this, safeLevel);
+  refreshEditorMusicButton();
 };
 $('editor-clear-btn')?.addEventListener('click', () => recordHistory(), true);
 
