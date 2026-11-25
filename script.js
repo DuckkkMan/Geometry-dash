@@ -2183,7 +2183,7 @@ function setupExtraSettings() {
         el.addEventListener('change', () => {
             visualSettings[key] = type === 'range' ? Number(el.value) / 100 : el.checked;
             localStorage.setItem('gd_setting_' + key, String(type === 'range' ? Number(el.value) : visualSettings[key]));
-            if(key==='music'){stopProceduralMusic();if(!visualSettings.music)window.__gdStopLevelMusic?.();else if(gameState==='PLAYING')window.__gdStartLevelMusic?.(activePlayableLevel);}
+            if(key==='music'){stopProceduralMusic();if(!visualSettings.music){window.__gdStopLevelMusic?.();window.__gdStopCustomTrack?.();}else if(gameState==='PLAYING'){if(isTestingFromEditor||!LEVELS.includes(activePlayableLevel))window.__gdPlayCustomTrack?.(activePlayableLevel);else window.__gdStartLevelMusic?.(activePlayableLevel);}}
         });
     };
     bind('setting-trail', 'trail');
