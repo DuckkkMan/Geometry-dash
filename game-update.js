@@ -139,17 +139,58 @@ function startLevelMusic(level){
   tick();musicTimer=setInterval(tick,60000/tune.bpm);
  }catch(err){console.warn('[Music] Web Audio indisponível:',err);}
 }
+let customTrackAudio=null,customTrackUrl=null;
+function stopCustomTrack(){
+ if(customTrackAudio){customTrackAudio.pause();customTrackAudio.removeAttribute('src');customTrackAudio.load();customTrackAudio=null;}
+ if(customTrackUrl){URL.revokeObjectURL(customTrackUrl);customTrackUrl=null;}
+}
+async function playCustomTrack(level){
+ stopLevelMusic();stopCustomTrack();
+ if(!visualSettings.music||!level||!level.musicBlobId||typeof window.__gdGetCustomMusic!=='function')return;
+ try{
+  const blob=await window.__gdGetCustomMusic(level.musicBlobId);
+  if(!blob)return;
+  customTrackUrl=URL.createObjectURL(blob);
+  customTrackAudio=new Audio();
+  customTrackAudio.src=customTrackUrl;
+  customTrackAudio.loop=true;
+  customTrackAudio.preload='auto';
+  customTrackAudio.volume=Math.max(0,Math.min(1,Number(visualSettings.volume)||.35));
+  await customTrackAudio.play();
+ }catch(err){console.warn('[Music] Não foi possível iniciar o MP3 personalizado:',err);}
+}
+window.__gdStopCustomTrack=stopCustomTrack;
+window.__gdPlayCustomTrack=playCustomTrack;
 const originalStartLevel=startLevel;
 startLevel=function(level,fromEditor=false){
  originalStartLevel(level,fromEditor);
- if(gameState==='PLAYING'&&visualSettings.music)startLevelMusic(activePlayableLevel);
+ if(gameState!=='PLAYING')return;
+ if(typeof stopProceduralMusic==='function')stopProceduralMusic();
+ if(fromEditor||!LEVELS.includes(activePlayableLevel)){
+  stopLevelMusic();
+  playCustomTrack(activePlayableLevel);
+ }else if(visualSettings.music){
+  stopCustomTrack();
+  startLevelMusic(activePlayableLevel);
+ }
 };
 const originalTriggerDeath=triggerDeath;
-triggerDeath=function(){stopLevelMusic();return originalTriggerDeath.apply(this,arguments);};
+triggerDeath=function(){stopLevelMusic();stopCustomTrack();return originalTriggerDeath.apply(this,arguments);};
 const originalTriggerWin=triggerWin;
-triggerWin=function(){stopLevelMusic();return originalTriggerWin.apply(this,arguments);};
+triggerWin=function(){stopLevelMusic();stopCustomTrack();return originalTriggerWin.apply(this,arguments);};
 const originalShowOverlay=showOverlay;
-showOverlay=function(el,state){if(state!=='PLAYING')stopLevelMusic();const result=originalShowOverlay.apply(this,arguments);if(state==='PLAYING'&&visualSettings.music)startLevelMusic(activePlayableLevel);return result;};
+showOverlay=function(el,state){
+ if(state!=='PLAYING'){stopLevelMusic();stopCustomTrack();}
+ const result=originalShowOverlay.apply(this,arguments);
+ if(state==='PLAYING'&&visualSettings.music){
+  if(typeof stopProceduralMusic==='function')stopProceduralMusic();
+  if(isTestingFromEditor||!LEVELS.includes(activePlayableLevel))playCustomTrack(activePlayableLevel);
+  else startLevelMusic(activePlayableLevel);
+ }
+ return result;
+};
+const volumeControl=document.getElementById('setting-volume');
+if(volumeControl)volumeControl.addEventListener('input',()=>{if(customTrackAudio)customTrackAudio.volume=Number(volumeControl.value)/100;});
 
 /* As três fases oficiais do projeto podem ser abertas diretamente no editor. */
 const originalRenderLevelSelect=renderLevelSelect;
