@@ -166,11 +166,11 @@ startLevel=function(level,fromEditor=false){
  originalStartLevel(level,fromEditor);
  if(gameState!=='PLAYING')return;
  if(typeof stopProceduralMusic==='function')stopProceduralMusic();
+ stopCustomTrack();
  if(fromEditor||!LEVELS.includes(activePlayableLevel)){
   stopLevelMusic();
   playCustomTrack(activePlayableLevel);
  }else if(visualSettings.music){
-  stopCustomTrack();
   startLevelMusic(activePlayableLevel);
  }
 };
@@ -189,6 +189,11 @@ showOverlay=function(el,state){
  }
  return result;
 };
+const musicToggle=document.getElementById('setting-music');
+if(musicToggle)musicToggle.addEventListener('change',()=>{
+ if(!visualSettings.music){stopCustomTrack();stopLevelMusic();}
+ else if(gameState==='PLAYING'&&(isTestingFromEditor||!LEVELS.includes(activePlayableLevel)))playCustomTrack(activePlayableLevel);
+});
 const volumeControl=document.getElementById('setting-volume');
 if(volumeControl)volumeControl.addEventListener('input',()=>{if(customTrackAudio)customTrackAudio.volume=Number(volumeControl.value)/100;});
 
